@@ -32,6 +32,7 @@ IMPLEMENTED:
 - Focus-loss input clear, simulation pause, and 15fps background rendering.
 - Non-fatal 48kHz stereo int16 waveOut probe/silent fallback shell.
 - Debug-only platform self-tests and deterministic smoke auto-close; no game behavior or rules.
+- Saturating signed-axis inversion so the valid XInput extreme `-32768` maps deterministically to `+32767` for movement and aim.
 
 ACCEPTANCE EVIDENCE:
 
@@ -45,7 +46,7 @@ ACCEPTANCE EVIDENCE:
 
 DIST BYTES / DELTA: `126,464B`; T00 baseline `107,008B`; delta `+19,456B`.
 
-CONTEST SHA-256: `dbe95cd2be3dfc8d8c412d56dbcb3f5c3b4bfecab02b175540abcb3fdfa9ecb7`; two clean builds matched.
+CONTEST SHA-256: `d9a833d92eaa76a7ed012f6934c6adb4030f63706ecc13f7b8d06f1ad1c67acf`; two clean repaired builds matched.
 
 RIGHTS / ASSET RESULT: no external library, runtime asset, network, browser, or runtime AI was introduced. Only authority-derived constants and OS APIs are used.
 

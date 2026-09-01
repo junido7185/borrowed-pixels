@@ -79,3 +79,19 @@ FINAL VERIFICATION
     EXIT 0 - 126464 bytes, one file.
 15. rg forbidden-feature scan over CMakeLists.txt, CMakePresets.json, and src
     EXIT 0 - zero matches.
+
+INDEPENDENT REVIEW REPAIR
+1. Read-only review of candidate ba5a2c7c42c174d19ee45b718fd1955d6da11808
+   VERDICT REVIEW_BLOCKED - P0=0, P1=1: negating XInput SHORT_MIN wrapped back to -32768.
+2. cmake --build --preset debug
+   EXIT 0 after adding saturating stick-axis inversion.
+3. .\build\windows-msvc\bin\DEBUG\bp_debug.exe --smoke-test
+   EXIT 0 - movement and aim both map -32768 to +32767.
+4. cmake --build --preset contest --clean-first
+   EXIT 0.
+5. powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\measure_dist.ps1 -Path .\dist\contest -InternalCap 1350000 -HardCap 1474560
+   EXIT 0 - 126464 bytes; repaired SHA-256 d9a833d92eaa76a7ed012f6934c6adb4030f63706ecc13f7b8d06f1ad1c67acf.
+6. cmake --build --preset contest --clean-first (repaired source, run twice)
+   EXIT 0 / EXIT 0 - both hashes d9a833d92eaa76a7ed012f6934c6adb4030f63706ecc13f7b8d06f1ad1c67acf.
+7. configure, debug build, test build, CTest, authority verification, and exact measurement
+   EXIT 0 for every command after repair; CTest 1/1 and authority 6/6.

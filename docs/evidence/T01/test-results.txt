@@ -10,13 +10,14 @@ bp_debug platform smoke: PASS (exit 0)
   - viewport and mouse-transform self-tests
   - press/release edge consumed exactly once
   - WM_KEY repeated down ignored
+  - XInput move/aim Y extreme -32768 saturates to +32767
   - focus clear and focus-pause globalTick invariant
   - 1280x720 default client at 150% display scaling
   - Alt+Enter borderless enter/restore
 bp_test direct execution: PASS (exit 0)
 bp_contest window/close smoke: PASS (1280x720, exit 0)
 visual capture inspection: PASS (1302x776 outer; 1280x720 client)
-contest reproducibility: PASS (two clean builds, identical SHA-256)
+contest reproducibility: PASS after review repair (two clean builds, identical SHA-256)
 dumpbin dependency allowlist: PASS (KERNEL32, USER32, GDI32, WINMM)
 dumpbin PE properties: PASS (x64, Windows GUI, ASLR, NX, CFG)
 forbidden feature scan: PASS (0 matches)

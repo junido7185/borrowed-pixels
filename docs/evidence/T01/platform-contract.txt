@@ -12,7 +12,7 @@ BORROWED PIXELS v2.1 - T01 ACCEPTANCE MAP
 | High-resolution waitable timer; Sleep/spin/timeBeginPeriod fallback | Default high-resolution path exercised; fallback is isolated to failure path | PASS; forced timer failure NOT_RUN |
 | Ignore WM_KEY auto-repeat; consume edges once at next tick | Debug self-tests press/hold/release and repeated-key paths | PASS |
 | Focus loss pauses simulation and renders at 15fps | Smoke stores globalTick at loss and asserts unchanged at restore; rate selection is 15 | PASS |
-| XInput dynamic loading once per render; right deadzone 0.24; low-aim retention | No static XInput import, PollXInput once in render loop, threshold boundary self-test | PASS; physical controller NOT_RUN |
+| XInput dynamic loading once per render; right deadzone 0.24; low-aim retention | No static XInput import, PollXInput once in render loop, threshold and signed-axis-extreme self-tests | PASS; physical controller NOT_RUN |
 | waveOut 48kHz stereo int16 silent/failure shell | Probe opens/reset/closes waveOut; failure returns without terminating | PASS by implementation; forced device failure NOT_RUN |
 | No game rules or third-party runtime | Source/forbidden scan and dependency inspection | PASS |
 | Gate 1 shell size <=450000B | Exact recursive regular-file sum 126464B | PASS |

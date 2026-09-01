@@ -445,6 +445,12 @@ bool OutsideRadialDeadzone(SHORT x, SHORT y, std::int32_t threshold) noexcept {
     return x64 * x64 + y64 * y64 >= threshold64 * threshold64;
 }
 
+std::int16_t InvertStickAxis(std::int16_t value) noexcept {
+    return value == static_cast<std::int16_t>(-32768)
+        ? static_cast<std::int16_t>(32767)
+        : static_cast<std::int16_t>(-value);
+}
+
 void PollXInput(PlatformState& state) noexcept {
     std::uint8_t next[bp::kPlatformActionCount]{};
     XINPUT_STATE gamepadState{};
@@ -515,11 +521,11 @@ void BuildInputFrame(PlatformState& state) noexcept {
         ? static_cast<std::int16_t>(
               (state.input.keyboardHeld[ActionIndex(bp::PlatformAction::MoveDown)] ? 32767 : 0) -
               (state.input.keyboardHeld[ActionIndex(bp::PlatformAction::MoveUp)] ? 32767 : 0))
-        : static_cast<std::int16_t>(-state.input.gamepadMoveY);
+        : InvertStickAxis(state.input.gamepadMoveY);
 
     if (frame.device == bp::InputDevice::Gamepad) {
         frame.aimX = state.input.gamepadAimX;
-        frame.aimY = static_cast<std::int16_t>(-state.input.gamepadAimY);
+        frame.aimY = InvertStickAxis(state.input.gamepadAimY);
     } else {
         frame.aimX = static_cast<std::int16_t>(static_cast<std::int32_t>(frame.mouseX) - bp::kCanvasWidth / 2);
         frame.aimY = static_cast<std::int16_t>(static_cast<std::int32_t>(frame.mouseY) - bp::kCanvasHeight / 2);
@@ -709,6 +715,17 @@ int RunPlatformSelfTests() noexcept {
     if (OutsideRadialDeadzone(7863, 0, kGamepadRightDeadzone)
         || !OutsideRadialDeadzone(7864, 0, kGamepadRightDeadzone)) {
         return 111;
+    }
+
+    PlatformState axisState{};
+    axisState.focused = true;
+    axisState.input.lastDevice = bp::InputDevice::Gamepad;
+    axisState.input.gamepadMoveY = static_cast<std::int16_t>(-32768);
+    axisState.input.gamepadAimY = static_cast<std::int16_t>(-32768);
+    BuildInputFrame(axisState);
+    if (axisState.lastInputFrame.moveY != 32767
+        || axisState.lastInputFrame.aimY != 32767) {
+        return 112;
     }
     return 0;
 }
