@@ -1,0 +1,13 @@
+BORROWED PIXELS v2.1 — T00 SOURCE HOOK REPAIR
+
+Finding: P1 — the initial target skeleton compiled only generated stubs, so a later ticket could not connect its allowlisted `src/*.cpp` or `tests/*.cpp` without changing T00-owned CMakeLists.txt.
+
+Repair:
+- `bp_debug` and `bp_contest` discover repository `src/*.cpp`; the generated Win32 stub is used only while no runtime source exists.
+- `bp_test` discovers `tests/*.cpp` and links non-platform `src/*.cpp`; the generated console stub is used only while no test source exists.
+- `src/` is a private include path for all three targets.
+
+Verification:
+- T00 with empty `src/` and `tests/`: configure, debug, test, CTest, contest, and exact dist measurement all PASS.
+- T01 will provide the first real `src/bp_win32.cpp` proof without a CMake change.
+- T02 will provide the first real `tests/*.cpp` proof without a CMake change.
