@@ -1,0 +1,530 @@
+{
+  "schema": "BP_RUNTIME_CONTRACT_V2_1",
+  "meta": {
+    "status": "DESIGN_FREEZE",
+    "version": 21,
+    "date": "2026-08-26",
+    "numericAuthority": true,
+    "externalRuntimeAssets": 0,
+    "runtimeJsonParser": false
+  },
+  "limits": {
+    "hardDistributionBytes": 1474560,
+    "rcDistributionBytes": 1350000,
+    "targetDistributionBytes": 1170000,
+    "physicalLedgerTotal": 1440,
+    "claimLedgerTotal": 1440,
+    "tickRate": 60,
+    "maxCatchUpTicks": 5,
+    "maxProjectiles": 32,
+    "maxNeutralClusters": 64,
+    "maxAudioVoices": 8
+  },
+  "display": {
+    "canvas": [0, 0, 320, 180],
+    "aspect": [16, 9],
+    "pixelFormat": "BGRA8",
+    "nearestNeighbor": true,
+    "integerScalePreferred": true,
+    "alphaBlending": false,
+    "letterboxColor": "BG"
+  },
+  "palette": {
+    "BG": "#070A0E",
+    "LEDGER_GRID": "#161D24",
+    "PLAYER": "#34D8C4",
+    "OPPONENT": "#F55264",
+    "NEUTRAL": "#CAD0DA",
+    "COVER": "#556373",
+    "CORE": "#FFEEB8",
+    "WARNING": "#FFBE5C",
+    "UI_INACTIVE": "#303B46"
+  },
+  "visualTokens": {
+    "spacing": [1, 2, 4, 6, 8, 12, 16],
+    "strokeWidths": [1, 2],
+    "cornerRadius": 0,
+    "dither": {
+      "NONE": [1],
+      "CHECKER_50": [10, 5],
+      "CHECKER_25": [8, 1, 2, 4],
+      "DASH_2_2": [3, 0]
+    },
+    "blink": {
+      "FOCUS": [30, 30],
+      "WARNING": [12, 12],
+      "CORE_EXPOSED": [8, 8]
+    },
+    "forbidden": [
+      "GRADIENT", "BLUR", "GLOW", "DROP_SHADOW", "ROUNDED_CARD",
+      "OS_WINDOW", "CRT_SCANLINE", "FLOPPY", "CHIP_GRID", "CHARACTER_FACE"
+    ]
+  },
+  "typography": {
+    "latin": {
+      "cell": [5, 7],
+      "advance": 6,
+      "spaceAdvance": 4,
+      "lineHeight": 8,
+      "scales": [1, 2]
+    },
+    "hangul": {
+      "cell": [8, 12],
+      "advance": 9,
+      "spaceAdvance": 4,
+      "lineHeight": 13,
+      "scales": [1]
+    },
+    "ellipsis": "..",
+    "maxEnglishGameplayChars": 42,
+    "maxKoreanGameplayChars": 24,
+    "wrapPolicy": "EXPLICIT_BREAKS_ONLY",
+    "overflowPolicy": "BLOCK_BUILD"
+  },
+  "regions": {
+    "CANVAS": [0, 0, 320, 180],
+    "ARENA_BOUNDARY": [11, 17, 298, 150],
+    "PLAY_INTERIOR": [12, 18, 296, 148],
+    "TOP_LEDGER": [8, 4, 304, 8],
+    "VITAL_FRAME": [2, 22, 58, 20],
+    "IMPULSE_FRAME": [260, 22, 58, 20],
+    "VECTOR_FRAME": [78, 166, 164, 12],
+    "BOTTOM_LEFT_HINT": [2, 168, 72, 8],
+    "BOTTOM_RIGHT_HINT": [246, 168, 72, 8],
+    "MODAL_SAFE": [38, 22, 244, 136],
+    "LEDGER_TABLE": [28, 24, 264, 124],
+    "LEDGER_FOOTER": [28, 154, 264, 18],
+    "ALLOCATION_PANEL": [38, 22, 244, 136],
+    "OPTIONS_PANEL": [54, 22, 212, 136]
+  },
+  "screens": {
+    "TITLE": {
+      "elements": {
+        "total": [112, 22, 96, 7],
+        "materialSeal": [152, 50, 16, 16],
+        "title": [61, 80, 198, 14],
+        "subtitle": [91, 100, 138, 7],
+        "prompt": [82, 124, 156, 7],
+        "locale": [8, 166, 54, 7],
+        "version": [272, 166, 42, 7]
+      },
+      "titleSeal": {
+        "tileCount": 64,
+        "grid": [8, 8],
+        "tilePixelSize": [2, 2],
+        "maskRows": ["11111111", "11111111", "11111111", "11111111", "11111111", "11111111", "11111111", "11111111"]
+      }
+    },
+    "GLOBAL_LEDGER": {
+      "title": [28, 8, 114, 7],
+      "total": [238, 8, 54, 7],
+      "rowOrigin": [28, 24],
+      "rowPitch": 10,
+      "rowCount": 12,
+      "rowRect": [28, 24, 264, 9],
+      "columns": {
+        "nameX": 30,
+        "barRect": [112, 27, 116, 3],
+        "massRightX": 254,
+        "statusX": 262
+      },
+      "footer": [28, 154, 264, 18],
+      "focusOrder": "PLAYER_THEN_REVEALED_TOP_TO_BOTTOM",
+      "mouseHitUsesFullRow": true
+    },
+    "ENCOUNTER_INTRO": {
+      "frame": [38, 34, 244, 100],
+      "act": [48, 42, 84, 7],
+      "entity": [48, 56, 126, 14],
+      "mass": [224, 56, 48, 7],
+      "statement1": [48, 80, 224, 7],
+      "statement2": [48, 92, 224, 7],
+      "ruleHint": [48, 112, 224, 7],
+      "minimumTicks": 90,
+      "autoAdvanceTicks": 180
+    },
+    "COMBAT": {
+      "topLedger": [8, 4, 304, 8],
+      "vital": [2, 22, 58, 20],
+      "impulse": [260, 22, 58, 20],
+      "vector": [78, 166, 164, 12],
+      "leftHint": [2, 168, 72, 8],
+      "rightHint": [246, 168, 72, 8],
+      "hudTextInsets": [3, 3, 3, 2],
+      "zOrder": [
+        "BG", "GRID", "FIELD", "NEUTRAL", "PROJECTILE", "CHARGE",
+        "SHELL", "CORE", "TRANSIT", "HUD_MATERIAL", "HUD_NONMATERIAL",
+        "COPY", "FLASH", "MODAL"
+      ]
+    },
+    "SETTLEMENT": {
+      "frame": [38, 22, 244, 136],
+      "result": [48, 30, 224, 7],
+      "entity": [48, 44, 150, 14],
+      "claimBefore": [202, 46, 70, 7],
+      "choiceRows": [[48, 68, 224, 18], [48, 92, 224, 18], [48, 116, 224, 18]],
+      "choiceLabelInset": [6, 3],
+      "choiceDeltaRightX": 266,
+      "holdBar": [48, 146, 224, 4],
+      "focusOrder": [0, 1, 2],
+      "defaultFocus": 1,
+      "confirmHoldTicks": 30
+    },
+    "POLICY_AUDIT": {
+      "title": [28, 10, 264, 7],
+      "axisRows": [[28, 28, 264, 28], [28, 62, 264, 28], [28, 96, 264, 28]],
+      "memoryRow": [28, 130, 264, 20],
+      "continue": [106, 160, 108, 7],
+      "caseX": 34,
+      "ruleX": 130,
+      "arrowX": 116
+    },
+    "ENDING": {
+      "title": [100, 26, 120, 14],
+      "benefit": [46, 64, 228, 7],
+      "cost": [46, 78, 228, 7],
+      "ledgerVisual": [40, 100, 240, 30],
+      "closing": [46, 144, 228, 7],
+      "continue": [100, 164, 120, 7],
+      "minimumTicks": 360,
+      "autoCreditsTicks": 720
+    },
+    "OPTIONS": {
+      "frame": [54, 22, 212, 136],
+      "title": [64, 30, 192, 7],
+      "rowOrigin": [64, 50],
+      "rowPitch": 16,
+      "rows": 6,
+      "valueRightX": 252,
+      "footer": [64, 144, 192, 7],
+      "focusOrder": [0, 1, 2, 3, 4, 5]
+    }
+  },
+  "motion": {
+    "easing": {
+      "LINEAR": "t",
+      "OUT_QUAD": "1-(1-t)^2",
+      "IN_OUT_QUAD": "2t^2|1-((-2t+2)^2)/2"
+    },
+    "fixedPoint": "Q0.16",
+    "recipes": {
+      "TITLE_BORROW": {"totalTicks": 72, "promptOff": 0, "sealRelease": [0, 6], "transit": [6, 36], "coreBuild": [30, 42], "shellBuild": [36, 54], "ledgerReveal": [48, 66], "phaseEnd": 72},
+      "LEDGER_ROW_UNFOLD": {"totalTicks": 36, "line": [0, 12], "mass": [8, 24], "status": [20, 36]},
+      "ENCOUNTER_OPEN": {"totalTicks": 48, "rowToArena": [0, 24], "fieldBuild": [12, 36], "actorBuild": [24, 48]},
+      "HUD_DISMANTLE": {"channelTicks": 45, "releaseTicks": 6, "transitTicks": 36, "staggerModulo": 6},
+      "HUD_RESTORE": {"channelTicks": 60, "transitTicks": 36, "staggerModulo": 6},
+      "HIT_FREEZE": {"normalTicks": 5, "reduceFlashTicks": 3, "normalShakePx": 2, "reduceShakePx": 0},
+      "SETTLEMENT_OPEN": {"waitTicks": 42, "coreFold": [0, 18], "ledgerDraw": [12, 36], "choiceReveal": [30, 54]},
+      "ALLOCATION_PREVIEW": {"moveTicks": 12, "commitHoldTicks": 30, "commitTransitTicks": 36},
+      "ENDING_REVEAL": {"title": [0, 60], "benefit": [60, 120], "cost": [120, 180], "visual": [180, 300], "closing": [300, 360]}
+    }
+  },
+  "combat": {
+    "playerStart": [48, 92],
+    "defaultOpponentStart": [272, 88],
+    "coreMass": 16,
+    "exposureShellThreshold": 40,
+    "exposureGraceTicks": 15,
+    "hitFreezeTicks": 5,
+    "settlementDelayTicks": 42,
+    "actionSwitchLockTicks": 9,
+    "playerAccelerationPxS2": 500,
+    "opponentAccelerationPxS2": 420,
+    "dash": {"distancePx": 20, "ticks": 8, "invulnerableTicks": 5, "cooldownTicks": 144},
+    "reclaim": {"playerRangePx": 80, "opponentRangePx": 72, "halfAngleDeg": 18, "playerAccelerationPxS2": 180, "opponentAccelerationPxS2": 165, "massPerSecond": 32},
+    "shots": [
+      {"id": "TAP", "reachTicks": 0, "mass": 8, "speedPxS": 170, "shellDamage": 12, "coverDamage": 8, "cooldownTicks": 15},
+      {"id": "CUT", "reachTicks": 21, "mass": 16, "speedPxS": 160, "shellDamage": 24, "coverDamage": 16, "cooldownTicks": 19},
+      {"id": "CLAIM", "reachTicks": 48, "mass": 32, "speedPxS": 140, "shellDamage": 48, "coverDamage": 32, "cooldownTicks": 27},
+      {"id": "FORECLOSE", "reachTicks": 75, "mass": 48, "speedPxS": 120, "shellDamage": 72, "coverDamage": 48, "cooldownTicks": 34}
+    ],
+    "hud": {
+      "VITAL": {"mass": 48, "select": 1},
+      "VECTOR": {"mass": 80, "select": 2},
+      "IMPULSE": {"mass": 96, "select": 3},
+      "states": ["INSTALLED", "DISMANTLING", "TO_SHELL_TRANSIT", "INACTIVE", "RESTORING", "DUE", "TO_HUD_TRANSIT"],
+      "dismantleTicks": 45,
+      "restoreTicks": 60,
+      "transitTicks": 36,
+      "maturityTicks": 720,
+      "warningTicks": 120,
+      "reallocationLockTicks": 90,
+      "maxOpenLoans": 1
+    }
+  },
+  "claimLedgerInitial": {
+    "PLAYER": 0,
+    "SYSTEM": 320,
+    "PATCH": 48,
+    "PAIR": 64,
+    "VESSEL": 224,
+    "KEEPER": 112,
+    "ADAPTER": 72,
+    "FRAME": 240,
+    "INDEX": 48,
+    "WITNESS": 72,
+    "CURRENT": 240,
+    "COMMON": 0
+  },
+  "processes": {
+    "SWEEPER": {"mass": 32, "shape": [4, 8], "crossTicks": 90, "waves": [0, 1800, 3600]},
+    "COMPACTOR": {"mass": 32, "shape": [16, 2], "closeTicks": 180, "holdTicks": 60, "returnTicks": 60, "insetPx": 24},
+    "CHECKSUM": {"probeCount": 2, "probeMass": 16, "rebuildTicks": 120, "retargetTicks": 30}
+  },
+  "encounters": [
+    {
+      "id": "PATCH", "act": 1, "kind": "CORE_DUEL_SWAP", "targetSeconds": [120, 180],
+      "opponentMass": 48, "fieldMass": 160, "neutralMass": 64,
+      "playerSpawn": [48, 92], "opponentSpawn": [270, 90],
+      "field": [
+        {"id":"P0","center":[160,90],"size":[14,14],"mass":32},
+        {"id":"P1","center":[116,52],"size":[28,8],"mass":32},
+        {"id":"P2","center":[116,128],"size":[28,8],"mass":32},
+        {"id":"P3","center":[204,52],"size":[28,8],"mass":32},
+        {"id":"P4","center":[204,128],"size":[28,8],"mass":32}
+      ],
+      "neutral": [
+        {"at":[234,54],"mass":8,"tag":"PATCH_FEED"},{"at":[250,70],"mass":8,"tag":"PATCH_FEED"},
+        {"at":[250,110],"mass":8,"tag":"PATCH_FEED"},{"at":[234,126],"mass":8,"tag":"PATCH_FEED"},
+        {"at":[144,70],"mass":8,"tag":"FREE"},{"at":[176,70],"mass":8,"tag":"FREE"},
+        {"at":[144,110],"mass":8,"tag":"FREE"},{"at":[176,110],"mass":8,"tag":"FREE"}
+      ],
+      "script": {"tapCooldownTicks":90,"feedTransitTicks":18,"feedTriggerShellLoss":8,"successFeedCount":4}
+    },
+    {
+      "id": "PAIR", "act": 1, "kind": "CHECKSUM_DEFENSE", "targetSeconds": [120, 240],
+      "opponentMass": 64, "fieldMass": 160, "neutralMass": 64,
+      "playerSpawn": [48, 92], "opponentSpawn": [248, 90], "coreSpawns": [[248,70],[248,110]],
+      "field": [
+        {"id":"P0","center":[160,46],"size":[40,8],"mass":32},{"id":"P1","center":[160,134],"size":[40,8],"mass":32},
+        {"id":"P2","center":[118,90],"size":[10,42],"mass":32},{"id":"P3","center":[202,90],"size":[10,42],"mass":32},
+        {"id":"P4","center":[160,90],"size":[20,12],"mass":32}
+      ],
+      "neutral": [
+        {"at":[136,62],"mass":8,"tag":"FREE"},{"at":[160,62],"mass":8,"tag":"FREE"},{"at":[184,62],"mass":8,"tag":"FREE"},
+        {"at":[136,118],"mass":8,"tag":"FREE"},{"at":[160,118],"mass":8,"tag":"FREE"},{"at":[184,118],"mass":8,"tag":"FREE"},
+        {"at":[148,90],"mass":8,"tag":"FREE"},{"at":[172,90],"mass":8,"tag":"FREE"}
+      ],
+      "script": {"durationTicks":2700,"probeSpawns":[[160,56],[160,124]],"probeRetargetTicks":30,"forcedChoiceOnCoreHit":"SELECT_ONE"}
+    },
+    {
+      "id": "VESSEL", "act": 1, "kind": "BOSS_CORE", "targetSeconds": [240, 360],
+      "opponentMass": 224, "fieldMass": 320, "neutralMass": 128,
+      "playerSpawn": [42, 92], "opponentSpawn": [264, 90],
+      "field": [
+        {"id":"P0","center":[96,46],"size":[28,8],"mass":32},{"id":"P1","center":[160,46],"size":[28,8],"mass":32},{"id":"P2","center":[224,46],"size":[28,8],"mass":32},
+        {"id":"P3","center":[96,134],"size":[28,8],"mass":32},{"id":"P4","center":[160,134],"size":[28,8],"mass":32},{"id":"P5","center":[224,134],"size":[28,8],"mass":32},
+        {"id":"P6","center":[126,74],"size":[10,22],"mass":32},{"id":"P7","center":[194,74],"size":[10,22],"mass":32},
+        {"id":"P8","center":[126,108],"size":[10,22],"mass":32},{"id":"P9","center":[194,108],"size":[10,22],"mass":32}
+      ],
+      "neutral": [
+        {"at":[76,70],"mass":16,"tag":"FREE"},{"at":[76,112],"mass":16,"tag":"FREE"},{"at":[110,90],"mass":16,"tag":"FREE"},{"at":[148,68],"mass":16,"tag":"FREE"},
+        {"at":[148,112],"mass":16,"tag":"FREE"},{"at":[182,90],"mass":16,"tag":"FREE"},{"at":[222,68],"mass":16,"tag":"FREE"},{"at":[222,112],"mass":16,"tag":"FREE"}
+      ],
+      "actions": {
+        "PRESS":{"durationTicks":60,"cooldownTicks":90},
+        "BRACE":{"durationTicks":60,"cooldownTicks":180,"speedPercent":50,"deflectAngleDeg":70},
+        "STAMP":{"mass":32,"telegraphTicks":30,"speedPxS":90,"cooldownTicks":120,"size":[24,10]},
+        "RECLAIM":{"rangePx":72,"maxMassPerSecond":32}
+      }
+    },
+    {
+      "id": "KEEPER", "act": 2, "kind": "FIELD_MAINTENANCE", "targetSeconds": [120, 180],
+      "opponentMass": 112, "fieldMass": 192, "neutralMass": 64,
+      "playerSpawn": [58, 92], "opponentSpawn": [252, 90],
+      "field": [
+        {"id":"P0","center":[92,50],"size":[26,8],"mass":32},{"id":"P1","center":[160,50],"size":[26,8],"mass":32},{"id":"P2","center":[228,50],"size":[26,8],"mass":32},
+        {"id":"P3","center":[92,130],"size":[26,8],"mass":32},{"id":"P4","center":[160,130],"size":[26,8],"mass":32},{"id":"P5","center":[228,130],"size":[26,8],"mass":32}
+      ],
+      "keeperStructures": [
+        {"id":"K0","center":[120,74],"size":[16,6],"mass":16},{"id":"K1","center":[160,74],"size":[16,6],"mass":16},{"id":"K2","center":[200,74],"size":[16,6],"mass":16},
+        {"id":"K3","center":[140,108],"size":[16,6],"mass":16},{"id":"K4","center":[180,108],"size":[16,6],"mass":16}
+      ],
+      "neutral": [
+        {"at":[116,92],"mass":8,"tag":"FREE"},{"at":[132,92],"mass":8,"tag":"FREE"},{"at":[148,92],"mass":8,"tag":"FREE"},{"at":[164,92],"mass":8,"tag":"FREE"},
+        {"at":[180,92],"mass":8,"tag":"FREE"},{"at":[196,92],"mass":8,"tag":"FREE"},{"at":[212,92],"mass":8,"tag":"FREE"},{"at":[228,92],"mass":8,"tag":"FREE"}
+      ],
+      "script": {"durationTicks":5400,"sweeperWaveTicks":[0,1800,3600],"success":"WAVES_DONE_OR_STRUCTURES_ZERO"}
+    },
+    {
+      "id": "ADAPTER", "act": 2, "kind": "ESCROW_CROSSING", "targetSeconds": [120, 180],
+      "opponentMass": 72, "fieldMass": 192, "neutralMass": 48,
+      "playerSpawn": [46, 92], "opponentSpawn": [274, 92], "playerExit": [286,92], "opponentExit": [34,92],
+      "field": [
+        {"id":"P0","center":[104,50],"size":[34,8],"mass":32},{"id":"P1","center":[160,50],"size":[34,8],"mass":32},{"id":"P2","center":[216,50],"size":[34,8],"mass":32},
+        {"id":"P3","center":[104,130],"size":[34,8],"mass":32},{"id":"P4","center":[160,130],"size":[34,8],"mass":32},{"id":"P5","center":[216,130],"size":[34,8],"mass":32}
+      ],
+      "neutral": [
+        {"at":[136,76],"mass":8,"tag":"ESCROW"},{"at":[160,76],"mass":8,"tag":"ESCROW"},{"at":[184,76],"mass":8,"tag":"ESCROW"},
+        {"at":[136,108],"mass":8,"tag":"ESCROW"},{"at":[160,108],"mass":8,"tag":"ESCROW"},{"at":[184,108],"mass":8,"tag":"ESCROW"}
+      ],
+      "script": {"durationTicks":4500,"compactorStartTick":900,"previewStartTick":3900,"equalRange":[17,31],"needRange":[0,16],"outputRange":[32,48]}
+    },
+    {
+      "id": "FRAME", "act": 2, "kind": "BOSS_CORE", "targetSeconds": [240, 360],
+      "opponentMass": 192, "fieldMass": 384, "neutralMass": 96,
+      "playerSpawn": [44, 92], "opponentSpawn": [268, 90],
+      "field": [
+        {"id":"P0","center":[96,48],"size":[28,8],"mass":32},{"id":"P1","center":[160,48],"size":[28,8],"mass":32},{"id":"P2","center":[224,48],"size":[28,8],"mass":32},
+        {"id":"P3","center":[96,132],"size":[28,8],"mass":32},{"id":"P4","center":[160,132],"size":[28,8],"mass":32},{"id":"P5","center":[224,132],"size":[28,8],"mass":32},
+        {"id":"P6","center":[112,72],"size":[8,24],"mass":32},{"id":"P7","center":[160,72],"size":[8,24],"mass":32},{"id":"P8","center":[208,72],"size":[8,24],"mass":32},
+        {"id":"P9","center":[112,108],"size":[8,24],"mass":32},{"id":"P10","center":[160,108],"size":[8,24],"mass":32},{"id":"P11","center":[208,108],"size":[8,24],"mass":32}
+      ],
+      "neutral": [
+        {"at":[76,90],"mass":8,"tag":"FREE"},{"at":[92,90],"mass":8,"tag":"FREE"},{"at":[128,90],"mass":8,"tag":"FREE"},{"at":[144,90],"mass":8,"tag":"FREE"},
+        {"at":[176,90],"mass":8,"tag":"FREE"},{"at":[192,90],"mass":8,"tag":"FREE"},{"at":[228,90],"mass":8,"tag":"FREE"},{"at":[244,90],"mass":8,"tag":"FREE"},
+        {"at":[136,60],"mass":8,"tag":"FREE"},{"at":[184,60],"mass":8,"tag":"FREE"},{"at":[136,120],"mass":8,"tag":"FREE"},{"at":[184,120],"mass":8,"tag":"FREE"}
+      ],
+      "actions": {
+        "SHIFT":{"panelMass":32,"moveTicks":60,"cooldownTicks":90,"route":[[-20,0],[20,0],[0,-20],[0,20]]},
+        "TOLL":{"structureMass":16,"shellStripMass":8,"cooldownTicks":90},
+        "EVICT":{"structureMass":32,"speedPxS":105,"cooldownTicks":120},
+        "CLAIM":{"mass":32,"cooldownTicks":75},
+        "RECLAIM":{"priority":"OWN_STRUCTURE_THEN_NEAREST"}
+      }
+    },
+    {
+      "id": "INDEX", "act": 3, "kind": "METRIC_TRIAL", "targetSeconds": [120, 180],
+      "opponentMass": 48, "fieldMass": 192, "neutralMass": 96,
+      "playerSpawn": [48, 92], "opponentSpawn": [272, 90],
+      "field": [
+        {"id":"F0","center":[104,54],"size":[26,8],"mass":28},{"id":"F1","center":[160,54],"size":[26,8],"mass":28},{"id":"F2","center":[216,54],"size":[26,8],"mass":28},
+        {"id":"F3","center":[104,126],"size":[26,8],"mass":28},{"id":"F4","center":[160,126],"size":[26,8],"mass":28},{"id":"F5","center":[216,126],"size":[26,8],"mass":28},
+        {"id":"M0","center":[132,90],"size":[6,6],"mass":8,"tag":"METRIC"},{"id":"M1","center":[160,90],"size":[6,6],"mass":8,"tag":"METRIC"},{"id":"M2","center":[188,90],"size":[6,6],"mass":8,"tag":"METRIC"}
+      ],
+      "neutral": [
+        {"at":[88,76],"mass":8,"tag":"UNSCORED"},{"at":[88,104],"mass":8,"tag":"UNSCORED"},{"at":[112,90],"mass":8,"tag":"FREE"},{"at":[124,72],"mass":8,"tag":"FREE"},
+        {"at":[124,108],"mass":8,"tag":"FREE"},{"at":[148,72],"mass":8,"tag":"FREE"},{"at":[148,108],"mass":8,"tag":"FREE"},{"at":[172,72],"mass":8,"tag":"FREE"},
+        {"at":[172,108],"mass":8,"tag":"FREE"},{"at":[196,72],"mass":8,"tag":"FREE"},{"at":[196,108],"mass":8,"tag":"FREE"},{"at":[220,90],"mass":8,"tag":"FREE"}
+      ],
+      "script": {"durationTicks":3600,"damageTarget":32,"distanceTargetPx":160,"idleAllowedTicks":0,"rewriteNodes":2,"resultPriority":["REWRITE","REFUSE","OPTIMIZE"]}
+    },
+    {
+      "id": "WITNESS", "act": 3, "kind": "ARCHIVE_DEFENSE", "targetSeconds": [180, 240],
+      "opponentMass": 72, "fieldMass": 160, "neutralMass": 64,
+      "playerSpawn": [54, 92], "opponentSpawn": [254, 90],
+      "field": [
+        {"id":"P0","center":[96,48],"size":[28,8],"mass":32},{"id":"P1","center":[160,48],"size":[28,8],"mass":32},{"id":"P2","center":[224,48],"size":[28,8],"mass":32},
+        {"id":"P3","center":[128,130],"size":[28,8],"mass":32},{"id":"P4","center":[192,130],"size":[28,8],"mass":32}
+      ],
+      "recordBlocks": [
+        {"id":"R0","center":[132,78],"size":[12,6],"mass":16},{"id":"R1","center":[160,92],"size":[12,6],"mass":16},{"id":"R2","center":[188,106],"size":[12,6],"mass":16}
+      ],
+      "neutral": [
+        {"at":[104,76],"mass":8,"tag":"FREE"},{"at":[104,104],"mass":8,"tag":"FREE"},{"at":[128,92],"mass":8,"tag":"FREE"},{"at":[144,64],"mass":8,"tag":"FREE"},
+        {"at":[176,116],"mass":8,"tag":"FREE"},{"at":[192,92],"mass":8,"tag":"FREE"},{"at":[216,76],"mass":8,"tag":"FREE"},{"at":[216,104],"mass":8,"tag":"FREE"}
+      ],
+      "script": {"durationTicks":3600,"sweeperWaveTicks":[0,1200,2400],"dismantleChannelTicks":60,"eraseRequiresPlayerRecordMass":48}
+    },
+    {
+      "id": "CURRENT", "act": 3, "kind": "BOSS_CORE", "targetSeconds": [240, 360],
+      "opponentMass": 240, "fieldMass": 256, "neutralMass": 160,
+      "playerSpawn": [42, 92], "opponentSpawn": [264, 90],
+      "field": [
+        {"id":"P0","center":[94,50],"size":[24,8],"mass":32},{"id":"P1","center":[160,50],"size":[24,8],"mass":32},{"id":"P2","center":[226,50],"size":[24,8],"mass":32},
+        {"id":"P3","center":[94,130],"size":[24,8],"mass":32},{"id":"P4","center":[160,130],"size":[24,8],"mass":32},{"id":"P5","center":[226,130],"size":[24,8],"mass":32},
+        {"id":"P6","center":[128,90],"size":[8,30],"mass":32},{"id":"P7","center":[192,90],"size":[8,30],"mass":32}
+      ],
+      "neutral": [
+        {"at":[72,64],"mass":8,"tag":"FREE"},{"at":[96,70],"mass":8,"tag":"FREE"},{"at":[120,64],"mass":8,"tag":"FREE"},{"at":[144,70],"mass":8,"tag":"FREE"},{"at":[168,70],"mass":8,"tag":"FREE"},
+        {"at":[192,64],"mass":8,"tag":"FREE"},{"at":[216,70],"mass":8,"tag":"FREE"},{"at":[240,64],"mass":8,"tag":"FREE"},{"at":[84,92],"mass":8,"tag":"FREE"},{"at":[108,92],"mass":8,"tag":"FREE"},
+        {"at":[212,92],"mass":8,"tag":"FREE"},{"at":[236,92],"mass":8,"tag":"FREE"},{"at":[72,116],"mass":8,"tag":"FREE"},{"at":[96,110],"mass":8,"tag":"FREE"},{"at":[120,116],"mass":8,"tag":"FREE"},
+        {"at":[144,110],"mass":8,"tag":"FREE"},{"at":[168,110],"mass":8,"tag":"FREE"},{"at":[192,116],"mass":8,"tag":"FREE"},{"at":[216,110],"mass":8,"tag":"FREE"},{"at":[240,116],"mass":8,"tag":"FREE"}
+      ],
+      "initialOwnedProjectiles": {"count":16,"massEach":8,"orbitCenter":[228,90],"orbitRadiusPx":[22,36],"phaseStep":4096},
+      "initialReserveMass":48,
+      "actions": {
+        "ORBIT":{"count":8,"massEach":8,"launchTicks":48,"cooldownTicks":120},
+        "WAVE":{"count":4,"massEach":16,"anglesDeg":[-24,-8,8,24],"cooldownTicks":150},
+        "FORECLOSE":{"mass":48,"chargeTicks":75,"cooldownTicks":180},
+        "RETURN":{"priority":"BOUNDARY_OWNED_THEN_NEAREST"}
+      }
+    },
+    {
+      "id": "PRECEDENT", "act": 4, "kind": "POLICY_CORE", "targetSeconds": [300, 420],
+      "opponentMass": 256, "fieldMass": 320, "neutralMass": 128,
+      "playerSpawn": [48, 92], "opponentSpawn": [264, 90],
+      "field": [
+        {"id":"P0","center":[88,46],"size":[24,8],"mass":32},{"id":"P1","center":[136,46],"size":[24,8],"mass":32},{"id":"P2","center":[184,46],"size":[24,8],"mass":32},{"id":"P3","center":[232,46],"size":[24,8],"mass":32},
+        {"id":"P4","center":[88,134],"size":[24,8],"mass":32},{"id":"P5","center":[136,134],"size":[24,8],"mass":32},{"id":"P6","center":[184,134],"size":[24,8],"mass":32},{"id":"P7","center":[232,134],"size":[24,8],"mass":32},
+        {"id":"P8","center":[144,90],"size":[8,34],"mass":32},{"id":"P9","center":[192,90],"size":[8,34],"mass":32}
+      ],
+      "neutral": [
+        {"at":[80,70],"mass":8,"tag":"FREE"},{"at":[104,70],"mass":8,"tag":"FREE"},{"at":[128,70],"mass":8,"tag":"FREE"},{"at":[152,70],"mass":8,"tag":"FREE"},
+        {"at":[176,70],"mass":8,"tag":"FREE"},{"at":[200,70],"mass":8,"tag":"FREE"},{"at":[224,70],"mass":8,"tag":"FREE"},{"at":[248,70],"mass":8,"tag":"FREE"},
+        {"at":[80,110],"mass":8,"tag":"FREE"},{"at":[104,110],"mass":8,"tag":"FREE"},{"at":[128,110],"mass":8,"tag":"FREE"},{"at":[152,110],"mass":8,"tag":"FREE"},
+        {"at":[176,110],"mass":8,"tag":"FREE"},{"at":[200,110],"mass":8,"tag":"FREE"},{"at":[224,110],"mass":8,"tag":"FREE"},{"at":[248,110],"mass":8,"tag":"FREE"}
+      ],
+      "phases": [{"fromShellPercent":100,"toShellPercent":67,"axes":["IDENTITY"]},{"fromShellPercent":66,"toShellPercent":34,"axes":["IDENTITY","DISTRIBUTION"]},{"fromShellPercent":33,"toShellPercent":0,"axes":["IDENTITY","DISTRIBUTION","GOVERNANCE","MEMORY"]}],
+      "decisionTicks":12,"reactionDelayTicks":12,"switchThresholdQ8":38
+    }
+  ],
+  "policyRules": {
+    "IDENTITY": {
+      "MATERIAL": {"module":"ORIGIN_LOCK","ruleCopy":"RULE_ID_MATERIAL"},
+      "CONTINUITY": {"module":"FORK","ruleCopy":"RULE_ID_CONTINUITY"},
+      "RELATION": {"module":"TETHER","ruleCopy":"RULE_ID_RELATION"}
+    },
+    "DISTRIBUTION": {
+      "EQUALITY": {"module":"EQUALIZE","ruleCopy":"RULE_DIST_EQUALITY"},
+      "NEED": {"module":"LOW_MASS_PRIORITY","ruleCopy":"RULE_DIST_NEED"},
+      "UTILITY": {"module":"OUTPUT_SCORE","ruleCopy":"RULE_DIST_UTILITY"}
+    },
+    "GOVERNANCE": {
+      "RULE": {"module":"FIXED_CYCLE","ruleCopy":"RULE_GOV_RULE"},
+      "JUDGMENT": {"module":"UTILITY_ADAPT","ruleCopy":"RULE_GOV_JUDGMENT"},
+      "COMMONS": {"module":"VOTE_NODES","ruleCopy":"RULE_GOV_COMMONS"}
+    },
+    "MEMORY": {
+      "FULL": {"module":"REPLAY_NAMED","ruleCopy":"RULE_MEM_FULL"},
+      "SUMMARY": {"module":"REPLAY_AGGREGATE","ruleCopy":"RULE_MEM_SUMMARY"},
+      "NONE": {"module":"NO_REPLAY","ruleCopy":"RULE_MEM_NONE"}
+    }
+  },
+  "endings": {
+    "ENOUGH": {"trigger":"VESSEL_MINIMUM_AND_REMAIN","choice":"REMAIN","unlock":"ALWAYS","minimumEndingTicks":360},
+    "RULE": {"trigger":"PRECEDENT_DEFEATED","choice":"RATIFY","unlock":"ALWAYS","minimumEndingTicks":360},
+    "HAND": {"trigger":"PRECEDENT_DEFEATED","choice":"OVERRIDE","unlock":"ALWAYS","minimumEndingTicks":360},
+    "OPEN_LEDGER": {"trigger":"PRECEDENT_DEFEATED","choice":"OPEN","unlock":"COMMON_MASS_GE_64_OR_FRAME_OPEN","minimumEndingTicks":360},
+    "ONE": {"trigger":"ALL_NINE_ACQUISITIVE_AND_PRECEDENT_DEFEATED","choice":"TOTAL_CLAIM","unlock":"SECRET_ROUTE","minimumEndingTicks":360}
+  },
+  "audio": {
+    "sampleRate": 48000,
+    "channels": 2,
+    "sampleFormat": "S16",
+    "bufferFrames": 512,
+    "bufferCount": 4,
+    "bpm": 112,
+    "stepNumerator": 2880000,
+    "stepDenominator": 448,
+    "masterVolumeSteps": 10,
+    "musicTargetDb": -12,
+    "sfxTargetDb": -6,
+    "settlementTargetDb": -8,
+    "oscillators": ["TRIANGLE","PULSE","XORSHIFT_NOISE"],
+    "sfx": {
+      "TAP":{"priority":4,"wave":"TRIANGLE","startHz":220,"endHz":125,"durationMs":35,"attackMs":1,"releaseMs":12,"pan":0},
+      "CUT":{"priority":4,"wave":"TRIANGLE","startHz":180,"endHz":90,"durationMs":55,"attackMs":2,"releaseMs":18,"pan":0},
+      "CLAIM":{"priority":5,"wave":"PULSE","startHz":145,"endHz":72,"durationMs":90,"attackMs":2,"releaseMs":24,"pan":0},
+      "FORECLOSE":{"priority":6,"wave":"TRIANGLE","startHz":110,"endHz":48,"durationMs":140,"attackMs":4,"releaseMs":40,"pan":0},
+      "SHELL_HIT":{"priority":6,"wave":"PULSE","startHz":700,"endHz":260,"durationMs":45,"attackMs":1,"releaseMs":18,"pan":0},
+      "COVER_BREAK":{"priority":5,"wave":"XORSHIFT_NOISE","startHz":2500,"endHz":900,"durationMs":45,"attackMs":1,"releaseMs":30,"pan":0},
+      "CHARGE_INTERCEPT":{"priority":7,"wave":"PULSE","startHz":960,"endHz":480,"durationMs":45,"attackMs":1,"releaseMs":15,"pan":0},
+      "CORE_EXPOSED":{"priority":8,"wave":"TRIANGLE","notesHz":[880,660],"durationMs":500,"attackMs":4,"releaseMs":80,"pan":0},
+      "SETTLEMENT":{"priority":8,"wave":"TRIANGLE","notesHz":[220,330,440],"noteMs":110,"attackMs":3,"releaseMs":40,"pan":0}
+    },
+    "basePattern": {
+      "bassMidi":[38,-1,-1,-1,33,-1,-1,-1,36,-1,-1,-1,31,-1,-1,-1],
+      "counterMidi":[-1,-1,57,-1,-1,-1,60,-1,-1,-1,62,-1,-1,-1,65,-1],
+      "mechanical":[1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0]
+    }
+  },
+  "save": {
+    "format": "SaveV2",
+    "bytes": 96,
+    "endianness": "LITTLE",
+    "magic": "BP14",
+    "checksum": "FNV1A32",
+    "path": "%LOCALAPPDATA%\\BorrowedPixels\\save.bin"
+  }
+}

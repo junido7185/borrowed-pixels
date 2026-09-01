@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="720" viewBox="0 0 960 360" shape-rendering="crispEdges">
+  <defs>
+    <style>
+      .bg{fill:#070A0E}.grid{fill:#161D24}.player{fill:#34D8C4}.opp{fill:#F55264}.neutral{fill:#CAD0DA}.cover{fill:#556373}.core{fill:#FFEEB8}.warn{fill:#FFBE5C}.inactive{fill:#303B46}
+      .sgrid{stroke:#161D24;stroke-width:1;fill:none}.splayer{stroke:#34D8C4;stroke-width:1;fill:none}.sopp{stroke:#F55264;stroke-width:1;fill:none}.sneutral{stroke:#CAD0DA;stroke-width:1;fill:none}.swarn{stroke:#FFBE5C;stroke-width:1;fill:none}
+      .t{font-family:monospace;font-size:6px;fill:#CAD0DA}.tm{font-family:monospace;font-size:7px;fill:#CAD0DA}.th{font-family:monospace;font-size:12px;font-weight:bold;fill:#CAD0DA}.tp{fill:#34D8C4}.to{fill:#F55264}.tw{fill:#FFBE5C}.ti{fill:#303B46}
+    </style>
+    <pattern id="ledgerGrid" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M8 0H0V8" class="sgrid" opacity="0.42"/></pattern>
+    <pattern id="tile64" width="2" height="2" patternUnits="userSpaceOnUse"><rect width="1" height="1" class="player"/></pattern>
+    <pattern id="dither" width="2" height="2" patternUnits="userSpaceOnUse"><rect width="1" height="1" class="grid"/></pattern>
+  </defs>
+
+  <!-- 1 TITLE -->
+  <g transform="translate(0 0)">
+    <rect width="320" height="180" class="bg"/><rect x="12" y="18" width="296" height="148" fill="url(#ledgerGrid)"/>
+    <text x="112" y="28" class="t">TOTAL TILE 1440</text>
+    <rect x="152" y="50" width="16" height="16" fill="url(#tile64)"/><rect x="151" y="49" width="18" height="18" class="splayer"/>
+    <text x="61" y="91" class="th">BORROWED PIXELS</text>
+    <text x="91" y="105" class="t">EVERY PIXEL IS BORROWED</text>
+    <text x="82" y="129" class="tm tw">PRESS ANY KEY TO BORROW</text>
+    <text x="8" y="174" class="t">KO / EN</text><text x="272" y="174" class="t ti">v2.1</text>
+  </g>
+
+  <!-- 2 GLOBAL LEDGER -->
+  <g transform="translate(320 0)">
+    <rect width="320" height="180" class="bg"/><rect x="12" y="18" width="296" height="148" fill="url(#ledgerGrid)"/>
+    <text x="28" y="14" class="tm">GLOBAL LEDGER</text><text x="238" y="14" class="t">TOTAL 1440</text>
+    <rect x="26" y="22" width="268" height="10" class="splayer"/>
+    <g class="t">
+      <text x="30" y="30" class="tp">PLAYER</text><rect x="112" y="27" width="18" height="3" class="player"/><text x="236" y="30" class="tp">144</text><text x="262" y="30">HOLDER</text>
+      <text x="30" y="40">PATCH</text><rect x="112" y="37" width="7" height="3" class="opp"/><text x="236" y="40">32</text><text x="262" y="40">CONT.</text>
+      <text x="30" y="50">PAIR</text><rect x="112" y="47" width="12" height="3" class="opp"/><text x="236" y="50">64</text><text x="262" y="50">LINK</text>
+      <text x="30" y="60">VESSEL</text><rect x="112" y="57" width="16" height="3" class="opp"/><text x="236" y="60">80</text><text x="262" y="60">RETURN</text>
+      <text x="30" y="70">KEEPER</text><rect x="112" y="67" width="21" height="3" class="grid"/><text x="236" y="70">112</text><text x="262" y="70">SEALED</text>
+      <text x="30" y="80">ADAPTER</text><rect x="112" y="77" width="14" height="3" class="grid"/><text x="236" y="80">72</text><text x="262" y="80">SEALED</text>
+      <text x="30" y="90">ENTITY // 240</text><rect x="112" y="87" width="46" height="3" class="grid"/><text x="262" y="90">SEALED</text>
+      <text x="30" y="100">ENTITY // 48</text><rect x="112" y="97" width="9" height="3" class="grid"/><text x="262" y="100">SEALED</text>
+      <text x="30" y="110">ENTITY // 72</text><rect x="112" y="107" width="14" height="3" class="grid"/><text x="262" y="110">SEALED</text>
+      <text x="30" y="120">ENTITY // 240</text><rect x="112" y="117" width="46" height="3" class="grid"/><text x="262" y="120">SEALED</text>
+      <text x="30" y="130">SYSTEM</text><rect x="112" y="127" width="61" height="3" class="grid"/><text x="236" y="130">320</text>
+      <text x="30" y="140">COMMON</text><rect x="112" y="137" width="15" height="3" class="neutral"/><text x="236" y="140">80</text><text x="262" y="140">OPEN</text>
+    </g>
+    <line x1="28" y1="151" x2="292" y2="151" class="sgrid"/><text x="28" y="163" class="t tw">SELECT THE NEXT CLAIM</text><text x="246" y="163" class="t">ENTER</text>
+  </g>
+
+  <!-- 3 COMBAT -->
+  <g transform="translate(640 0)">
+    <rect width="320" height="180" class="bg"/><rect x="12" y="18" width="296" height="148" fill="url(#ledgerGrid)"/><rect x="11" y="17" width="298" height="150" class="sgrid"/>
+    <rect x="8" y="4" width="304" height="8" class="sgrid"/><rect x="9" y="5" width="52" height="6" class="player"/><rect x="61" y="5" width="71" height="6" class="opp"/><rect x="132" y="5" width="34" height="6" class="neutral"/><rect x="166" y="5" width="145" height="6" fill="url(#dither)"/>
+    <rect x="2" y="22" width="58" height="20" class="splayer"/><text x="5" y="29" class="t tp">VITAL 144</text><line x1="5" y1="36" x2="51" y2="36" class="splayer"/><line x1="50" y1="34" x2="50" y2="39" class="swarn"/>
+    <rect x="260" y="22" width="58" height="20" class="splayer"/><text x="264" y="29" class="t tp">IMPULSE</text><line x1="264" y1="36" x2="310" y2="36" class="splayer"/>
+    <rect x="78" y="166" width="164" height="12" class="splayer"/><text x="83" y="174" class="t tp">VECTOR // 32 HIT</text>
+    <g class="cover"><rect x="103" y="48" width="28" height="8"/><rect x="189" y="48" width="28" height="8"/><rect x="103" y="124" width="28" height="8"/><rect x="189" y="124" width="28" height="8"/></g>
+    <rect x="45" y="82" width="16" height="16" class="splayer"/><rect x="51" y="88" width="4" height="4" class="core"/><path d="M43 78V102M63 78V102" class="splayer"/>
+    <rect x="252" y="76" width="28" height="28" class="sopp"/><rect x="264" y="88" width="4" height="4" class="core"/><rect x="248" y="72" width="36" height="36" class="sopp"/>
+    <g class="neutral"><rect x="144" y="68" width="2" height="2"/><rect x="176" y="70" width="2" height="2"/><rect x="150" y="112" width="2" height="2"/><rect x="184" y="104" width="2" height="2"/></g>
+    <line x1="62" y1="90" x2="188" y2="90" class="splayer"/><rect x="122" y="88" width="8" height="4" class="player"/>
+    <text x="2" y="175" class="t">EXPOSE CORE</text><text x="276" y="175" class="t">E HOLD</text>
+  </g>
+
+  <!-- 4 SETTLEMENT -->
+  <g transform="translate(0 180)">
+    <rect width="320" height="180" class="bg"/><rect x="12" y="18" width="296" height="148" fill="url(#ledgerGrid)"/><rect x="38" y="22" width="244" height="136" class="sgrid"/>
+    <text x="48" y="36" class="tm tw">SETTLEMENT</text><text x="48" y="55" class="th">VESSEL</text><text x="230" y="52" class="tm to">160</text>
+    <rect x="46" y="66" width="228" height="22" class="sgrid"/><text x="54" y="78" class="tm">CLAIM</text><text x="222" y="78" class="tm tp">+64 YOU</text>
+    <rect x="46" y="90" width="228" height="22" class="splayer"/><path d="M43 94H39V108H43M277 94H281V108H277" class="splayer"/><text x="54" y="102" class="tm tp">RETURN</text><text x="207" y="102" class="tm">NO TRANSFER</text>
+    <rect x="46" y="114" width="228" height="22" class="sgrid"/><text x="54" y="126" class="tm">RELEASE</text><text x="199" y="126" class="tm">+64 COMMON</text>
+    <line x1="48" y1="148" x2="154" y2="148" class="splayer"/><line x1="154" y1="148" x2="272" y2="148" class="sgrid"/><text x="48" y="156" class="t">HOLD TO COMMIT</text>
+  </g>
+
+  <!-- 5 POLICY AUDIT -->
+  <g transform="translate(320 180)">
+    <rect width="320" height="180" class="bg"/><rect x="12" y="18" width="296" height="148" fill="url(#ledgerGrid)"/>
+    <text x="28" y="16" class="tm tw">POLICY AUDIT // CASE TO RULE</text>
+    <g class="sgrid"><rect x="28" y="28" width="264" height="28"/><rect x="28" y="62" width="264" height="28"/><rect x="28" y="96" width="264" height="28"/><rect x="28" y="130" width="264" height="20"/></g>
+    <g class="t"><text x="34" y="38">PATCH / CONTINUE</text><text x="116" y="45" class="tw">&gt;</text><text x="130" y="38" class="tp">A PROCESS MAY CONTINUE</text><line x1="130" y1="43" x2="256" y2="43" class="splayer"/>
+      <text x="34" y="72">ADAPTER / NEED</text><text x="116" y="79" class="tw">&gt;</text><text x="130" y="72" class="tp">THE LEAST RECEIVE FIRST</text><line x1="130" y1="77" x2="268" y2="77" class="splayer"/>
+      <text x="34" y="106">FRAME / OPEN</text><text x="116" y="113" class="tw">&gt;</text><text x="130" y="106" class="tp">THE AFFECTED MAY CHALLENGE</text><line x1="130" y1="111" x2="276" y2="111" class="splayer"/>
+      <text x="34" y="140">WITNESS / FULL</text><text x="130" y="140" class="tp">NAMES AND LOSSES REMAIN</text></g>
+    <text x="106" y="168" class="tm tw">BUILD PRECEDENT</text>
+  </g>
+
+  <!-- 6 OPEN LEDGER ENDING -->
+  <g transform="translate(640 180)">
+    <rect width="320" height="180" class="bg"/><rect x="12" y="18" width="296" height="148" fill="url(#ledgerGrid)"/>
+    <text x="100" y="38" class="th tp">OPEN LEDGER</text>
+    <text x="46" y="70" class="tm">EVERY CLAIM COULD BE CHALLENGED</text><text x="46" y="84" class="tm tw">NO SETTLEMENT WAS FINAL</text>
+    <g class="sgrid"><rect x="40" y="100" width="240" height="30"/><line x1="60" y1="100" x2="60" y2="130"/><line x1="96" y1="100" x2="96" y2="130"/><line x1="140" y1="100" x2="140" y2="130"/><line x1="196" y1="100" x2="196" y2="130"/><line x1="244" y1="100" x2="244" y2="130"/></g>
+    <g class="neutral"><rect x="56" y="106" width="3" height="3"/><rect x="91" y="116" width="3" height="3"/><rect x="136" y="104" width="3" height="3"/><rect x="192" y="120" width="3" height="3"/><rect x="240" y="110" width="3" height="3"/></g>
+    <g class="sneutral"><path d="M59 107H88M94 117H133M139 105H189M195 121H237M243 111H266"/></g>
+    <text x="46" y="150" class="t">TOTAL 1440 // STILL MOVING</text><text x="100" y="170" class="tm ti">CONTINUE</text>
+  </g>
+</svg>
