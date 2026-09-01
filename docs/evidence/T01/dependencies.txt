@@ -1,0 +1,28 @@
+BORROWED PIXELS v2.1 - T01 PE / DEPENDENCIES
+
+Command:
+dumpbin /nologo /dependents .\dist\contest\BorrowedPixels.exe
+
+Static dependencies:
+- KERNEL32.dll
+- USER32.dll
+- GDI32.dll
+- WINMM.dll
+
+Status: PASS - all are in the production-spec allowlist.
+
+XInput:
+- `xinput1_4.dll` is loaded through LoadLibraryW/GetProcAddress.
+- It is absent from the static dependency table.
+- Failure leaves keyboard/mouse operation available.
+
+PE header command:
+dumpbin /nologo /headers .\dist\contest\BorrowedPixels.exe
+
+Observed:
+- 8664 machine (x64)
+- subsystem 2 (Windows GUI)
+- High Entropy Virtual Addresses
+- Dynamic base
+- NX compatible
+- Control Flow Guard

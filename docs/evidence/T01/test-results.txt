@@ -1,0 +1,30 @@
+BORROWED PIXELS v2.1 - T01 TEST RESULTS
+
+authority verification: PASS (6/6)
+configure windows-msvc: PASS
+bp_debug MSVC build: PASS (warnings 0)
+bp_test MSVC build: PASS
+CTest bp_target_skeleton: PASS (1/1)
+bp_contest clean MSVC build: PASS (warnings 0, errors 0)
+bp_debug platform smoke: PASS (exit 0)
+  - viewport and mouse-transform self-tests
+  - press/release edge consumed exactly once
+  - WM_KEY repeated down ignored
+  - focus clear and focus-pause globalTick invariant
+  - 1280x720 default client at 150% display scaling
+  - Alt+Enter borderless enter/restore
+bp_test direct execution: PASS (exit 0)
+bp_contest window/close smoke: PASS (1280x720, exit 0)
+visual capture inspection: PASS (1302x776 outer; 1280x720 client)
+contest reproducibility: PASS (two clean builds, identical SHA-256)
+dumpbin dependency allowlist: PASS (KERNEL32, USER32, GDI32, WINMM)
+dumpbin PE properties: PASS (x64, Windows GUI, ASLR, NX, CFG)
+forbidden feature scan: PASS (0 matches)
+exact dist gate: PASS (126464B, exit 0)
+
+NOT_RUN:
+- Physical XInput controller interaction: no controller was available to the automation session.
+- Forced waveOut-unavailable and high-resolution-timer-unavailable faults: no system fault-injection harness exists in T01; both paths were reviewed and remain non-fatal by construction.
+- Cross-monitor WM_DPICHANGED drag: the session did not provide a controlled second-DPI monitor.
+
+Ledger, SaveV2, replay hash, renderer goldens, and game-rule tests are NOT_APPLICABLE to T01 and begin in their owning tickets.

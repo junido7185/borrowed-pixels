@@ -1,24 +1,25 @@
-# BORROWED PIXELS v2.1 상태
+# BORROWED PIXELS v2.1 status
 
-- 통합 기준 SHA: `152b0177896b83bf0d16457fb7f20e98d0b9b374`
-- 현재 상태: `REVIEWING_T00`
-- 권위 상태: v2.1 manifest SHA 검증 PASS
-- 현재 티켓: T00 bootstrap candidate
-- contest dist: `107,008B`
+- Integration base SHA: `2cb1502269000184311e6d1acb909864aa813e30`
+- Current controller state: `REVIEWING_T01`
+- Authority state: v2.1 manifest verification `PASS`
+- Current ticket: T01 platform candidate
+- Contest dist: `126,464B`
 
-| 티켓 | 상태 | 근거 |
+| Ticket | State | Evidence |
 |---|---|---|
-| T00 | READY_FOR_REVIEW | `docs/evidence/T00/`, `docs/handoffs/T00/OUTPUT.md` |
-| T01~T14 | PENDING | T00 로컬 통합 뒤 순차 진행 |
+| T00 | LOCALLY_INTEGRATED | `docs/evidence/T00/`, `docs/handoffs/T00/OUTPUT.md` |
+| T01 | READY_FOR_REVIEW | `docs/evidence/T01/`, `docs/handoffs/T01/OUTPUT.md` |
+| T02-T14 | PENDING | Sequential controller execution after T01 review |
 
-## Gate 상태
+## Gate status
 
-| Gate | 상태 | 비고 |
+| Gate | State | Note |
 |---|---|---|
-| Gate 0 | PASS | 권위 해시 6개 일치, 구 v1.0/v2.0 문서 미사용 |
-| Gate 1 | PENDING | T01 Win32 shell에서 수행 |
-| Gate 2 | PENDING | T02 원장·저장에서 수행 |
-| Gate 3/4 | PENDING | T07 통합 뒤 HUMAN_CHECKPOINT |
-| Gate 5/6 | PENDING | 후속 티켓과 사람 검증 필요 |
+| Gate 0 | PASS | Six authority hashes match; no v1.0/v2.0 source used |
+| Gate 1 | CANDIDATE_PASS | T01 shell builds and runs; `126,464B <= 450,000B` |
+| Gate 2 | PENDING | T02 ledgers/save |
+| Gate 3/4 | PENDING | T07 integration then human checkpoint |
+| Gate 5/6 | PENDING | Later tickets and human verification |
 
-`READY_FOR_REVIEW`는 수락이나 통합을 뜻하지 않는다. 독립 검토에서 P0/P1=0이고 자동 검증이 재현된 뒤에만 컨트롤러가 로컬 fast-forward 통합한다.
+`READY_FOR_REVIEW` is not acceptance or merge approval. The controller may locally fast-forward only after the candidate has P0/P1=0 and all automated checks reproduce.

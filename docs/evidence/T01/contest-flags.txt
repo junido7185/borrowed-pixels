@@ -1,0 +1,18 @@
+BORROWED PIXELS v2.1 - T01 MSVC CONTEST FLAGS
+
+Command:
+cmake --build --preset contest --clean-first --verbose
+
+Required compile flags observed in the actual CL.exe line:
+/std:c++20 /O1 /GL /Gy /Gw /GR- /W4 /permissive-
+/Zc:inline /Zc:preprocessor /MT /GS /guard:cf
+
+Required link flags observed in the actual link.exe line:
+/LTCG /OPT:REF /OPT:ICF /INCREMENTAL:NO
+/SUBSYSTEM:WINDOWS /DYNAMICBASE /NXCOMPAT /guard:cf /BREPRO
+
+Forbidden flags absent:
+- /NODEFAULTLIB
+- /ENTRY: custom CRT entry
+
+The contest code path uses no exceptions, RTTI, iostream, filesystem, locale, or regex. The ordinary CRT wWinMain entry remains in use.

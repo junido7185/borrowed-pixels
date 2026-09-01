@@ -1,0 +1,81 @@
+BORROWED PIXELS v2.1 - T01 COMMAND EVIDENCE
+Date: 2026-09-01 KST
+Base: 2cb1502269000184311e6d1acb909864aa813e30
+Branch: ticket/T01-platform
+
+ENVIRONMENT
+- Visual Studio Community 2022 17.9.2
+- MSVC cl 19.39.33521 x64
+- Windows SDK 10.0.22621.0
+- CMake 4.4.3
+- Git 2.49.0.windows.1
+
+PRE-IMPLEMENTATION BASELINE
+1. powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify_authority.ps1
+   EXIT 0 - all six v2.1 hashes matched.
+2. cmake --preset windows-msvc
+   EXIT 0.
+3. cmake --build --preset debug
+   EXIT 0.
+4. cmake --build --preset test
+   EXIT 0.
+5. ctest --preset all --output-on-failure
+   EXIT 0 - 1/1 passed.
+6. cmake --build --preset contest
+   EXIT 0.
+7. powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\measure_dist.ps1 -Path .\dist\contest -InternalCap 1350000 -HardCap 1474560
+   EXIT 0 - 107008 bytes.
+
+IMPLEMENTATION / REPAIR COMMANDS
+1. cmake --preset windows-msvc; cmake --build --preset debug
+   EXIT 1 - Unicode LoadCursorW received the ANSI IDC_ARROW macro.
+2. cmake --build --preset debug
+   EXIT 1 - OCR_NORMAL was unavailable without OEMRESOURCE.
+3. cmake --build --preset debug; cmake --build --preset test; ctest --preset all --output-on-failure; cmake --build --preset contest
+   EXIT 0 after using MAKEINTRESOURCEW(32512).
+4. Start-Process .\build\windows-msvc\bin\DEBUG\bp_debug.exe -ArgumentList '--smoke-test' -Wait -PassThru
+   EXIT 0 before the DPI size assertion was introduced.
+5. The same debug smoke command after adding exact client-size validation.
+   EXIT 105 - exposed 96-DPI non-client sizing on a 150% display.
+6. cmake --build --preset debug; cmake --build --preset contest; debug --smoke-test
+   EXIT 0 after sizing with GetDpiForSystem + AdjustWindowRectExForDpi.
+7. Direct .ps1 invocation under the host policy.
+   BLOCKED - PSSecurityException; no system policy was changed.
+8. The same repository scripts through powershell.exe -ExecutionPolicy Bypass.
+   EXIT 0.
+9. First cmd.exe vcvars64/dumpbin composition.
+   EXIT 1 - quoting error in the wrapper command.
+10. $cmdLine='call "<VS>\vcvars64.bat" >nul && dumpbin /nologo /dependents "dist\contest\BorrowedPixels.exe"'; cmd.exe /d /c $cmdLine
+    EXIT 0.
+
+FINAL VERIFICATION
+1. cmake --preset windows-msvc
+   EXIT 0.
+2. cmake --build --preset debug
+   EXIT 0.
+3. cmake --build --preset test
+   EXIT 0.
+4. ctest --preset all --output-on-failure
+   EXIT 0 - 1/1 passed.
+5. cmake --build --preset contest --clean-first --verbose
+   EXIT 0 - warnings 0, errors 0; all required 33.2 flags observed.
+6. cmake --build --preset contest --clean-first (run twice)
+   EXIT 0 / EXIT 0 - identical SHA-256 dbe95cd2be3dfc8d8c412d56dbcb3f5c3b4bfecab02b175540abcb3fdfa9ecb7.
+7. .\build\windows-msvc\bin\DEBUG\bp_debug.exe --smoke-test
+   EXIT 0 - platform self-tests, 1280x720 client, Alt+Enter enter/restore, focus-pause tick invariant.
+8. .\build\windows-msvc\bin\TEST\bp_test.exe
+   EXIT 0.
+9. .\dist\contest\BorrowedPixels.exe; PMv2-aware GetClientRect; PostMessageW(WM_CLOSE)
+   EXIT 0 - 1280x720 client observed and normal close completed.
+10. DPI-aware System.Drawing screen capture of the debug shell
+    EXIT 0 - client 1280x720, outer 1302x776; `platform-shell.png` written.
+11. dumpbin /nologo /dependents .\dist\contest\BorrowedPixels.exe
+    EXIT 0 - KERNEL32, USER32, GDI32, WINMM only.
+12. dumpbin /nologo /headers .\dist\contest\BorrowedPixels.exe
+    EXIT 0 - x64, Windows GUI, high entropy VA, dynamic base, NX, CFG.
+13. powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify_authority.ps1
+    EXIT 0 - 6/6.
+14. powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\measure_dist.ps1 -Path .\dist\contest -InternalCap 1350000 -HardCap 1474560
+    EXIT 0 - 126464 bytes, one file.
+15. rg forbidden-feature scan over CMakeLists.txt, CMakePresets.json, and src
+    EXIT 0 - zero matches.
