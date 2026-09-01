@@ -1,0 +1,9 @@
+BORROWED PIXELS v2.1 — T00 DEPENDENCIES
+
+Command:
+dumpbin /dependents .\dist\contest\BorrowedPixels.exe
+
+Result:
+KERNEL32.dll
+
+Status: PASS — dependency is inside the production-spec 33.2 OS allowlist.

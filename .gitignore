@@ -1,0 +1,6 @@
+/build/
+/.vs/
+/dist/contest/*.exe
+/dist/contest/*.ilk
+/dist/contest/*.map
+/dist/contest/*.pdb

@@ -1,0 +1,18 @@
+BORROWED PIXELS v2.1 — T00 MSVC CONTEST FLAGS
+
+Command:
+cmake --build --preset contest --clean-first --verbose
+
+Required compile flags observed:
+/std:c++20 /O1 /GL /Gy /Gw /GR- /W4 /permissive-
+/Zc:inline /Zc:preprocessor /MT /GS /guard:cf
+
+Required link flags observed:
+/LTCG /OPT:REF /OPT:ICF /INCREMENTAL:NO
+/SUBSYSTEM:WINDOWS /DYNAMICBASE /NXCOMPAT /guard:cf /BREPRO
+
+Forbidden flags absent:
+/NODEFAULTLIB
+custom CRT entry
+
+The generated stub uses the ordinary CRT wWinMain path.

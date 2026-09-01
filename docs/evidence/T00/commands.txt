@@ -1,0 +1,57 @@
+BORROWED PIXELS v2.1 — T00 COMMAND EVIDENCE
+Date: 2026-09-01 KST
+Base: 152b0177896b83bf0d16457fb7f20e98d0b9b374
+
+ENVIRONMENT
+- Visual Studio Community 2022 17.9.2
+- MSVC cl 19.39.33521 x64
+- Windows SDK tools 10.0.22621.0 (rc.exe, mt.exe)
+- CMake 4.4.3
+- Git 2.49.0.windows.1
+
+PRE-IMPLEMENTATION BASELINE
+1. cmake --preset windows-msvc
+   EXIT 1 — CMakePresets.json did not exist.
+2. cmake --build --preset debug
+   EXIT 1 — CMakePresets.json did not exist.
+3. cmake --build --preset test
+   EXIT 1 — CMakePresets.json did not exist.
+4. ctest --preset all --output-on-failure
+   EXIT 1 — CMakePresets.json did not exist.
+5. cmake --build --preset contest
+   EXIT 1 — CMakePresets.json did not exist.
+6. powershell -ExecutionPolicy Bypass -File .\tools\measure_dist.ps1 -Path .\dist\contest -InternalCap 1350000 -HardCap 1474560
+   NOT_RUN — script and dist directory did not exist.
+
+IMPLEMENTATION AND REPAIR
+1. powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\verify_authority.ps1
+   EXIT 0 — all six manifest hashes matched.
+2. cmake --preset windows-msvc
+   EXIT 0 — Visual Studio 17 2022 x64, MSVC 19.39.33521, SDK 10.0.22621.0.
+3. cmake --build --preset debug
+   EXIT 1 — initial stub used a wWinMain noexcept declaration incompatible with the SDK declaration.
+4. cmake --build --preset debug
+   EXIT 0 — declaration repaired without adding T01 behavior.
+5. cmake --build --preset test
+   EXIT 0.
+6. cmake --build --preset contest
+   EXIT 0.
+7. ctest --preset all --output-on-failure
+   EXIT 0 — 1/1 tests passed.
+8. cmake --build --preset contest --clean-first --verbose
+   EXIT 0 — mandatory production-spec 33.2 compile/link flags observed in the MSVC command lines.
+9. powershell -ExecutionPolicy Bypass -File .\tools\measure_dist.ps1 -Path .\dist\contest -InternalCap 1350000 -HardCap 1474560
+   EXIT 0 — 107008 bytes.
+10. dumpbin /dependents .\dist\contest\BorrowedPixels.exe
+    EXIT 0 — KERNEL32.dll only.
+11. Start-Process bp_debug.exe -WindowStyle Hidden -Wait -PassThru
+    EXIT 0.
+12. Start-Process bp_test.exe -WindowStyle Hidden -Wait -PassThru
+    EXIT 0.
+13. Start-Process BorrowedPixels.exe -WindowStyle Hidden -Wait -PassThru
+    EXIT 0.
+
+MEASURE SCRIPT EXIT CONTRACT
+- InternalCap=107007, HardCap=107009: EXIT 1, RC_CAP_EXCEEDED.
+- InternalCap=100000, HardCap=107007: EXIT 2, HARD_CAP_EXCEEDED.
+- InternalCap=1350000, HardCap=1474560: EXIT 0, PASS.

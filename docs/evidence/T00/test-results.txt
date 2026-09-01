@@ -1,0 +1,18 @@
+BORROWED PIXELS v2.1 — T00 TEST RESULTS
+
+authority verification: PASS (6/6 manifest hashes)
+configure windows-msvc: PASS
+bp_debug build: PASS
+bp_test build: PASS
+bp_contest build: PASS
+CTest bp_target_skeleton: PASS (1/1)
+bp_debug direct execution: PASS (exit 0)
+bp_test direct execution: PASS (exit 0)
+bp_contest direct execution: PASS (exit 0)
+contest output location: PASS (dist/contest/BorrowedPixels.exe only)
+measure_dist normal gate: PASS (exit 0)
+measure_dist RC cap branch: PASS (exit 1)
+measure_dist hard cap branch: PASS (exit 2)
+dumpbin dependency allowlist: PASS (KERNEL32.dll only)
+
+Determinism and ledger tests: NOT_APPLICABLE to T00. No simulation, ledger, save, window, input, renderer, audio, or game rule exists in this ticket.
