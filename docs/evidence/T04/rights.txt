@@ -1,0 +1,6 @@
+T04 RIGHTS AND PROVENANCE
+
+- Source and tests are original ticket implementation derived only from the repository's verified v2.1 authority.
+- No external or downloaded code, library, font, image, audio, or runtime asset was added.
+- No runtime JSON parsing, network, browser, runtime AI, telemetry, or external service was added.
+- Contest output remains the single executable under dist/contest.

@@ -1,0 +1,29 @@
+T04 TEST RESULTS
+
+COMMAND: build/windows-msvc/bin/TEST/bp_test.exe
+EXIT: 0
+
+T04_INFO replay=DD90E82D ticks=4096
+T04_PASS checks=333082 replay_ticks=4096
+T03_INFO hangul=160B0D5B
+T03_INFO policy_profiles=81 language_modes=1 overlap_pixels=0
+T03_PASS checks=5035224 latin_glyphs=59 hangul_syllables=11172 captures=6
+T02_PASS checks=2365194 combinations=19683 save_bytes=96
+
+T04 COVERAGE:
+
+- Exact signed Q8.8 speed and acceleration conversion.
+- 100,000 integer-square-root bounds and shell speed/radius endpoints.
+- 7,992 grid-sampled circle/AABB minimum-separation cases.
+- Exact input priority and nine-tick Fire/Reclaim switch lock.
+- 20,000 randomized movement/dash boundary ticks with both ledgers valid.
+- Invalid tick byte-identical rollback.
+- Dash duration, distance, immunity, cooldown, mass preservation, channel exclusion, and boundary cancellation.
+- Three 4,096-tick deterministic replays; identical inputs hash-identical each tick and a changed input diverges.
+
+COMMAND: ctest --preset all --output-on-failure
+EXIT: 0
+RESULT: 1/1 PASS
+
+COMMAND: Start-Process build/windows-msvc/bin/DEBUG/bp_debug.exe -ArgumentList '--smoke-test' -Wait -PassThru
+EXIT: 0

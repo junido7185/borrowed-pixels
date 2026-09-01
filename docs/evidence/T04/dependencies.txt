@@ -1,0 +1,23 @@
+T04 CONTEST PE CHECK
+
+DEPENDENCIES:
+- KERNEL32.dll
+- USER32.dll
+- GDI32.dll
+- WINMM.dll
+
+PE:
+- machine x64 (8664)
+- Windows GUI subsystem
+- size of image 0x26000
+
+GENERATED PROJECT SETTINGS:
+- C++20
+- WholeProgramOptimization=true
+- OptimizeReferences=true (/OPT:REF)
+- EnableCOMDATFolding=true (/OPT:ICF)
+- /Gw
+- /guard:cf
+- /BREPRO
+
+T04 is a headless simulation ticket. It intentionally adds no Win32 presentation or input bridge; live game-state reachability begins with the authorized encounter/game integration ticket.
