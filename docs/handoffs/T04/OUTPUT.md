@@ -46,3 +46,12 @@ REVIEW:
 - The final docs-only tip is checked once more before standing local fast-forward approval is used.
 
 STATUS: READY_FOR_REVIEW — not ACCEPTED and not yet integrated.
+
+LOCAL INTEGRATION:
+
+- Standing Human Director approval applied after exact candidate, ancestry, clean state, authority hashes, P0/P1/P2=0, required tests, and exact dist measurement were rechecked.
+- `integration/rc-2026-09-03` fast-forwarded from `53a3cac34427f98ec281754a4a19e6980686987d` to candidate `b8739064b8c8b4ae1fdb2a928812a61573ea5f0c`.
+- Post-integration authority/configure/Debug/Test/direct/CTest/smoke/Contest/dist regression passed.
+- No push, tag, publication, or submission was performed.
+
+INTEGRATION STATUS: LOCALLY_INTEGRATED — not externally accepted or released.
