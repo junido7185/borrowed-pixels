@@ -8,7 +8,9 @@ AMENDMENT-ONLY COMMIT: `60d9e11204208f3fc43d348029167ac21caef61b`
 
 AMENDMENT SHA-256: `9431ddb6e512ed7842f8c0c1d36ae7c33374cdb1824ab5037e4f87f0256c961f`
 
-CANDIDATE SHA: resolve the committed tip of `ticket/T03-render-ui`; the controller reports the immutable final SHA after independent review.
+REVIEWED IMPLEMENTATION SHA: `1578d483b9bf6cae1d1e3e9109309829bbe5ad8d`
+
+CANDIDATE SHA: resolve `candidate/T03-final`; the controller reports the immutable final SHA after the review-evidence commit so the document does not contain a self-referential commit ID.
 
 CHANGED PATHS:
 
@@ -59,6 +61,7 @@ RIGHTS / ASSET RESULT:
 
 REMAINING CHECK:
 
-- Independent candidate review must report P0=0 and P1=0. Gate 3 subjective visual PASS remains Human Director-only and is not claimed here.
+- Independent read-only review reported P0=0, P1=0, and P2=0 for implementation commit `1578d483...`.
+- Gate 3 subjective visual PASS remains Human Director-only and is not claimed here.
 
-STATUS: REVIEW_PENDING — not ACCEPTED and not integrated.
+STATUS: READY_FOR_REVIEW — not ACCEPTED and not integrated.

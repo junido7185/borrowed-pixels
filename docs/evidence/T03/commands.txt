@@ -54,3 +54,19 @@ FINAL VERIFICATION
 DIAGNOSTIC COMMAND FAILURES
 - First System.Drawing nearest comparison Add-Type omitted the compiler assembly reference; exited before image comparison; corrected with -ReferencedAssemblies System.Drawing.
 - First dumpbin/findstr filter let PowerShell interpret parentheses; dumpbin was rerun without the filter and passed.
+
+POST-COMMIT CANDIDATE REVERIFICATION
+22. tools/verify_authority.ps1; Get-FileHash amendment; cmake --preset windows-msvc; cmake --build --preset debug
+    EXIT 0 for each completed command; v2.1 authority 6/6 PASS and amendment SHA exact.
+23. .\\out\\build\\windows-msvc\\bin\\Debug\\BorrowedPixels.exe --smoke-test
+    NOT_RUN: invocation path did not exist. Correct binary path was taken from the build output before continuing.
+24. Start-Process build/windows-msvc/bin/DEBUG/bp_debug.exe -ArgumentList '--smoke-test' -Wait -PassThru
+    EXIT 0 with the normal visible-window smoke-test semantics recorded by T01.
+25. Start-Process build/windows-msvc/bin/DEBUG/bp_debug.exe -ArgumentList '--smoke-test' -WindowStyle Hidden -Wait -PassThru
+    EXIT 123 diagnostic only: forcing SW_HIDE changes the existing fullscreen/windowed restoration self-test environment. This is not the approved T01 smoke invocation and was not used as the gate result.
+26. cmake --build --preset test; build/windows-msvc/bin/TEST/bp_test.exe; ctest --preset all --output-on-failure
+    EXIT 0 / 0 / 0: T03 5035224, T02 2365194, CTest 1/1 PASS.
+27. cmake --build --preset contest --clean-first
+    EXIT 0: BorrowedPixels.exe 129024B, SHA-256 8469ccdbc283e3748181e0e797706b40baa69a4d3ee9197645df4128764f3c1f.
+28. tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560
+    EXIT 0: one file, exact 129024B, both caps PASS.
