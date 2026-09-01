@@ -1,0 +1,21 @@
+COMMAND: git status --porcelain=v2 -uall
+EXIT: 0
+
+1 .M N... 100644 100644 100644 488d0874750e3e43c0c90419ec14e8ffa4e9475f 488d0874750e3e43c0c90419ec14e8ffa4e9475f docs/STATUS.md
+? docs/authority/BORROWED_PIXELS_AMENDMENT_v2.2_T03_UI_PLATFORM.md
+? docs/evidence/T03/combat.bmp
+? docs/evidence/T03/ending-open-ledger.bmp
+? docs/evidence/T03/font-atlas-hangul-4x.bmp
+? docs/evidence/T03/font-atlas-latin-4x.bmp
+? docs/evidence/T03/global-ledger.bmp
+? docs/evidence/T03/policy-audit.bmp
+? docs/evidence/T03/settlement.bmp
+? docs/evidence/T03/spec-blocker.txt
+? docs/evidence/T03/title.bmp
+? docs/handoffs/T03/INPUT.md
+? docs/handoffs/T03/OUTPUT.md
+? src/bp_font.cpp
+? src/bp_font.h
+? src/bp_render.cpp
+? src/bp_render.h
+? tests/bp_render_font_ui_tests.cpp

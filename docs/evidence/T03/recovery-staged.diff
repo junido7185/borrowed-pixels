@@ -1,0 +1,3 @@
+COMMAND: git diff --cached --no-ext-diff --binary
+EXIT: 0
+RESULT: EMPTY

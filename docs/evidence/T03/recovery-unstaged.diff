@@ -1,0 +1,42 @@
+COMMAND: git diff --no-ext-diff --binary
+EXIT: 0
+
+diff --git a/docs/STATUS.md b/docs/STATUS.md
+index 488d087..e290f82 100644
+--- a/docs/STATUS.md
++++ b/docs/STATUS.md
+@@ -1,17 +1,18 @@
+ # BORROWED PIXELS v2.1 status
+ 
+-- Integration base SHA: `0e0bfcab64f4eb61ce7ee0d504b735df3fa0c776`
+-- Current controller state: `REVIEWING_T02`
++- Integration base SHA: `7efaf404957949b178d36697e0be49a4b7521d96`
++- Current controller state: `HARD_BLOCKER_T03`
+ - Authority state: v2.1 manifest verification `PASS`
+-- Current ticket: T02 ledgers/save candidate
++- Current ticket: T03 renderer/font/UI shell
+ - Contest dist: `126,464B`
+ 
+ | Ticket | State | Evidence |
+ |---|---|---|
+ | T00 | LOCALLY_INTEGRATED | `docs/evidence/T00/`, `docs/handoffs/T00/OUTPUT.md` |
+ | T01 | LOCALLY_INTEGRATED | `docs/evidence/T01/`, `docs/handoffs/T01/OUTPUT.md` |
+-| T02 | READY_FOR_REVIEW | `docs/evidence/T02/`, `docs/handoffs/T02/OUTPUT.md` |
+-| T03-T14 | PENDING | Sequential controller execution after T02 review |
++| T02 | LOCALLY_INTEGRATED | Independent review P0/P1/P2=0; `docs/evidence/T02/` |
++| T03 | HARD_BLOCKER | Frozen POLICY_AUDIT geometry/copy conflict and missing platform render bridge; `docs/evidence/T03/spec-blocker.txt` |
++| T04-T14 | PENDING | Sequential controller execution resumes only after the T03 authority/API decision |
+ 
+ ## Gate status
+ 
+@@ -19,8 +20,8 @@
+ |---|---|---|
+ | Gate 0 | PASS | Six authority hashes match; no v1.0/v2.0 source used |
+ | Gate 1 | PASS | T01 shell builds and runs; `126,464B <= 450,000B` |
+-| Gate 2 | CANDIDATE_PASS | 19,683 combinations, atomic rollback, and 96B SaveV2 golden pass |
++| Gate 2 | PASS | 19,683 combinations, atomic rollback, and 96B SaveV2 golden pass |
+ | Gate 3/4 | PENDING | T07 integration then human checkpoint |
+ | Gate 5/6 | PENDING | Later tickets and human verification |
+ 
+-`READY_FOR_REVIEW` is not acceptance or merge approval. The controller may locally fast-forward only after the candidate has P0/P1=0 and all automated checks reproduce.
++T03 remains uncommitted and unintegrated. The controller cannot change frozen copy, coordinates, typography, or another ticket's platform files without a Human Director decision.

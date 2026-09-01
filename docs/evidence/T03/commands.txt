@@ -1,0 +1,56 @@
+BORROWED PIXELS T03 COMMAND EVIDENCE
+Date: 2026-09-02 KST
+Base: 7efaf404957949b178d36697e0be49a4b7521d96
+Branch: ticket/T03-render-ui
+Amendment-only commit: 60d9e11204208f3fc43d348029167ac21caef61b
+
+PREFLIGHT / RECOVERY
+1. git branch --show-current; git rev-parse HEAD; git merge-base --is-ancestor 7efaf404... HEAD
+   PASS: branch exact, HEAD at base before authority commit, ancestor exit 0.
+2. git status --porcelain=v2 -uall; git diff --binary; git diff --cached --binary
+   PASS: recorded in recovery-*.txt/diff; unexpected paths 0.
+3. Get-FileHash amendment
+   PASS: 9431ddb6e512ed7842f8c0c1d36ae7c33374cdb1824ab5037e4f87f0256c961f.
+4. git add -- <amendment only>; staged-count assertion; git commit
+   PASS: commit 60d9e11204208f3fc43d348029167ac21caef61b contains one path only.
+
+IMPLEMENTATION CHECKPOINTS
+5. cmake --preset windows-msvc; cmake --build --preset test; bp_test.exe
+   EXIT 1: amended POLICY_AUDIT produced expected new capture hash 0F5C1C21 while old golden remained. No other failure.
+6. Freeze amended hash; build test; run with BP_T03_EVIDENCE_DIR
+   EXIT 0: T03 5034582 checks at that checkpoint; T02 regression PASS.
+7. Add exact 64-material-pixel TITLE seal and per-profile overlap coverage; run test.
+   EXIT 1: TITLE produced expected new hash 1A039B19 while old golden remained. No other failure.
+8. Freeze amended TITLE hash and add independent Latin table FNV golden E3AAAAB5.
+
+FINAL VERIFICATION
+9. cmake --preset windows-msvc
+   EXIT 0.
+10. cmake --build --preset debug
+    EXIT 0, warnings/errors 0.
+11. cmake --build --preset test
+    EXIT 0, warnings/errors 0.
+12. ctest --preset all --output-on-failure
+    EXIT 0, 1/1 PASS.
+13. build/windows-msvc/bin/TEST/bp_test.exe
+    EXIT 0: T03 5035224, T02 2365194.
+14. cmake --build --preset contest --clean-first (twice)
+    EXIT 0 / 0; both 129024B and SHA-256 8469ccdb...64f3c1f.
+15. build/windows-msvc/bin/DEBUG/bp_debug.exe --smoke-test
+    EXIT 0.
+16. tools/verify_authority.ps1
+    EXIT 0, v2.1 authority 6/6 PASS.
+17. Get-FileHash amendment
+    PASS, exact requested SHA.
+18. tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560
+    EXIT 0: one file, 129024B.
+19. Launch final contest EXE; capture client DC at physical 1280x720; WM_CLOSE
+    EXIT 0: live PNG written and process exit 0.
+20. Compare every live-capture pixel with headless TITLE nearest-scaled 4x
+    EXIT 0: mismatch pixels 0.
+21. dumpbin /dependents and /headers
+    EXIT 0: x64 GUI, CFG/DYNAMICBASE/NX; KERNEL32/USER32/GDI32/WINMM only.
+
+DIAGNOSTIC COMMAND FAILURES
+- First System.Drawing nearest comparison Add-Type omitted the compiler assembly reference; exited before image comparison; corrected with -ReferencedAssemblies System.Drawing.
+- First dumpbin/findstr filter let PowerShell interpret parentheses; dumpbin was rerun without the filter and passed.

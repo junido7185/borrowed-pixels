@@ -1,0 +1,27 @@
+T03 VISUAL REVIEW
+
+Generated headless captures (320x180):
+- title.bmp 0f87bf784d1fe746b65eb8b9c04b56b661620991c0b2a43512175beef0ba5cc2
+- global-ledger.bmp c3918c4474587201593929e2fd298a6ce7f87b4f30c2816cc53bcd8f708ddd25
+- combat.bmp d2c0870f847b5814c89f06450db78c9a3b02f9146ff1d7d523d664bfb082a39c
+- settlement.bmp 399092abbfc6a18cf41fc8a7f8c377f2bf9afd68d53c298cb05cfd6f4bed9da5
+- policy-audit.bmp 5c5adfdbab9c67fe86539e52fc6904b9072a21079dfa4a861de7b914041d3135
+- ending-open-ledger.bmp 1f92fef3e184bc791482bc788cd777fe2e83dfdfbda82f485d4f8983e7984156
+
+Font atlases:
+- font-atlas-latin-4x.bmp 95afada786a09e76d226c277c0eba25a0912f1a3c38b3ba0d3dd681c1bf6a6d2
+- font-atlas-hangul-4x.bmp 0973989f428217d5bdd379e703056da7f252a1d7e3965274cc5f8596476cb87d
+
+Live contest capture:
+- contest-title-live.png 7880c6341d3c4dd17d877ac0f29c94d126ac2714bb6348a2b168212d961138f4
+
+Observed:
+- TITLE contains exactly 64 material seal pixels on an 8x8, 2px-pitch grid.
+- POLICY_AUDIT has four two-line CASE labels, four arrows, four measured underlines, and no visible CASE/arrow/RULE collision.
+- Memory CASE reads WITNESS plus / PRESERVE, not the superseded FULL policy result.
+- Latin atlas glyphs are distinguishable; representative Hangul compositions stay inside 8x12 cells.
+- All capture pixels are members of the frozen nine-color palette.
+- Live contest capture is an exact 4x nearest image of the headless TITLE (0 mismatches).
+
+AUTOMATED_VISUAL_STATUS=PASS
+SUBJECTIVE_GATE3_STATUS=HUMAN_PENDING

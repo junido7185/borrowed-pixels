@@ -1,6 +1,7 @@
 #define _WIN32_WINNT 0x0A00
 
 #include "bp_platform.h"
+#include "bp_render.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -19,12 +20,6 @@ using XInputGetStateFn = DWORD(WINAPI*)(DWORD, XINPUT_STATE*);
 
 constexpr wchar_t kWindowClassName[] = L"BorrowedPixelsWindow_v2_1";
 constexpr wchar_t kWindowTitle[] = L"BORROWED PIXELS v2.1";
-constexpr std::uint32_t kBackgroundColor = 0x00070A0E;
-constexpr std::uint32_t kGridColor = 0x00161D24;
-constexpr std::uint32_t kPlayerColor = 0x0034D8C4;
-constexpr std::uint32_t kOpponentColor = 0x00F55264;
-constexpr std::uint32_t kNeutralColor = 0x00CAD0DA;
-constexpr std::uint32_t kCoreColor = 0x00FFEEB8;
 constexpr std::int32_t kGamepadLeftDeadzone = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
 constexpr std::int32_t kGamepadRightDeadzone = 7864;
 constexpr std::int32_t kGamepadAimRetainThreshold = 6553;
@@ -181,29 +176,15 @@ void UpdateMousePosition(PlatformState& state, std::int32_t clientX, std::int32_
     state.input.mouseY = canvasY;
 }
 
-void DrawPlatformBackbuffer(PlatformState& state) noexcept {
-    const std::int32_t pixelCount = bp::kCanvasWidth * bp::kCanvasHeight;
-    for (std::int32_t index = 0; index < pixelCount; ++index) {
-        state.backbuffer.pixels[index] = kBackgroundColor;
-    }
-
-#if defined(BP_DEBUG)
-    for (std::int32_t x = 0; x < bp::kCanvasWidth; ++x) {
-        state.backbuffer.pixels[x] = kGridColor;
-        state.backbuffer.pixels[(bp::kCanvasHeight - 1) * bp::kCanvasWidth + x] = kGridColor;
-    }
-    for (std::int32_t y = 0; y < bp::kCanvasHeight; ++y) {
-        state.backbuffer.pixels[y * bp::kCanvasWidth] = kGridColor;
-        state.backbuffer.pixels[y * bp::kCanvasWidth + bp::kCanvasWidth - 1] = kGridColor;
-    }
-    state.backbuffer.pixels[0] = kPlayerColor;
-    state.backbuffer.pixels[bp::kCanvasWidth - 1] = kOpponentColor;
-    state.backbuffer.pixels[(bp::kCanvasHeight - 1) * bp::kCanvasWidth] = kNeutralColor;
-    state.backbuffer.pixels[bp::kCanvasHeight * bp::kCanvasWidth - 1] = kCoreColor;
-#endif
-}
-
 void PresentBackbuffer(PlatformState& state, HDC destination, const RECT& client) noexcept {
+    bp::RenderUiReference(
+        bp::PixelBuffer{
+            state.backbuffer.pixels,
+            bp::kCanvasWidth,
+            bp::kCanvasHeight,
+            bp::kCanvasWidth,
+        },
+        bp::UiReferenceScreen::Title);
     const std::int32_t clientWidth = client.right - client.left;
     const std::int32_t clientHeight = client.bottom - client.top;
     const bp::Viewport viewport = bp::ComputeViewport(clientWidth, clientHeight);
@@ -779,7 +760,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
         ShutdownPlatform(state);
         return 1;
     }
-    DrawPlatformBackbuffer(state);
     InitializeFrameTimer(state);
 
     if (!CreateMainWindow(state, instance, showCommand)) {

@@ -1,0 +1,31 @@
+BORROWED PIXELS T03 TEST RESULTS
+
+AMENDMENT_COMMIT=60d9e11204208f3fc43d348029167ac21caef61b
+AMENDMENT_SHA256=9431ddb6e512ed7842f8c0c1d36ae7c33374cdb1824ab5037e4f87f0256c961f
+
+DIRECT_TEST_WITHOUT_EVIDENCE_WRITES:
+T03_INFO hangul=160B0D5B
+T03_INFO policy_profiles=81 language_modes=1 overlap_pixels=0
+T03_PASS checks=5035224 latin_glyphs=59 hangul_syllables=11172 captures=6
+T02_PASS checks=2365194 combinations=19683 save_bytes=96
+EXIT=0
+
+DIRECT_TEST_WITH_EVIDENCE_WRITES:
+T03_PASS checks=5035232 latin_glyphs=59 hangul_syllables=11172 captures=6
+T02_PASS checks=2365194 combinations=19683 save_bytes=96
+EXIT=0
+
+CTEST:
+1/1 bp_target_skeleton PASS
+EXIT=0
+
+POLICY_ASSERTIONS:
+- approved subjects and valid encounter choices measured against 76px per-line budget
+- four amended row geometries exercised
+- 81 policy profiles rendered
+- T03 supported language modes: 1 (EN reference shell; KO content belongs to T12)
+- CASE/arrow shared lit pixels: 0
+- CASE/RULE-or-underline shared lit pixels: 0
+
+COVERAGE_CHANGE:
+The preserved 368658-check T03 baseline was not reduced. Amendment coverage and exact table checks increased the no-write total to 5035224.

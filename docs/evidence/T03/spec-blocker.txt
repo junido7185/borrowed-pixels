@@ -1,0 +1,66 @@
+T03 SPEC/API BLOCKER — RESOLVED
+
+RESOLUTION_STATUS=RESOLVED_BY_HUMAN_DIRECTOR_AMENDMENT
+AMENDMENT_SHA256=9431ddb6e512ed7842f8c0c1d36ae7c33374cdb1824ab5037e4f87f0256c961f
+AMENDMENT_COMMIT=60d9e11204208f3fc43d348029167ac21caef61b
+RESOLUTION=Two-line structured CASE layout plus narrow bp_win32.cpp renderer bridge.
+
+BASE_SHA=7efaf404957949b178d36697e0be49a4b7521d96
+
+1. POLICY_AUDIT approved-expression / fixed-width conflict
+
+Authority values:
+- latin advance=6, spaceAdvance=4
+- POLICY_AUDIT caseX=34, arrowX=116, ruleX=130
+- approved structural atlas example="PATCH / CONTINUE" (atlas copy is illustrative; production-spec copy has higher authority)
+
+Measured width under the frozen font contract:
+- PATCH: 5 * 6 = 30
+- first space: 4
+- slash: 6
+- second space: 4
+- CONTINUE: 8 * 6 = 48
+- total: 92 pixels
+- available before arrowX: 116 - 34 = 82 pixels
+- overlap: 10 pixels
+
+Production-spec CASE choice examples are not a compliant escape hatch:
+- RECLAIM ORIGIN = 82 pixels (fills the entire interval, leaving no separation before the arrow)
+- RECOGNIZE CONTINUITY = 118 pixels
+- UNMARK OWNERSHIP = 94 pixels
+- no authoritative compact form or explicit line break is supplied
+
+Reproduction:
+- docs/evidence/T03/policy-audit.bmp
+- The case text visibly crosses the arrow and rule column.
+
+Unauthorized alternatives rejected:
+- Abbreviating the CASE/choice expression invents a compact form absent from the production spec.
+- Moving caseX/arrowX/ruleX changes frozen coordinates.
+- Tightening glyph advance changes the frozen typography contract.
+
+2. Frozen platform API has no renderer/game bridge
+
+Observed implementation:
+- src/bp_win32.cpp owns the private backbuffer.
+- DrawPlatformBackbuffer() clears/draws the T01 diagnostic shell.
+- src/bp_platform.h exposes InputFrame and Viewport only, not a render surface or game callback.
+- T03 is not allowed to modify bp_win32.cpp or bp_platform.h.
+- No later ticket owns bp_win32.cpp; therefore the headless renderer cannot become reachable in the contest EXE within current ownership rules.
+
+Contest reachability reproduction after compiling the current T03 sources:
+- cmake --build --preset contest: exit 0
+- dist/contest bytes: 126464
+- SHA-256: 6f031f1b3559b934c4cc6e84519850694b362540247da89776a99e630252ba7e
+- rg -a "SETTLEMENT|GLOBAL LEDGER|POLICY AUDIT|PRESS ANY KEY TO BORROW|TOTAL TILE 1440" dist/contest/BorrowedPixels.exe
+- result: no matches; /OPT:REF discarded the unreachable T03 UI implementation.
+
+Required decision:
+- Authorize one exact integration bridge/allowlist exception (recommended: allow T03 to modify bp_win32.cpp to call the renderer with the existing private 320x180 pixel buffer, without changing the frozen public header), and
+- resolve the POLICY_AUDIT case-column conflict by selecting approved copy/coordinates/typography.
+
+Decision received and implemented:
+- SUBJECT and `/ CHOICE` use the exact two-line origins in amendment section 1.3.
+- The memory CASE uses the actual WITNESS verb and now has its arrow and measured underline.
+- src/bp_win32.cpp passes its existing private buffer to RenderUiReference once per PresentBackbuffer call.
+- No bp_platform.h change was made.
