@@ -1,0 +1,25 @@
+BORROWED PIXELS v2.1 - T02 TEST RESULTS
+
+Direct result:
+T02_PASS checks=2365194 combinations=19683 save_bytes=96
+
+PASS:
+- ClaimOwner enum order and all 12 initial masses; total exactly 1440.
+- PhysicalAccount enum order and all ten encounter initializations at PlayerActive=240.
+- LockedBands exact values: 672,656,272,576,632,272,608,648,288,240.
+- All claim-account and physical-account transfer pairs across zero, one, exact available, and insufficient amounts.
+- Invalid account, invalid total, invalid encounter, invalid choice, and insufficient-source byte-identical rollback.
+- All 27 settlement rows match the frozen owner deltas.
+- VESSEL title 64 transfer and minimum PLAYER=144 after every PATCH/PAIR outcome pair.
+- All 3^9 = 19683 choice sequences; every intermediate and final ClaimLedgerTotal is 1440 and each account is bounded by 1440.
+- Narrative choiceBits encodes all nine 2-bit choices.
+- SaveV2 exact 96-byte little-endian golden and FNV-1a32 0x61543C33.
+- SaveV2 reserved bytes 70..91 are zero.
+- Round-trip field equality without a structure memory dump.
+- Every one-byte corruption position, every partial length 0..95, old version, bad reserved byte, preview flag, invalid option, invalid choice value, and invalid claim total is rejected without changing output.
+- Invalid serialization input leaves the destination 96 bytes byte-identical.
+- MSVC debug/test/contest builds, CTest 1/1, T01 platform smoke, authority 6/6, dependency allowlist, and exact dist gate.
+
+NOT_APPLICABLE:
+- File-system save.tmp flush/replace and save.invalid rename are T10 progression/save integration work. T02 owns field serialization and validation only.
+- Replay hash and game-tick behavior begin in T04.

@@ -1,0 +1,22 @@
+BORROWED PIXELS SaveV2 golden
+Bytes: 96
+FNV-1a32 over bytes 0..91: 0x61543C33
+
+42 50 31 34 02 00 60 00 0F 00 00 00 7A 03 00 00
+1F 00 00 00 04 03 02 01 00 00 40 01 30 00 40 00
+E0 00 70 00 48 00 F0 00 30 00 48 00 F0 00 00 00
+AA AA 02 00 A0 05 EF CD AB 89 08 04 01 02 03 04
+05 06 07 08 09 01 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 33 3C 54 61
+
+Sample fields:
+- flags=0x0000000F
+- options=0x0000037A
+- endingsSeen=0x0000001F
+- bestFullRunTicks=0x01020304
+- initial ClaimLedger in ClaimOwner order
+- choiceBits=0x0002AAAA
+- adjudicatedMass=1440
+- runSeed=0x89ABCDEF
+- encounterIndex=8, role=4, entityStatus=1..9, tutorial=1
+- reserved[22]=0

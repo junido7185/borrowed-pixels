@@ -1,0 +1,56 @@
+BORROWED PIXELS v2.1 - T02 COMMAND EVIDENCE
+Date: 2026-09-01 KST
+Base: 0e0bfcab64f4eb61ce7ee0d504b735df3fa0c776
+Branch: ticket/T02-ledgers-save
+
+PRE-IMPLEMENTATION
+1. powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify_authority.ps1
+   EXIT 0 - all six hashes matched.
+2. cmake --preset windows-msvc
+   EXIT 0.
+3. cmake --build --preset debug
+   EXIT 0.
+4. cmake --build --preset test
+   EXIT 0.
+5. ctest --preset all --output-on-failure
+   EXIT 0 - 1/1 passed.
+6. cmake --build --preset contest
+   EXIT 0.
+7. powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\measure_dist.ps1 -Path .\dist\contest -InternalCap 1350000 -HardCap 1474560
+   EXIT 0 - 126464 bytes.
+
+IMPLEMENTATION / REPAIR
+1. cmake --preset windows-msvc
+   EXIT 0 - T02 sources/tests discovered without changing T00 CMake.
+2. cmake --build --preset test
+   EXIT 1 - test settlement aggregate contained one excess brace layer.
+3. cmake --build --preset test
+   EXIT 0 after the test-only aggregate syntax repair.
+4. .\build\windows-msvc\bin\TEST\bp_test.exe
+   EXIT 0 - T02_PASS checks=2365194 combinations=19683 save_bytes=96.
+5. First PowerShell-only golden calculation
+   DISCARDED - Windows PowerShell treated 0x89ABCDEF as signed and rejected uint32 overflow casts; no file was written and its output was not used.
+6. Independent unsigned 32-bit golden calculation from the authority offset table
+   EXIT 0 - FNV1A32=0x61543C33, BYTE_COUNT=96.
+
+FINAL VERIFICATION
+1. cmake --preset windows-msvc
+   EXIT 0.
+2. cmake --build --preset debug
+   EXIT 0 - all ledger/save sources compile at /W4.
+3. cmake --build --preset test
+   EXIT 0.
+4. ctest --preset all --output-on-failure
+   EXIT 0 - 1/1 passed.
+5. .\build\windows-msvc\bin\TEST\bp_test.exe
+   EXIT 0 - 2365194 checks and all 19683 combinations.
+6. cmake --build --preset contest --clean-first (run twice)
+   EXIT 0 / EXIT 0 - identical SHA-256 fb2ae29fde83e564aaee4ff214da4750ef8e401381f31d139f6ffcce5b15e93e.
+7. .\build\windows-msvc\bin\DEBUG\bp_debug.exe --smoke-test
+   EXIT 0 - T01 platform regression remains green.
+8. powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify_authority.ps1
+   EXIT 0 - 6/6.
+9. powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\measure_dist.ps1 -Path .\dist\contest -InternalCap 1350000 -HardCap 1474560
+   EXIT 0 - 126464 bytes, one file.
+10. dumpbin /nologo /dependents .\dist\contest\BorrowedPixels.exe
+    EXIT 0 - KERNEL32, USER32, GDI32, WINMM only.

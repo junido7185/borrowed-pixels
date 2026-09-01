@@ -1,0 +1,13 @@
+BORROWED PIXELS v2.1 - T02 DEPENDENCIES
+
+Command:
+dumpbin /nologo /dependents .\dist\contest\BorrowedPixels.exe
+
+Result:
+- KERNEL32.dll
+- USER32.dll
+- GDI32.dll
+- WINMM.dll
+
+Status: PASS - unchanged and entirely within the production-spec allowlist.
+No third-party library, runtime JSON parser, external asset, network, browser, or runtime AI was added.

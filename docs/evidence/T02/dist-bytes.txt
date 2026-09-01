@@ -1,0 +1,13 @@
+BORROWED PIXELS v2.1 - T02 DIST MEASUREMENT
+
+FILE=BorrowedPixels.exe	BYTES=126464
+DIST_FILES=1
+DIST_BYTES=126464
+INTERNAL_CAP=1350000
+HARD_CAP=1474560
+DIST_STATUS=PASS
+T01_BASELINE_BYTES=126464
+DELTA_BYTES=0
+SHA256=fb2ae29fde83e564aaee4ff214da4750ef8e401381f31d139f6ffcce5b15e93e
+
+The T02 functions are linked into bp_test. Unreferenced contest functions are removed by /GL, /LTCG, and /OPT:REF until game integration owns their call sites.
