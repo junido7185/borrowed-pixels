@@ -20,4 +20,13 @@ POST-REPAIR REGRESSION
 - CTest 1/1 PASS; debug smoke exit 0.
 - Contest clean build PASS; dist 129024 bytes; SHA-256 f791eae25d44f50fd13054086c7dce69a7ebdfd4a53ba5653acd5e9bac4dd98e.
 
-FINAL_REVIEW_RESULT=PENDING_SECOND_READ_ONLY_REVIEW
+SECOND_REVIEW_SHA=33f438148b3587b3d046e773a56bc453ba87e224
+FINAL_REVIEW_RESULT=P0=0 P1=0 P2=0 PASS READY_FOR_HUMAN_GATE
+
+SECOND REVIEW CONFIRMATIONS
+- ancestry `53a3cac -> c29567f -> 33f4381` and clean worktree: PASS.
+- all changed paths inside the T04 allowlist: PASS.
+- authority 6/6 and amendment hash: PASS.
+- repaired held-both switch-lock behavior and new arbiter hash field: PASS.
+- repaired squared vector cap and `(325,325)/452` regression: PASS.
+- direct T04/T03/T02 tests, dist bytes/SHA, and `git diff --check`: PASS.

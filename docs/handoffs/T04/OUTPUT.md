@@ -41,7 +41,8 @@ RIGHTS / DEPENDENCIES:
 
 REVIEW:
 
-- Independent read-only review result is recorded in `docs/evidence/T04/independent-review.txt` after candidate review.
-- P0/P1 must be zero before standing local fast-forward approval is used.
+- Initial independent review found P1=1 and P2=1; both were repaired and fully revalidated.
+- Second read-only review of `33f438148b3587b3d046e773a56bc453ba87e224` reports P0=0, P1=0, P2=0.
+- The final docs-only tip is checked once more before standing local fast-forward approval is used.
 
-STATUS: REVIEW_PENDING — not ACCEPTED and not yet integrated.
+STATUS: READY_FOR_REVIEW — not ACCEPTED and not yet integrated.

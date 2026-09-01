@@ -1,7 +1,7 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
 - Latest integration base SHA: `53a3cac34427f98ec281754a4a19e6980686987d`
-- Current controller state: `TICKET_IMPLEMENTATION`
+- Current controller state: `CANDIDATE_PREPARATION`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: T04 fixed tick/movement/collision/dash
 - Contest dist: `129,024B`
@@ -12,7 +12,7 @@
 | T01 | LOCALLY_INTEGRATED | `docs/evidence/T01/`, `docs/handoffs/T01/OUTPUT.md` |
 | T02 | LOCALLY_INTEGRATED | Independent review P0/P1/P2=0; `docs/evidence/T02/` |
 | T03 | LOCALLY_INTEGRATED | Candidate `1e49151c...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
-| T04 | REVIEW_PENDING | Fixed tick, input arbitration, movement, collision, dash, and deterministic replay implemented; candidate review pending |
+| T04 | READY_FOR_REVIEW | Fixed tick, input arbitration, movement, collision, dash, and deterministic replay; independent review P0/P1/P2=0 |
 | T05-T14 | PENDING | Sequential controller execution |
 
 ## Gate status
