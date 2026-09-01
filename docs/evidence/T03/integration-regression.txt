@@ -1,0 +1,38 @@
+T03 LOCAL FF-ONLY INTEGRATION AND FULL REGRESSION
+
+APPROVED_BASE_SHA=7efaf404957949b178d36697e0be49a4b7521d96
+APPROVED_CANDIDATE_SHA=1e49151c1f0d70d20f77f7bb8aa77f2972de0f0f
+INTEGRATION_METHOD=git merge --ff-only 1e49151c1f0d70d20f77f7bb8aa77f2972de0f0f
+INTEGRATED_SHA=1e49151c1f0d70d20f77f7bb8aa77f2972de0f0f
+
+PRECONDITIONS
+- candidate ref exact: PASS
+- base ancestor: PASS
+- candidate worktree clean: PASS
+- v2.1 authority hashes 6/6: PASS
+- amendment SHA-256 9431ddb6e512ed7842f8c0c1d36ae7c33374cdb1824ab5037e4f87f0256c961f: PASS
+- independent review P0=0, P1=0, P2=0: PASS
+
+POST-INTEGRATION COMMANDS
+1. powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_authority.ps1
+   EXIT 0, v2.1 authority 6/6 PASS.
+2. cmake --preset windows-msvc
+   EXIT 0.
+3. cmake --build --preset debug
+   EXIT 0.
+4. cmake --build --preset test
+   EXIT 0.
+5. build/windows-msvc/bin/TEST/bp_test.exe
+   EXIT 0: T03 checks=5035224; Hangul=11172; policy profiles=81; overlap=0; T02 checks=2365194.
+6. ctest --preset all --output-on-failure
+   EXIT 0, 1/1 PASS.
+7. Start-Process build/windows-msvc/bin/DEBUG/bp_debug.exe -ArgumentList '--smoke-test' -Wait -PassThru
+   EXIT 0.
+8. cmake --build --preset contest --clean-first
+   EXIT 0.
+9. powershell -NoProfile -ExecutionPolicy Bypass -File tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560
+   EXIT 0: files=1, bytes=129024, both caps PASS.
+
+CONTEST_SHA256=8469ccdbc283e3748181e0e797706b40baa69a4d3ee9197645df4128764f3c1f
+HUMAN_GATE3_GATE4=HUMAN_REVIEW_DEFERRED
+PUSH_TAG_PUBLISH_SUBMIT=NOT_PERFORMED

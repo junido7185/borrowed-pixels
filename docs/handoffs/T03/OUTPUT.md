@@ -65,3 +65,12 @@ REMAINING CHECK:
 - Gate 3 subjective visual PASS remains Human Director-only and is not claimed here.
 
 STATUS: READY_FOR_REVIEW — not ACCEPTED and not integrated.
+
+LOCAL INTEGRATION:
+
+- Human Director approved exact candidate `1e49151c1f0d70d20f77f7bb8aa77f2972de0f0f` on base `7efaf404957949b178d36697e0be49a4b7521d96`.
+- `integration/rc-2026-09-03` was advanced with `git merge --ff-only` to the exact candidate.
+- Full post-integration authority/build/test/smoke/contest/dist regression passed; see `docs/evidence/T03/integration-regression.txt`.
+- Subjective Gate 3 visual judgment remains `HUMAN_REVIEW_DEFERRED`, not PASS.
+
+INTEGRATION STATUS: LOCALLY_INTEGRATED — not externally pushed, tagged, published, or submitted.
