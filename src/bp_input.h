@@ -20,6 +20,7 @@ enum class GameplayAction : std::uint8_t {
 
 struct InputArbiter {
     GameplayAction lastFireReclaim;
+    GameplayAction lockedFireReclaim;
     std::uint8_t switchLockTicks;
 };
 

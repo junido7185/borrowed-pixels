@@ -26,7 +26,7 @@ IMPLEMENTED:
 
 AUTOMATED RESULTS:
 
-- T04 direct test: `333,082` checks, 4,096-tick golden replay `DD90E82D`.
+- T04 direct test: `333,093` checks, 4,096-tick golden replay `61646592`.
 - Collision grid: 7,992 circle/AABB separation cases plus 20,000 randomized boundary replay ticks.
 - T03 regression: `5,035,224` checks, 11,172 Hangul syllables, 81 policy profiles, overlap pixels 0.
 - T02 regression: `2,365,194` checks, 19,683 combinations, SaveV2 96 bytes.

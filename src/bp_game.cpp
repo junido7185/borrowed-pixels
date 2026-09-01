@@ -258,6 +258,7 @@ std::uint32_t GameStateHash(const GameState& state) noexcept {
     for (std::uint8_t status : state.narrative.entityStatus) HashByte(hash, status);
     HashByte(hash, state.narrative.endingsSeen);
     HashByte(hash, static_cast<std::uint8_t>(state.inputArbiter.lastFireReclaim));
+    HashByte(hash, static_cast<std::uint8_t>(state.inputArbiter.lockedFireReclaim));
     HashByte(hash, state.inputArbiter.switchLockTicks);
     HashS32(hash, state.playerPosition.x); HashS32(hash, state.playerPosition.y);
     HashS32(hash, state.playerVelocity.x); HashS32(hash, state.playerVelocity.y);

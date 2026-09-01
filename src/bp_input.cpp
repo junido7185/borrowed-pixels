@@ -48,16 +48,21 @@ GameplayIntent ResolveGameplayInput(
     const bool reclaim = HeldOrPressed(frame, PlatformAction::Reclaim);
     const bool firePressed = Pressed(frame, PlatformAction::Fire);
     const bool reclaimPressed = Pressed(frame, PlatformAction::Reclaim);
-    if (arbiter.switchLockTicks > 0 && arbiter.lastFireReclaim != GameplayAction::None) {
-        if (arbiter.lastFireReclaim == GameplayAction::Fire && fire) {
+    GameplayAction pressedAction = GameplayAction::None;
+    if (firePressed || reclaimPressed) {
+        pressedAction = firePressed ? GameplayAction::Fire : GameplayAction::Reclaim;
+        arbiter.lastFireReclaim = pressedAction;
+    }
+    if (arbiter.switchLockTicks > 0 && arbiter.lockedFireReclaim != GameplayAction::None) {
+        if (arbiter.lockedFireReclaim == GameplayAction::Fire && fire) {
             intent.action = GameplayAction::Fire;
-        } else if (arbiter.lastFireReclaim == GameplayAction::Reclaim && reclaim) {
+        } else if (arbiter.lockedFireReclaim == GameplayAction::Reclaim && reclaim) {
             intent.action = GameplayAction::Reclaim;
         }
         return intent;
     }
-    if (firePressed || reclaimPressed) {
-        arbiter.lastFireReclaim = firePressed ? GameplayAction::Fire : GameplayAction::Reclaim;
+    if (pressedAction != GameplayAction::None) {
+        arbiter.lockedFireReclaim = pressedAction;
         arbiter.switchLockTicks = kActionSwitchLockTicks;
     }
     if (fire || reclaim) {

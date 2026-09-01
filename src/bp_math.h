@@ -128,16 +128,18 @@ constexpr void ClampVectorLength(Vec2Q8& vector, std::int32_t maximumLength) noe
     const std::uint64_t lengthSquared =
         static_cast<std::uint64_t>(static_cast<std::int64_t>(vector.x) * vector.x)
         + static_cast<std::uint64_t>(static_cast<std::int64_t>(vector.y) * vector.y);
-    const std::uint32_t length = IntegerSqrt(lengthSquared);
-    if (length <= static_cast<std::uint32_t>(maximumLength) || length == 0) {
+    const std::uint64_t maximumSquared =
+        static_cast<std::uint64_t>(maximumLength) * maximumLength;
+    if (lengthSquared <= maximumSquared || lengthSquared == 0) {
         return;
     }
-    vector.x = RoundDivideSigned(
-        static_cast<std::int64_t>(vector.x) * maximumLength,
-        static_cast<std::int32_t>(length));
-    vector.y = RoundDivideSigned(
-        static_cast<std::int64_t>(vector.y) * maximumLength,
-        static_cast<std::int32_t>(length));
+    const std::uint32_t floorLength = IntegerSqrt(lengthSquared);
+    const std::uint32_t ceilingLength = floorLength
+        + (static_cast<std::uint64_t>(floorLength) * floorLength < lengthSquared ? 1u : 0u);
+    vector.x = static_cast<std::int32_t>(
+        static_cast<std::int64_t>(vector.x) * maximumLength / ceilingLength);
+    vector.y = static_cast<std::int32_t>(
+        static_cast<std::int64_t>(vector.y) * maximumLength / ceilingLength);
 }
 
 constexpr std::int32_t ActorRadiusPixels(std::uint16_t shellMass) noexcept {

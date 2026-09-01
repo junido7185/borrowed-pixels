@@ -74,6 +74,13 @@ void TestMathContract() noexcept {
         + static_cast<std::uint64_t>(static_cast<std::int64_t>(diagonal.y) * diagonal.y));
     Check(diagonalLength >= 32766 && diagonalLength <= 32768, "diagonal input normalized");
 
+    bp::Vec2Q8 capped{325, 325};
+    bp::ClampVectorLength(capped, 452);
+    Check(static_cast<std::uint64_t>(static_cast<std::int64_t>(capped.x) * capped.x)
+            + static_cast<std::uint64_t>(static_cast<std::int64_t>(capped.y) * capped.y)
+            <= static_cast<std::uint64_t>(452) * 452,
+        "vector clamp enforces squared maximum");
+
     bp::Vec2Q8 center{8 * bp::kQ8One, 20 * bp::kQ8One};
     const bp::CollisionResolution side = bp::ResolveCircleAgainstAabb(
         center, 4, bp::RectPixels{10, 10, 10, 20});
@@ -151,12 +158,35 @@ void TestInputArbitration() noexcept {
         }
         Check(bp::ResolveGameplayInput(arbiter, frame, false, false).action == bp::GameplayAction::None,
             "opposite action locked");
-        Check(arbiter.lastFireReclaim == bp::GameplayAction::Fire, "locked opposite edge cannot replace priority");
+        Check(arbiter.lastFireReclaim == bp::GameplayAction::Reclaim,
+            "locked opposite edge remains the literal last press");
     }
     frame = Frame(9);
     Hold(frame, bp::PlatformAction::Reclaim);
     Check(bp::ResolveGameplayInput(arbiter, frame, false, false).action == bp::GameplayAction::Reclaim,
         "opposite action available after lock");
+
+    arbiter = {};
+    frame = Frame(0);
+    Press(frame, bp::PlatformAction::Fire);
+    Check(bp::ResolveGameplayInput(arbiter, frame, false, false).action == bp::GameplayAction::Fire,
+        "held-switch Fire starts lock");
+    for (std::uint32_t tick = 1; tick < 9; ++tick) {
+        frame = Frame(tick);
+        Hold(frame, bp::PlatformAction::Fire);
+        if (tick == 1) {
+            Press(frame, bp::PlatformAction::Reclaim);
+        } else {
+            Hold(frame, bp::PlatformAction::Reclaim);
+        }
+        Check(bp::ResolveGameplayInput(arbiter, frame, false, false).action == bp::GameplayAction::Fire,
+            "locked action wins while both remain held");
+    }
+    frame = Frame(9);
+    Hold(frame, bp::PlatformAction::Fire);
+    Hold(frame, bp::PlatformAction::Reclaim);
+    Check(bp::ResolveGameplayInput(arbiter, frame, false, false).action == bp::GameplayAction::Reclaim,
+        "literal last press wins after lock while both remain held");
 
     frame = Frame(10, 123, -456);
     Check(bp::ResolveGameplayInput(arbiter, frame, false, false).action == bp::GameplayAction::Move,
@@ -182,10 +212,12 @@ void TestMovementAndBoundaries() noexcept {
     }
     Check(state.globalTick == 60, "fixed tick increments exactly once");
     Check(state.playerPosition.x > startX, "player moved right");
-    const std::uint32_t velocityLength = bp::IntegerSqrt(
+    const std::uint64_t velocityLengthSquared =
         static_cast<std::uint64_t>(static_cast<std::int64_t>(state.playerVelocity.x) * state.playerVelocity.x)
-        + static_cast<std::uint64_t>(static_cast<std::int64_t>(state.playerVelocity.y) * state.playerVelocity.y));
-    Check(velocityLength <= static_cast<std::uint32_t>(bp::PlayerMaximumSpeedQ8(48)), "player speed capped by shell");
+        + static_cast<std::uint64_t>(static_cast<std::int64_t>(state.playerVelocity.y) * state.playerVelocity.y);
+    const std::int32_t maximumSpeed = bp::PlayerMaximumSpeedQ8(48);
+    Check(velocityLengthSquared <= static_cast<std::uint64_t>(maximumSpeed) * maximumSpeed,
+        "player squared speed capped by shell");
 
     for (std::uint32_t tick = 0; tick < 100; ++tick) {
         Check(bp::TickGame(state, Frame(state.globalTick)), "friction tick");
@@ -318,7 +350,7 @@ void TestDeterministicReplay() noexcept {
     }
     const std::uint32_t hash = bp::GameStateHash(first);
     std::printf("T04_INFO\treplay=%08X\tticks=4096\n", hash);
-    Check(hash == 0xDD90E82Du, "replay golden hash");
+    Check(hash == 0x61646592u, "replay golden hash");
     Check(bp::GameStateHash(variant) != hash, "changed input changes replay hash");
 }
 

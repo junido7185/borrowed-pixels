@@ -1,0 +1,23 @@
+T04 INDEPENDENT READ-ONLY REVIEW
+
+IMPLEMENTATION_SHA=c29567fca542a447c3672028491fe7b476fd22c3
+REVIEWER=review_t01
+INITIAL_RESULT=P0=0 P1=1 P2=1 CHANGES_REQUIRED
+
+P1
+- ResolveGameplayInput discarded a Reclaim edge observed while Fire's nine-tick lock was active.
+- Reproduction: press/hold Fire at tick 0, press Reclaim at tick 1, then hold both through tick 9; old code kept Fire as lastActionPressed after expiry.
+- Repair: InputArbiter now stores the literal last edge separately from the action enforced by the active lock. Added an exact held-both regression.
+
+P2
+- ClampVectorLength compared floor(isqrt(lengthSquared)) with the maximum and could leave a diagonal vector above the actual squared cap.
+- Reproduction: `(325,325)` with maximum 452 produced `(320,320)`, whose squared length 204800 exceeds 204304.
+- Repair: compare squared magnitudes directly and scale by ceil integer length with signed truncation. Added the exact regression and changed the movement cap assertion to squared magnitude.
+
+POST-REPAIR REGRESSION
+- T04_PASS checks=333093 replay=61646592 ticks=4096.
+- T03/T02 regression PASS.
+- CTest 1/1 PASS; debug smoke exit 0.
+- Contest clean build PASS; dist 129024 bytes; SHA-256 f791eae25d44f50fd13054086c7dce69a7ebdfd4a53ba5653acd5e9bac4dd98e.
+
+FINAL_REVIEW_RESULT=PENDING_SECOND_READ_ONLY_REVIEW
