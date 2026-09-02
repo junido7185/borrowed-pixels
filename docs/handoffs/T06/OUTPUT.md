@@ -20,12 +20,12 @@ IMPLEMENTED:
 - Fixed-capacity Neutral motion with 15-tick inertia handoff, exact 65067/65536 per-axis damping, 20% normal boundary reflection, and deterministic eligible-pair merging.
 - Player/opponent reclaim targeting by exact range, integer 18-degree cone, authoritative score and stable-ID tie, Bresenham Cover occlusion, attraction, 32/60 accumulator, provenance order, and final-TILE arbitration.
 - VITAL 48, VECTOR 80, and IMPULSE 96 loan state machines covering all seven authoritative HUD states.
-- Atomic InstalledHUD/Transit/PlayerShell transactions, 45/60-tick channels, 36-tick transits, 720-tick maturity, 120-tick warning, Due fire lock, newly reclaimed Shell repayment, and 90-tick reallocation lock.
+- Atomic InstalledHUD/Transit/PlayerShell transactions, staged pre-collision reservation/tick-17 resolution, 45/60-tick channels, 36-tick transits, 720-tick maturity, 120-tick warning, Due fire lock, carried newly reclaimed Shell repayment, and 90-tick reallocation lock.
 - One-open-loan enforcement, insufficient manual restore rollback, hold cancellation, and pending commit cancellation on a PLAYER Shell-hit tick.
 
 AUTOMATED RESULTS:
 
-- T06 direct test: `5,830` checks; 21 module-state cases and Neutral capacity 64.
+- T06 direct test: `6,083` checks; 21 module-state cases and Neutral capacity 64.
 - T05 regression: `4,052`; T04 `333,093`/replay `61646592`; T03 `5,035,224`/Hangul 11,172; T02 `2,365,194`.
 - Debug/Test/CTest/debug smoke/Contest clean build: PASS on local Windows x64 MSVC.
 - Contest dist: one file, `129,024B`; internal/hard caps PASS.

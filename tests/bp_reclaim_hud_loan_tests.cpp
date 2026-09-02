@@ -174,7 +174,17 @@ void TestHudTimingCancellationAndPartialRepayment() noexcept {
     bp::InitializeHudLoanSystem(cancelled);
     Check(bp::SelectHudModule(cancelled, bp::HudModuleId::Vital),
         "select VITAL for hit cancellation");
-    HoldHud(cancelled, cancelledLedger, 45, true);
+    HoldHud(cancelled, cancelledLedger, 44);
+    Check(bp::AdvanceHudLoanEarly(cancelled, cancelledLedger, true, 0),
+        "tick 04-06 reserves pending HUD commit before collision");
+    Check(bp::HudHasPendingCommit(cancelled),
+        "45th dismantle tick remains pending through collision phase");
+    Check(std::memcmp(&cancelledLedger, &cancelledBefore, sizeof(cancelledBefore)) == 0,
+        "pending pre-collision HUD commit does not mutate physical ledger");
+    Check(!bp::SelectHudModule(cancelled, bp::HudModuleId::Vector),
+        "selection change is rejected while dismantle commit is pending");
+    Check(bp::ResolvePendingHudCommit(cancelled, cancelledLedger, true),
+        "tick 17 cancels pending HUD commit after PLAYER Shell hit");
     Check(cancelled.modules[0].state == bp::HudLoanState::Installed,
         "PLAYER Shell hit cancels pending HUD commit");
     Check(std::memcmp(&cancelledLedger, &cancelledBefore, sizeof(cancelledBefore)) == 0,
@@ -189,6 +199,22 @@ void TestHudTimingCancellationAndPartialRepayment() noexcept {
         "release HUD dismantle hold");
     Check(released.modules[0].state == bp::HudLoanState::Installed,
         "released dismantle returns installed");
+
+    bp::PhysicalLedger acceleratedLedger = MakeHudLedger();
+    bp::HudLoanSystem accelerated{};
+    bp::InitializeHudLoanSystem(accelerated);
+    Check(bp::TickHudLoan(accelerated, acceleratedLedger, true, false, 0),
+        "begin HUD loan before maturity advance");
+    Check(bp::ShortenOpenHudMaturity(accelerated, 120),
+        "open DISMANTLING loan retains 120-tick maturity advance");
+    HoldHud(accelerated, acceleratedLedger, 44);
+    Check(accelerated.modules[0].state == bp::HudLoanState::ToShellTransit,
+        "accelerated loan enters to-shell transit");
+    Check(bp::ShortenOpenHudMaturity(accelerated, 120),
+        "open TO_SHELL_TRANSIT loan retains another maturity advance");
+    IdleHud(accelerated, acceleratedLedger, 36);
+    Check(accelerated.modules[0].maturityRemaining == 479,
+        "pre-INACTIVE maturity advances apply before same-tick maturity step");
 
     bp::PhysicalLedger ledger = MakeHudLedger();
     bp::HudLoanSystem hud{};
@@ -250,6 +276,16 @@ void TestHudSingleOpenAndRestoreRollback() noexcept {
         "one-open-loan rule blocks second dismantle");
 
     Check(bp::SelectHudModule(hud, bp::HudModuleId::Vital), "reselect open VITAL loan");
+    Check(bp::TickHudLoan(hud, ledger, true, false, 0),
+        "begin manual restoring channel");
+    Check(hud.modules[0].state == bp::HudLoanState::Restoring,
+        "open module enters restoring before switch-away check");
+    Check(!bp::SelectHudModule(hud, bp::HudModuleId::Vector),
+        "selection change is rejected while restore channel is active");
+    Check(bp::TickHudLoan(hud, ledger, false, false, 0),
+        "release restoring channel after rejected switch");
+    Check(hud.modules[0].state == bp::HudLoanState::Inactive,
+        "restore channel cannot become stranded by selection change");
     const std::uint16_t shell = ledger.mass[AccountIndex(bp::PhysicalAccount::PlayerShell)];
     Check(bp::PhysicalTransfer(
         ledger,

@@ -13,7 +13,7 @@ T06 AUTHORITY INTERPRETATIONS
    Tick order moves Transit before maturity. When TO_SHELL_TRANSIT completes, the module becomes INACTIVE and the maturity step on that same tick changes 720 to 719. DUE is reached after exactly 720 maturity steps.
 
 5. Automatic Due repayment
-   TickHudLoan accepts only the amount newly reclaimed into PLAYER Shell that tick. DUE moves at most that amount Shell->Transit, so pre-existing Shell is not silently seized. Partial repayment remains DUE until the exact module mass is present in Transit.
+   Reclaim occurs at tick step 15, after Due repayment at step 05. AdvanceHudLoanEarly therefore accepts only the newly reclaimed amount carried from the previous tick. DUE moves at most that carried amount Shell->Transit, so pre-existing Shell is not silently seized. Partial repayment remains DUE until the exact module mass is present in Transit.
 
 6. Reallocation lock
    The runtime contract freezes 90 ticks but does not place the start edge. The lock begins when reverse Transit fully restores the module, preventing a new dismantle until the restored placement has remained stable for 90 subsequent ticks.

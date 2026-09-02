@@ -48,6 +48,7 @@ void SetInstalled(HudModuleLoan& module) noexcept {
     module.channelTicks = 0;
     module.stateTicks = 0;
     module.maturityRemaining = 0;
+    module.maturityAdvanceTicks = 0;
     module.transitMass = 0;
     module.arrivedMass = module.mass;
     module.state = HudLoanState::Installed;
@@ -57,7 +58,8 @@ void SetInstalled(HudModuleLoan& module) noexcept {
 void SetInactive(HudModuleLoan& module) noexcept {
     module.channelTicks = 0;
     module.stateTicks = 0;
-    module.maturityRemaining = kHudMaturityTicks;
+    module.maturityRemaining = static_cast<std::uint16_t>(
+        kHudMaturityTicks - module.maturityAdvanceTicks);
     module.transitMass = 0;
     module.arrivedMass = 0;
     module.state = HudLoanState::Inactive;
@@ -163,6 +165,7 @@ std::uint8_t HudModuleSelectNumber(HudModuleId module) noexcept {
 void InitializeHudLoanSystem(HudLoanSystem& system) noexcept {
     system = HudLoanSystem{};
     system.selected = HudModuleId::Vital;
+    system.pendingModule = HudModuleId::Count;
     for (std::uint8_t index = 0; index < kHudModuleCount; ++index) {
         HudModuleLoan& module = system.modules[index];
         module.mass = HudModuleMass(static_cast<HudModuleId>(index));
@@ -171,7 +174,8 @@ void InitializeHudLoanSystem(HudLoanSystem& system) noexcept {
 }
 
 bool HudLoanSystemValid(const HudLoanSystem& system, const PhysicalLedger& ledger) noexcept {
-    if (!PhysicalLedgerValid(ledger) || !ValidModule(system.selected)) return false;
+    if (!PhysicalLedgerValid(ledger) || !ValidModule(system.selected)
+        || system.pendingCommit > 1) return false;
     std::uint8_t open = 0;
     for (std::uint8_t index = 0; index < kHudModuleCount; ++index) {
         const HudModuleLoan& module = system.modules[index];
@@ -180,12 +184,13 @@ bool HudLoanSystemValid(const HudLoanSystem& system, const PhysicalLedger& ledge
             || module.channelTicks > kHudRestoreTicks
             || module.stateTicks > kHudTransitTicks
             || module.maturityRemaining > kHudMaturityTicks
+            || module.maturityAdvanceTicks > kHudMaturityTicks
             || module.transitMass > module.mass
             || module.arrivedMass > module.mass) return false;
         if (IsOpen(module)) ++open;
         if (module.state == HudLoanState::Installed
             && (module.transitMass != 0 || module.arrivedMass != module.mass
-                || module.maturityRemaining != 0)) return false;
+                || module.maturityRemaining != 0 || module.maturityAdvanceTicks != 0)) return false;
         if (module.state == HudLoanState::ToShellTransit
             && static_cast<std::uint32_t>(module.transitMass) + module.arrivedMass > module.mass) return false;
         if (module.state == HudLoanState::ToHudTransit
@@ -193,23 +198,36 @@ bool HudLoanSystemValid(const HudLoanSystem& system, const PhysicalLedger& ledge
         if (module.state == HudLoanState::Due && module.maturityRemaining != 0) return false;
     }
     if (open > 1) return false;
+    if (system.pendingCommit != 0) {
+        if (!ValidModule(system.pendingModule) || system.pendingModule != system.selected) return false;
+        const HudModuleLoan& pending = system.modules[ModuleIndex(system.pendingModule)];
+        const bool dismantlePending = pending.state == HudLoanState::Dismantling
+            && pending.channelTicks == kHudDismantleTicks;
+        const bool restorePending = pending.state == HudLoanState::Restoring
+            && pending.channelTicks == kHudRestoreTicks;
+        if (!dismantlePending && !restorePending) return false;
+    } else if (system.pendingModule != HudModuleId::Count) return false;
     if (ledger.mass[AccountIndex(PhysicalAccount::InstalledHud)] != ExpectedInstalledMass(system)) return false;
     return ledger.mass[AccountIndex(PhysicalAccount::Transit)] >= ExpectedTransitMass(system);
 }
 
 bool SelectHudModule(HudLoanSystem& system, HudModuleId module) noexcept {
     if (!ValidModule(module)) return false;
+    if (system.pendingCommit != 0) return false;
+    for (const HudModuleLoan& loan : system.modules) {
+        if (loan.state == HudLoanState::Dismantling
+            || loan.state == HudLoanState::Restoring) return false;
+    }
     system.selected = module;
     return true;
 }
 
-bool TickHudLoan(
+bool AdvanceHudLoanEarly(
     HudLoanSystem& system,
     PhysicalLedger& ledger,
     bool reallocateHeld,
-    bool playerShellHitThisTick,
-    std::uint16_t playerReclaimedMassThisTick) noexcept {
-    if (!HudLoanSystemValid(system, ledger)) return false;
+    std::uint16_t playerReclaimedMassFromPreviousTick) noexcept {
+    if (!HudLoanSystemValid(system, ledger) || system.pendingCommit != 0) return false;
     HudLoanSystem candidate = system;
     PhysicalLedger ledgerCandidate = ledger;
     if (candidate.reallocationLockTicks > 0) --candidate.reallocationLockTicks;
@@ -223,7 +241,8 @@ bool TickHudLoan(
     }
     for (HudModuleLoan& module : candidate.modules) AdvanceMaturity(module);
     for (HudModuleLoan& module : candidate.modules) {
-        if (!ApplyDueRepayment(module, ledgerCandidate, playerReclaimedMassThisTick)) return false;
+        if (!ApplyDueRepayment(
+                module, ledgerCandidate, playerReclaimedMassFromPreviousTick)) return false;
     }
 
     HudModuleLoan& selected = candidate.modules[ModuleIndex(candidate.selected)];
@@ -240,8 +259,8 @@ bool TickHudLoan(
         } else {
             if (selected.channelTicks < kHudDismantleTicks) ++selected.channelTicks;
             if (selected.channelTicks == kHudDismantleTicks) {
-                if (playerShellHitThisTick) SetInstalled(selected);
-                else if (!CommitDismantle(selected, ledgerCandidate)) return false;
+                candidate.pendingCommit = 1;
+                candidate.pendingModule = candidate.selected;
             }
         }
     } else if (selected.state == HudLoanState::Inactive) {
@@ -256,10 +275,8 @@ bool TickHudLoan(
         } else {
             if (selected.channelTicks < kHudRestoreTicks) ++selected.channelTicks;
             if (selected.channelTicks == kHudRestoreTicks) {
-                if (playerShellHitThisTick || !CommitRestore(selected, ledgerCandidate)) {
-                    selected.state = HudLoanState::Inactive;
-                    selected.channelTicks = 0;
-                }
+                candidate.pendingCommit = 1;
+                candidate.pendingModule = candidate.selected;
             }
         }
     }
@@ -270,18 +287,66 @@ bool TickHudLoan(
     return true;
 }
 
+bool ResolvePendingHudCommit(
+    HudLoanSystem& system,
+    PhysicalLedger& ledger,
+    bool playerShellHitThisTick) noexcept {
+    if (!HudLoanSystemValid(system, ledger)) return false;
+    if (system.pendingCommit == 0) return true;
+    HudLoanSystem candidate = system;
+    PhysicalLedger ledgerCandidate = ledger;
+    HudModuleLoan& module = candidate.modules[ModuleIndex(candidate.pendingModule)];
+    if (module.state == HudLoanState::Dismantling) {
+        if (playerShellHitThisTick) SetInstalled(module);
+        else if (!CommitDismantle(module, ledgerCandidate)) return false;
+    } else if (module.state == HudLoanState::Restoring) {
+        if (playerShellHitThisTick || !CommitRestore(module, ledgerCandidate)) {
+            module.state = HudLoanState::Inactive;
+            module.channelTicks = 0;
+        }
+    } else {
+        return false;
+    }
+    candidate.pendingCommit = 0;
+    candidate.pendingModule = HudModuleId::Count;
+    if (!HudLoanSystemValid(candidate, ledgerCandidate)) return false;
+    system = candidate;
+    ledger = ledgerCandidate;
+    return true;
+}
+
+bool TickHudLoan(
+    HudLoanSystem& system,
+    PhysicalLedger& ledger,
+    bool reallocateHeld,
+    bool playerShellHitThisTick,
+    std::uint16_t playerReclaimedMassFromPreviousTick) noexcept {
+    if (!AdvanceHudLoanEarly(
+            system, ledger, reallocateHeld, playerReclaimedMassFromPreviousTick)) return false;
+    return ResolvePendingHudCommit(system, ledger, playerShellHitThisTick);
+}
+
 bool ShortenOpenHudMaturity(HudLoanSystem& system, std::uint16_t ticks) noexcept {
     for (HudModuleLoan& module : system.modules) {
-        if (module.state != HudLoanState::Inactive && module.state != HudLoanState::Restoring) continue;
-        module.maturityRemaining = ticks < module.maturityRemaining
-            ? static_cast<std::uint16_t>(module.maturityRemaining - ticks)
-            : 0;
-        module.warning = module.maturityRemaining > 0
-            && module.maturityRemaining <= kHudWarningTicks ? 1u : 0u;
-        if (module.maturityRemaining == 0) {
-            module.state = HudLoanState::Due;
-            module.channelTicks = 0;
-            module.warning = 1;
+        if (!IsOpen(module)) continue;
+        if (module.state == HudLoanState::Dismantling
+            || module.state == HudLoanState::ToShellTransit) {
+            const std::uint32_t advanced = static_cast<std::uint32_t>(
+                module.maturityAdvanceTicks) + ticks;
+            module.maturityAdvanceTicks = static_cast<std::uint16_t>(
+                advanced < kHudMaturityTicks ? advanced : kHudMaturityTicks);
+        } else if (module.state == HudLoanState::Inactive
+            || module.state == HudLoanState::Restoring) {
+            module.maturityRemaining = ticks < module.maturityRemaining
+                ? static_cast<std::uint16_t>(module.maturityRemaining - ticks)
+                : 0;
+            module.warning = module.maturityRemaining > 0
+                && module.maturityRemaining <= kHudWarningTicks ? 1u : 0u;
+            if (module.maturityRemaining == 0) {
+                module.state = HudLoanState::Due;
+                module.channelTicks = 0;
+                module.warning = 1;
+            }
         }
         return true;
     }
@@ -307,6 +372,10 @@ bool HudLoanWarning(const HudLoanSystem& system) noexcept {
         if (module.warning != 0) return true;
     }
     return false;
+}
+
+bool HudHasPendingCommit(const HudLoanSystem& system) noexcept {
+    return system.pendingCommit != 0;
 }
 
 std::uint16_t HudVisibleMaterialMass(const HudLoanSystem& system, HudModuleId module) noexcept {
