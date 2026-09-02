@@ -42,3 +42,12 @@ REVIEW:
 - The final review-evidence-only tip is checked once more before standing local fast-forward approval is used.
 
 STATUS: READY_FOR_REVIEW — not ACCEPTED and not integrated.
+
+LOCAL INTEGRATION:
+
+- Standing Human Director approval applied after candidate, ancestry, clean state, authority hashes, P0/P1=0, required tests, and exact dist were rechecked.
+- `integration/rc-2026-09-03` fast-forwarded from `587f8fe9abfee78b5fbcbd160ece1408275458b7` to candidate `f8f1c042f00623cb5b0e71aad137b409f4c2c656`.
+- Post-integration authority/configure/Debug/Test/direct/CTest/smoke/Contest/dist regression passed.
+- The independent P2 test-only fault-injection debt remains recorded; no push, tag, publication, or submission was performed.
+
+INTEGRATION STATUS: LOCALLY_INTEGRATED — not externally accepted or released.

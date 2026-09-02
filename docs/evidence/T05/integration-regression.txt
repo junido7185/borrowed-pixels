@@ -1,0 +1,32 @@
+T05 POST-INTEGRATION REGRESSION
+
+INTEGRATION_BRANCH=integration/rc-2026-09-03
+PREVIOUS_HEAD=587f8fe9abfee78b5fbcbd160ece1408275458b7
+CANDIDATE_SHA=f8f1c042f00623cb5b0e71aad137b409f4c2c656
+MERGE_MODE=git merge --ff-only candidate/T05-final
+FAST_FORWARD=PASS
+
+AUTHORITY
+- authoritative manifest entries: 6/6 PASS.
+- manifest SHA-256: db043feb0abeeaff6136c420e99fc6bd45393886846fed8efb329f90575dc937.
+- T03 amendment SHA-256: 9431ddb6e512ed7842f8c0c1d36ae7c33374cdb1824ab5037e4f87f0256c961f.
+
+REGRESSION
+- configure Windows x64 MSVC: exit 0.
+- Debug build: exit 0.
+- Test build and direct executable: exit 0.
+- T05 4052; T04 333093/replay 61646592; T03 5035224/Hangul 11172; T02 2365194/combinations 19683: PASS.
+- CTest: 1/1 PASS.
+- visible-window debug smoke: exit 0.
+- Contest clean build: exit 0.
+
+DIST
+- files: 1.
+- exact bytes: 129024.
+- internal cap 1350000: PASS.
+- hard cap 1474560: PASS.
+- BorrowedPixels.exe SHA-256: 7c901064b9f609fba530d52aedd4eccf0341247bfc5fcbcac4c0b00f22147308.
+
+REVIEW=P0=0 P1=0 P2=1 PASS_WITH_P2
+P2 is the recorded non-runtime fault-injection coverage debt; no production defect is claimed open.
+PUSH_TAG_PUBLICATION_SUBMISSION=NOT_PERFORMED

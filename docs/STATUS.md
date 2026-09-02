@@ -1,9 +1,9 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
-- Latest integrated candidate SHA: `b8739064b8c8b4ae1fdb2a928812a61573ea5f0c`
+- Latest integrated candidate SHA: `f8f1c042f00623cb5b0e71aad137b409f4c2c656`
 - Current controller state: `TICKET_IMPLEMENTATION`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
-- Current ticket: T05 Charge/Projectile/hit/Core
+- Current ticket: T06 Neutral/reclaim/HUD loan
 - Contest dist: `129,024B`
 
 | Ticket | State | Evidence |
@@ -13,7 +13,7 @@
 | T02 | LOCALLY_INTEGRATED | Independent review P0/P1/P2=0; `docs/evidence/T02/` |
 | T03 | LOCALLY_INTEGRATED | Candidate `1e49151c...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
 | T04 | LOCALLY_INTEGRATED | Candidate `b8739064...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
-| T05 | READY_FOR_REVIEW | Charge, fixed combat slots, swept collision, hit transactions, Core snapshot, and saturation recovery; independent review P0/P1=0, P2=1 test debt |
+| T05 | LOCALLY_INTEGRATED | Candidate `f8f1c042...`; post-integration full regression PASS; independent review P0/P1=0, P2=1 test-only fault-injection debt |
 | T06-T14 | PENDING | Sequential controller execution |
 
 ## Gate status
