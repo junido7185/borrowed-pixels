@@ -25,7 +25,7 @@ IMPLEMENTED:
 
 AUTOMATED RESULTS:
 
-- T06 direct test: `6,083` checks; 21 module-state cases and Neutral capacity 64.
+- T06 direct test: `6,512` checks; 21 module-state cases and Neutral capacity 64.
 - T05 regression: `4,052`; T04 `333,093`/replay `61646592`; T03 `5,035,224`/Hangul 11,172; T02 `2,365,194`.
 - Debug/Test/CTest/debug smoke/Contest clean build: PASS on local Windows x64 MSVC.
 - Contest dist: one file, `129,024B`; internal/hard caps PASS.

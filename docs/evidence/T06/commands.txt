@@ -15,7 +15,7 @@ EXIT 0.
 cmake --build --preset test --clean-first
 EXIT 0.
 build/windows-msvc/bin/TEST/bp_test.exe
-EXIT 0; T06 6083, T05 4052, T04 333093, T03 5035224, T02 2365194 checks.
+EXIT 0; T06 6512, T05 4052, T04 333093, T03 5035224, T02 2365194 checks.
 ctest --preset all --output-on-failure
 EXIT 0; 1/1 PASS.
 cmake --build --preset debug

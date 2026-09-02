@@ -69,13 +69,6 @@ bool ResolvePendingHudCommit(
     PhysicalLedger& ledger,
     bool playerShellHitThisTick) noexcept;
 
-bool TickHudLoan(
-    HudLoanSystem& system,
-    PhysicalLedger& ledger,
-    bool reallocateHeld,
-    bool playerShellHitThisTick,
-    std::uint16_t playerReclaimedMassFromPreviousTick) noexcept;
-
 bool ShortenOpenHudMaturity(HudLoanSystem& system, std::uint16_t ticks) noexcept;
 bool HudModuleFullyInstalled(const HudLoanSystem& system, HudModuleId module) noexcept;
 bool HudFireLocked(const HudLoanSystem& system) noexcept;

@@ -315,19 +315,9 @@ bool ResolvePendingHudCommit(
     return true;
 }
 
-bool TickHudLoan(
-    HudLoanSystem& system,
-    PhysicalLedger& ledger,
-    bool reallocateHeld,
-    bool playerShellHitThisTick,
-    std::uint16_t playerReclaimedMassFromPreviousTick) noexcept {
-    if (!AdvanceHudLoanEarly(
-            system, ledger, reallocateHeld, playerReclaimedMassFromPreviousTick)) return false;
-    return ResolvePendingHudCommit(system, ledger, playerShellHitThisTick);
-}
-
 bool ShortenOpenHudMaturity(HudLoanSystem& system, std::uint16_t ticks) noexcept {
-    for (HudModuleLoan& module : system.modules) {
+    for (std::uint8_t index = 0; index < kHudModuleCount; ++index) {
+        HudModuleLoan& module = system.modules[index];
         if (!IsOpen(module)) continue;
         if (module.state == HudLoanState::Dismantling
             || module.state == HudLoanState::ToShellTransit) {
@@ -346,6 +336,11 @@ bool ShortenOpenHudMaturity(HudLoanSystem& system, std::uint16_t ticks) noexcept
                 module.state = HudLoanState::Due;
                 module.channelTicks = 0;
                 module.warning = 1;
+                if (system.pendingCommit != 0
+                    && ModuleIndex(system.pendingModule) == index) {
+                    system.pendingCommit = 0;
+                    system.pendingModule = HudModuleId::Count;
+                }
             }
         }
         return true;

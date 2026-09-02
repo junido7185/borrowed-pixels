@@ -81,10 +81,21 @@ void CheckHud(const bp::HudLoanSystem& hud, const bp::PhysicalLedger& ledger,
         "HUD physical total remains 1440");
 }
 
+bool TickHudForTest(
+    bp::HudLoanSystem& hud,
+    bp::PhysicalLedger& ledger,
+    bool held,
+    bool shellHit,
+    std::uint16_t reclaimedFromPreviousTick) noexcept {
+    return bp::AdvanceHudLoanEarly(
+            hud, ledger, held, reclaimedFromPreviousTick)
+        && bp::ResolvePendingHudCommit(hud, ledger, shellHit);
+}
+
 void HoldHud(bp::HudLoanSystem& hud, bp::PhysicalLedger& ledger,
     std::uint16_t ticks, bool shellHitOnLast = false) noexcept {
     for (std::uint16_t tick = 0; tick < ticks; ++tick) {
-        Check(bp::TickHudLoan(
+        Check(TickHudForTest(
             hud,
             ledger,
             true,
@@ -97,7 +108,7 @@ void HoldHud(bp::HudLoanSystem& hud, bp::PhysicalLedger& ledger,
 void IdleHud(bp::HudLoanSystem& hud, bp::PhysicalLedger& ledger,
     std::uint16_t ticks) noexcept {
     for (std::uint16_t tick = 0; tick < ticks; ++tick) {
-        Check(bp::TickHudLoan(hud, ledger, false, false, 0), "HUD idle tick");
+        Check(TickHudForTest(hud, ledger, false, false, 0), "HUD idle tick");
         CheckHud(hud, ledger, "HUD idle invariant");
     }
 }
@@ -154,7 +165,7 @@ void TestHudConstantsAndAllStates() noexcept {
         Check(bp::HudFireLocked(hud) && bp::HudLoanWarning(hud),
             "DUE warns and locks firing");
 
-        Check(bp::TickHudLoan(
+        Check(TickHudForTest(
             hud, ledger, false, false, bp::HudModuleMass(module)),
             "DUE automatic full repayment");
         Check(hud.modules[moduleIndex].state == bp::HudLoanState::ToHudTransit,
@@ -193,9 +204,9 @@ void TestHudTimingCancellationAndPartialRepayment() noexcept {
     bp::PhysicalLedger releasedLedger = MakeHudLedger();
     bp::HudLoanSystem released{};
     bp::InitializeHudLoanSystem(released);
-    Check(bp::TickHudLoan(released, releasedLedger, true, false, 0),
+    Check(TickHudForTest(released, releasedLedger, true, false, 0),
         "begin HUD dismantle for release cancel");
-    Check(bp::TickHudLoan(released, releasedLedger, false, false, 0),
+    Check(TickHudForTest(released, releasedLedger, false, false, 0),
         "release HUD dismantle hold");
     Check(released.modules[0].state == bp::HudLoanState::Installed,
         "released dismantle returns installed");
@@ -203,7 +214,7 @@ void TestHudTimingCancellationAndPartialRepayment() noexcept {
     bp::PhysicalLedger acceleratedLedger = MakeHudLedger();
     bp::HudLoanSystem accelerated{};
     bp::InitializeHudLoanSystem(accelerated);
-    Check(bp::TickHudLoan(accelerated, acceleratedLedger, true, false, 0),
+    Check(TickHudForTest(accelerated, acceleratedLedger, true, false, 0),
         "begin HUD loan before maturity advance");
     Check(bp::ShortenOpenHudMaturity(accelerated, 120),
         "open DISMANTLING loan retains 120-tick maturity advance");
@@ -215,6 +226,31 @@ void TestHudTimingCancellationAndPartialRepayment() noexcept {
     IdleHud(accelerated, acceleratedLedger, 36);
     Check(accelerated.modules[0].maturityRemaining == 479,
         "pre-INACTIVE maturity advances apply before same-tick maturity step");
+
+    bp::PhysicalLedger pendingDueLedger = MakeHudLedger();
+    bp::HudLoanSystem pendingDue{};
+    bp::InitializeHudLoanSystem(pendingDue);
+    HoldHud(pendingDue, pendingDueLedger, 45);
+    IdleHud(pendingDue, pendingDueLedger, 36);
+    Check(bp::ShortenOpenHudMaturity(pendingDue, 539),
+        "prepare exact 180-tick restore maturity boundary");
+    Check(pendingDue.modules[0].maturityRemaining == 180,
+        "restore boundary starts with maturity 180");
+    HoldHud(pendingDue, pendingDueLedger, 59);
+    Check(bp::AdvanceHudLoanEarly(pendingDue, pendingDueLedger, true, 0),
+        "60th restore early stage reserves pending commit");
+    Check(bp::HudHasPendingCommit(pendingDue)
+            && pendingDue.modules[0].maturityRemaining == 120,
+        "restore pending and maturity 120 coexist after step 6");
+    Check(bp::ShortenOpenHudMaturity(pendingDue, 120),
+        "step 7 shortening reaches DUE on pending restore");
+    Check(pendingDue.modules[0].state == bp::HudLoanState::Due
+            && !bp::HudHasPendingCommit(pendingDue),
+        "DUE transition atomically cancels stale restore pending commit");
+    Check(bp::HudLoanSystemValid(pendingDue, pendingDueLedger),
+        "pending-to-DUE shortening preserves HUD invariant");
+    Check(bp::ResolvePendingHudCommit(pendingDue, pendingDueLedger, false),
+        "tick 17 is a no-op after policy cancels restore pending");
 
     bp::PhysicalLedger ledger = MakeHudLedger();
     bp::HudLoanSystem hud{};
@@ -232,15 +268,15 @@ void TestHudTimingCancellationAndPartialRepayment() noexcept {
         "maturity 720 reaches DUE exactly");
 
     const std::uint16_t shellBefore = ledger.mass[AccountIndex(bp::PhysicalAccount::PlayerShell)];
-    Check(bp::TickHudLoan(hud, ledger, false, false, 32), "DUE partial repayment 32");
+    Check(TickHudForTest(hud, ledger, false, false, 32), "DUE partial repayment 32");
     Check(hud.modules[1].state == bp::HudLoanState::Due
             && hud.modules[1].transitMass == 32,
         "partial repayment remains DUE with exact Transit mass");
     Check(ledger.mass[AccountIndex(bp::PhysicalAccount::PlayerShell)] == shellBefore - 32,
         "partial repayment debits only reclaimed Shell amount");
-    Check(bp::TickHudLoan(hud, ledger, false, false, 47), "DUE partial repayment 47");
+    Check(TickHudForTest(hud, ledger, false, false, 47), "DUE partial repayment 47");
     Check(hud.modules[1].transitMass == 79, "DUE repayment accumulates exact partial mass");
-    Check(bp::TickHudLoan(hud, ledger, false, false, 1), "DUE final repayment tile");
+    Check(TickHudForTest(hud, ledger, false, false, 1), "DUE final repayment tile");
     Check(hud.modules[1].state == bp::HudLoanState::ToHudTransit,
         "final repaid tile starts reverse transit");
     IdleHud(hud, ledger, 18);
@@ -254,11 +290,11 @@ void TestHudTimingCancellationAndPartialRepayment() noexcept {
         "restoration applies 90-tick reallocation lock");
 
     Check(bp::SelectHudModule(hud, bp::HudModuleId::Vital), "select during reallocation lock");
-    Check(bp::TickHudLoan(hud, ledger, true, false, 0), "hold during reallocation lock");
+    Check(TickHudForTest(hud, ledger, true, false, 0), "hold during reallocation lock");
     Check(hud.modules[0].state == bp::HudLoanState::Installed,
         "reallocation lock blocks new dismantle");
     IdleHud(hud, ledger, bp::kHudReallocationLockTicks - 1);
-    Check(bp::TickHudLoan(hud, ledger, true, false, 0), "hold after lock expiry");
+    Check(TickHudForTest(hud, ledger, true, false, 0), "hold after lock expiry");
     Check(hud.modules[0].state == bp::HudLoanState::Dismantling,
         "new dismantle starts when reallocation lock expires");
 }
@@ -276,13 +312,13 @@ void TestHudSingleOpenAndRestoreRollback() noexcept {
         "one-open-loan rule blocks second dismantle");
 
     Check(bp::SelectHudModule(hud, bp::HudModuleId::Vital), "reselect open VITAL loan");
-    Check(bp::TickHudLoan(hud, ledger, true, false, 0),
+    Check(TickHudForTest(hud, ledger, true, false, 0),
         "begin manual restoring channel");
     Check(hud.modules[0].state == bp::HudLoanState::Restoring,
         "open module enters restoring before switch-away check");
     Check(!bp::SelectHudModule(hud, bp::HudModuleId::Vector),
         "selection change is rejected while restore channel is active");
-    Check(bp::TickHudLoan(hud, ledger, false, false, 0),
+    Check(TickHudForTest(hud, ledger, false, false, 0),
         "release restoring channel after rejected switch");
     Check(hud.modules[0].state == bp::HudLoanState::Inactive,
         "restore channel cannot become stranded by selection change");
