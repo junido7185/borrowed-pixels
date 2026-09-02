@@ -13,7 +13,7 @@
 | T02 | LOCALLY_INTEGRATED | Independent review P0/P1/P2=0; `docs/evidence/T02/` |
 | T03 | LOCALLY_INTEGRATED | Candidate `1e49151c...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
 | T04 | LOCALLY_INTEGRATED | Candidate `b8739064...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
-| T05 | REVIEW_PENDING | Charge, fixed combat slots, swept collision, hit transactions, Core snapshot, and saturation recovery implemented |
+| T05 | READY_FOR_REVIEW | Charge, fixed combat slots, swept collision, hit transactions, Core snapshot, and saturation recovery; independent review P0/P1=0, P2=1 test debt |
 | T06-T14 | PENDING | Sequential controller execution |
 
 ## Gate status

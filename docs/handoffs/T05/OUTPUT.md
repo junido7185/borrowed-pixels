@@ -36,7 +36,9 @@ AUTOMATED RESULTS:
 
 REVIEW:
 
-- Independent read-only review is pending and will be recorded in `docs/evidence/T05/independent-review.txt`.
-- P0/P1 must be zero before standing local fast-forward approval is used.
+- Initial independent review found P1=1 in failed non-Core impact atomicity; repair `8d259afae6cf2b848b6c3b14b60e322eeb39621f` moved the impact position update inside the candidate transaction.
+- Final read-only review of `20e06d870185111971231820b392e963d81f2b94` reports P0=0, P1=0, P2=1 and confirms the production repair is correct.
+- The P2 is a non-blocking test-only gap: the byte-identity test covers preflight failure but does not inject a post-copy ProcessImpact failure. It is recorded in `docs/evidence/T05/independent-review.txt`.
+- The final review-evidence-only tip is checked once more before standing local fast-forward approval is used.
 
-STATUS: REVIEW_PENDING — not ACCEPTED and not integrated.
+STATUS: READY_FOR_REVIEW — not ACCEPTED and not integrated.

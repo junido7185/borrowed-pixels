@@ -1,0 +1,27 @@
+T05 INDEPENDENT READ-ONLY REVIEW
+
+INITIAL_IMPLEMENTATION_SHA=7c9627cfe64cbcb096812f2ba776f1ba0832ce28
+REVIEWER=review_t01
+INITIAL_RESULT=P0=0 P1=1 P2=0 CHANGES_REQUIRED
+
+P1
+- ProcessImpact moved the original non-Core projectile to the impact point before copying the transaction candidate.
+- A later transaction failure could therefore leave position mutated while returning failure.
+- Repair `8d259afae6cf2b848b6c3b14b60e322eeb39621f` moves position only in the candidate; successful Core handling explicitly updates the original state.
+
+FINAL_REVIEW_SHA=20e06d870185111971231820b392e963d81f2b94
+FINAL_REVIEW_RESULT=P0=0 P1=0 P2=1 PASS_WITH_P2 READY_FOR_HUMAN_GATE
+
+FINAL REVIEW CONFIRMATIONS
+- ancestry `587f8fe -> 7c9627c -> 8d259af -> 20e06d8` and clean worktree: PASS.
+- all changed paths inside the T05 allowlist: PASS.
+- authority 6/6, manifest `db043feb...c937`, and amendment `9431ddb6...c961f`: PASS.
+- repaired ProcessImpact transaction boundary: PASS; no remaining runtime P0/P1 found.
+- direct tests: T05 4052, T04 333093/replay 61646592, T03 5035224, T02 2365194: PASS.
+- contest dist one file, 129024 bytes; SHA-256 `7c901064b9f609fba530d52aedd4eccf0341247bfc5fcbcac4c0b00f22147308`: PASS.
+
+P2 NON-BLOCKING TEST COVERAGE RISK
+- The added byte-identity assertion exercises preflight ClaimLedger rejection, not a forced failure inside ProcessImpact after candidate creation.
+- A BP_TEST-only post-copy fault injection would directly lock the repaired line against regression.
+- The earlier proposed 64-slot non-merge reproduction was retracted: requiring every pair sum above 256 implies at least 64*129=8256 Neutral mass, impossible under the authoritative total 1440.
+- The reviewer confirmed the production repair itself is correct and suitable for the gate. Standing integration requires P0/P1=0; this P2 is carried explicitly as test debt.
