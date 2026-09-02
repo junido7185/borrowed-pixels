@@ -1,9 +1,9 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
-- Latest integrated candidate SHA: `f8f1c042f00623cb5b0e71aad137b409f4c2c656`
+- Latest integrated candidate SHA: `70a2ae0b44d4b80a2beeba2d391ffe5d5633d207`
 - Current controller state: `TICKET_IMPLEMENTATION`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
-- Current ticket: T06 Neutral/reclaim/HUD loan
+- Current ticket: T07 encounter framework and Act 1 vertical slice
 - Contest dist: `129,024B`
 
 | Ticket | State | Evidence |
@@ -14,7 +14,7 @@
 | T03 | LOCALLY_INTEGRATED | Candidate `1e49151c...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
 | T04 | LOCALLY_INTEGRATED | Candidate `b8739064...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
 | T05 | LOCALLY_INTEGRATED | Candidate `f8f1c042...`; post-integration full regression PASS; independent review P0/P1=0, P2=1 test-only fault-injection debt |
-| T06 | READY_FOR_REVIEW | Neutral dynamics/merge/reclaim and all 3x7 HUD loan states; final independent review P0/P1/P2=0 |
+| T06 | LOCALLY_INTEGRATED | Candidate `70a2ae0b...`; post-integration full regression PASS; final independent review P0/P1/P2=0 |
 | T07-T14 | PENDING | Sequential controller execution |
 
 ## Gate status
