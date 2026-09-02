@@ -1,0 +1,38 @@
+T06 INDEPENDENT READ-ONLY REVIEW
+
+IMPLEMENTATION_SHA=0e4c15b45611da524f98a778250d8ecf575e7b99
+REVIEWER=review_t01
+INITIAL_RESULT=P0=0 P1=3 P2=0 CHANGES_REQUIRED
+
+INITIAL P1 FINDINGS
+1. Selection could move away from DISMANTLING/RESTORING and strand the old channel indefinitely.
+2. A single TickHudLoan API combined authoritative early tick steps 04-06 with post-collision pending commit step 17.
+3. ShortenOpenHudMaturity counted pre-INACTIVE states as open but discarded the 120-tick advance in DISMANTLING/TO_SHELL_TRANSIT.
+
+FIRST_REPAIR_SHA=719862d09a0f835d422a371a0feb52ec3ee1498c
+FIRST_REVIEW_RESULT=P0=0 P1=1 P2=1 CHANGES_REQUIRED
+
+FIRST REPAIR
+- selection changes are rejected during active channels and pending commits.
+- AdvanceHudLoanEarly and ResolvePendingHudCommit split the frozen tick stages; fixed pending state is validated.
+- maturityAdvanceTicks carries policy shortening through DISMANTLING/TO_SHELL_TRANSIT.
+- Due repayment input is explicitly the prior tick's carried reclaim result.
+
+FOLLOW-UP P1
+- A RESTORING channel at tick 60 could become pending, then policy shortening at step 7 could change it to DUE without clearing pending state, violating the invariant before step 17.
+
+FOLLOW-UP P2
+- The public one-call TickHudLoan wrapper could bypass the staged integration contract.
+
+FINAL_REPAIR_SHA=779581479eb84d285121a33ced8615d38c78336c
+FINAL_REVIEW_RESULT=P0=0 P1=0 P2=0 PASS READY_FOR_HUMAN_GATE
+
+FINAL CONFIRMATIONS
+- DUE transition atomically clears a pending RESTORING commit at the exact maturity 180 / restore 60 / remaining 120 / shorten 120 boundary.
+- the regression verifies pending creation, DUE transition, pending clear, HudLoanSystemValid, and step-17 no-op.
+- the public one-call wrapper is removed; only the staged production API remains.
+- all four P1 paths are repaired with dedicated regressions; no new static defect was found.
+- base/repair ancestry, allowlist, clean worktree, and diff check: PASS.
+- authority 6/6 and amendment hash: PASS.
+- direct tests: T06 6512; T05 4052; T04 333093/replay 61646592; T03/T02 PASS.
+- contest dist one file, 129024 bytes; SHA-256 `f406cffff791b01cc0ad041245230c5d3bc8918d9faeb92ed3f043e19bb9f0bc`: PASS.

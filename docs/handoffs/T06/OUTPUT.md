@@ -33,7 +33,9 @@ AUTOMATED RESULTS:
 
 REVIEW:
 
-- Independent read-only review is pending and will be recorded in `docs/evidence/T06/independent-review.txt`.
-- P0/P1 must be zero before standing local fast-forward approval is used.
+- Initial independent review found three P1 defects in channel selection, frozen tick staging, and pre-INACTIVE maturity shortening.
+- First repair review found one additional P1 at the pending-restore/DUE boundary and one P2 public wrapper risk.
+- Final read-only review of `779581479eb84d285121a33ced8615d38c78336c` reports P0=0, P1=0, P2=0.
+- The final review-evidence-only tip is checked once more before standing local fast-forward approval is used.
 
-STATUS: REVIEW_PENDING — not ACCEPTED and not integrated.
+STATUS: READY_FOR_REVIEW — not ACCEPTED and not integrated.
