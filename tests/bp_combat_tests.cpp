@@ -705,6 +705,8 @@ void TestNeutralSaturationRecoveryAndInvariantFailure() noexcept {
 
     World invalidClaim = MakeWorld();
     ++invalidClaim.claims.mass[0];
+    bp::CombatState combatBeforeFailure = invalidClaim.combat;
+    const bp::PhysicalLedger ledgerBeforeFailure = invalidClaim.ledger;
     Check(!bp::StepCombatProjectiles(
         invalidClaim.combat,
         invalidClaim.ledger,
@@ -712,6 +714,18 @@ void TestNeutralSaturationRecoveryAndInvariantFailure() noexcept {
     Check(invalidClaim.combat.phase == bp::CombatPhase::Fatal
         && invalidClaim.combat.error == bp::CombatError::InvariantFailure,
         "invalid claim ledger publishes invariant fatal code");
+    combatBeforeFailure.phase = invalidClaim.combat.phase;
+    combatBeforeFailure.error = invalidClaim.combat.error;
+    Check(std::memcmp(
+            &invalidClaim.combat,
+            &combatBeforeFailure,
+            sizeof(combatBeforeFailure)) == 0,
+        "failed combat step preserves every byte except documented fatal fields");
+    Check(std::memcmp(
+            &invalidClaim.ledger,
+            &ledgerBeforeFailure,
+            sizeof(ledgerBeforeFailure)) == 0,
+        "failed combat step preserves physical ledger byte-identical");
 }
 
 struct T05TestRunner {

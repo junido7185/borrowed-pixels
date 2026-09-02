@@ -25,7 +25,7 @@ IMPLEMENTED:
 
 AUTOMATED RESULTS:
 
-- T05 direct test: `4,050` checks; capacities Projectile 32 and Neutral 64.
+- T05 direct test: `4,052` checks; capacities Projectile 32 and Neutral 64.
 - 211 one-pixel Cover positions tested against a 260px/tick swept segment without tunneling.
 - 56 consecutive boundary conversions and 32-step byte-identical dual replay preserve both 1,440 ledgers.
 - T04 regression: `333,093` checks, replay `61646592`.

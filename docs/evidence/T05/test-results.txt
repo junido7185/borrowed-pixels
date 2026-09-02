@@ -3,7 +3,7 @@ T05 TEST RESULTS
 COMMAND: build/windows-msvc/bin/TEST/bp_test.exe
 EXIT: 0
 
-T05_PASS checks=4050 projectiles=32 neutrals=64
+T05_PASS checks=4052 projectiles=32 neutrals=64
 T04_INFO replay=61646592 ticks=4096
 T04_PASS checks=333093 replay_ticks=4096
 T03_INFO hangul=160B0D5B
@@ -20,6 +20,7 @@ T05 COVERAGE:
 - Shell/Cover/Projectile/Charge/boundary transactions, partial Charge cancellation below 8, provenance, reclaim lock, immunity, and generation reuse.
 - 211 one-pixel Cover locations at 260px/tick, 56 mass-preserving boundary shots, and two byte-identical 32-step combat replays.
 - Saturated Neutral array nearest-pair deterministic recovery and invalid ClaimLedger fatal path.
+- Failed combat-step state is byte-identical except the documented Fatal/error fields; the physical ledger is fully byte-identical.
 
 COMMAND: ctest --preset all --output-on-failure
 EXIT: 0
