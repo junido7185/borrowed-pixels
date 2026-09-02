@@ -1,0 +1,13 @@
+T05 AUTHORITY INTERPRETATIONS
+
+1. PARTIAL CHARGE COOLDOWN
+   Authority defines projectile formulas for every mass 8..48 but assigns cooldown only to the standard completed stages 8/16/32/48. ChargeSlot therefore preserves `stageMass`. Interception changes current mass and partial projectile formulas, but release retains the cooldown of the last fully reached standard stage. This avoids inventing a fifth cooldown curve or rewarding interception with a shorter undocumented cooldown.
+
+2. ACTIVE CHARGE COLLIDER
+   No separate offset coordinate is frozen for Charge. It stays attached to the actor position and uses the actor collision silhouette, allowing the documented same-time priority Charge before Shell without inventing a muzzle offset. Current charge mass still controls interception arithmetic and projectile radius after release.
+
+3. SATURATED NEUTRAL ALLOCATION
+   A T05 collision may require a Neutral slot before T06's normal Neutral phase exists. The allocation path implements only the authority-required recovery prerequisite: closest pair with sum <=256, distance tie by `(minStableId,maxStableId)`, smaller stable ID absorbs. T06 still owns per-tick damping, ordinary merge scheduling, and reclaim.
+
+4. PROJECTILE BOUNDARY VELOCITY
+   A boundary conversion places Neutral two pixels inside and applies the §32.6 20% reflection to the impacted normal component; tangent is preserved. At an exact corner both normal components reflect.

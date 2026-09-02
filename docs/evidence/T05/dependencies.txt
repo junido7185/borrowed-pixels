@@ -1,0 +1,7 @@
+T05 CONTEST REACHABILITY AND DEPENDENCIES
+
+- T05 is a headless combat module by runbook ownership. Encounter placement and live GameState/Win32 reachability belong to T07.
+- Contest compiles bp_combat.cpp under /GL and removes the not-yet-connected module under /OPT:REF.
+- Contest size remains exactly 129024 bytes, delta 0 from T04.
+- Existing PE dependencies remain KERNEL32.dll, USER32.dll, GDI32.dll, WINMM.dll only.
+- No new runtime file or DLL is present in dist/contest.

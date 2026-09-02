@@ -1,7 +1,7 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
 - Latest integrated candidate SHA: `b8739064b8c8b4ae1fdb2a928812a61573ea5f0c`
-- Current controller state: `NEXT_TICKET`
+- Current controller state: `TICKET_IMPLEMENTATION`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: T05 Charge/Projectile/hit/Core
 - Contest dist: `129,024B`
@@ -13,7 +13,7 @@
 | T02 | LOCALLY_INTEGRATED | Independent review P0/P1/P2=0; `docs/evidence/T02/` |
 | T03 | LOCALLY_INTEGRATED | Candidate `1e49151c...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
 | T04 | LOCALLY_INTEGRATED | Candidate `b8739064...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
-| T05 | NEXT_TICKET | Begin from the clean post-T04 integration base |
+| T05 | REVIEW_PENDING | Charge, fixed combat slots, swept collision, hit transactions, Core snapshot, and saturation recovery implemented |
 | T06-T14 | PENDING | Sequential controller execution |
 
 ## Gate status

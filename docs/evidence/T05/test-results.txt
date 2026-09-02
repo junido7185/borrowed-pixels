@@ -1,0 +1,29 @@
+T05 TEST RESULTS
+
+COMMAND: build/windows-msvc/bin/TEST/bp_test.exe
+EXIT: 0
+
+T05_PASS checks=4050 projectiles=32 neutrals=64
+T04_INFO replay=61646592 ticks=4096
+T04_PASS checks=333093 replay_ticks=4096
+T03_INFO hangul=160B0D5B
+T03_INFO policy_profiles=81 language_modes=1 overlap_pixels=0
+T03_PASS checks=5035224 latin_glyphs=59 hangul_syllables=11172 captures=6
+T02_PASS checks=2365194 combinations=19683 save_bytes=96
+
+T05 COVERAGE:
+
+- All partial projectile masses 8..48 and the four standard stage values.
+- Exact stage ticks 0/21/48/75, masses 8/16/32/48, cooldowns 15/19/27/34, rollback, recoil, insufficient Shell, and Projectile cap rollback.
+- Projectile 32, Neutral 64, Cover 32, stable-ID exhaustion, valid/stale/out-of-range generation handles.
+- Swept Shell/Core/Cover/boundary/Projectile/Charge contacts, collision priority, grace, HIT_FREEZE, and two-ledger snapshot.
+- Shell/Cover/Projectile/Charge/boundary transactions, partial Charge cancellation below 8, provenance, reclaim lock, immunity, and generation reuse.
+- 211 one-pixel Cover locations at 260px/tick, 56 mass-preserving boundary shots, and two byte-identical 32-step combat replays.
+- Saturated Neutral array nearest-pair deterministic recovery and invalid ClaimLedger fatal path.
+
+COMMAND: ctest --preset all --output-on-failure
+EXIT: 0
+RESULT: 1/1 PASS
+
+COMMAND: Start-Process build/windows-msvc/bin/DEBUG/bp_debug.exe -ArgumentList '--smoke-test' -Wait -PassThru
+EXIT: 0

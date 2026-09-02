@@ -1,0 +1,37 @@
+T05 REPRODUCTION COMMANDS
+
+BASE
+git switch -c ticket/T05-combat 587f8fe9abfee78b5fbcbd160ece1408275458b7
+
+AUTHORITY
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_authority.ps1
+EXIT 0; six of six PASS.
+Get-FileHash -Algorithm SHA256 docs/authority/BORROWED_PIXELS_AMENDMENT_v2.2_T03_UI_PLATFORM.md
+EXIT 0; 9431ddb6e512ed7842f8c0c1d36ae7c33374cdb1824ab5037e4f87f0256c961f.
+
+BUILD AND TEST
+cmake --preset windows-msvc
+EXIT 0.
+cmake --build --preset debug
+EXIT 0.
+cmake --build --preset test
+EXIT 0.
+build/windows-msvc/bin/TEST/bp_test.exe
+EXIT 0; T05 4050, T04 333093, T03 5035224, T02 2365194 checks.
+ctest --preset all --output-on-failure
+EXIT 0; 1/1 PASS.
+Start-Process build/windows-msvc/bin/DEBUG/bp_debug.exe -ArgumentList '--smoke-test' -Wait -PassThru
+EXIT 0.
+cmake --build --preset contest --clean-first
+EXIT 0.
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560
+EXIT 0; one file, 129024 bytes, both caps PASS.
+
+STATIC CHECKS
+git diff --check
+EXIT 0.
+Forbidden facility scan over T05 source/tests
+NO MATCH: float/double, heap allocation, unstable containers, system clocks, filesystem/iostream, network/browser/runtime AI.
+
+REACHABILITY
+T05 remains headless until T07 encounter/GameState connection. /OPT:REF stripping is expected at this ticket; no unsupported live PASS is claimed.

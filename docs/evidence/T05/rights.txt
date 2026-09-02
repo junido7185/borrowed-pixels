@@ -1,0 +1,6 @@
+T05 RIGHTS AND PROVENANCE
+
+- Combat source and tests are original implementation derived only from verified repository authority.
+- No external/downloaded code, library, font, image, audio, or runtime asset was added.
+- No heap allocation, runtime JSON parsing, network, browser, runtime AI, telemetry, or external service was added.
+- Contest output remains the single executable under dist/contest.
