@@ -553,9 +553,8 @@ bool ProcessImpact(
     std::uint16_t projectileIndex,
     const ImpactCandidate& impact,
     bool* processed) noexcept {
-    ProjectileSlot& projectile = state.projectiles[projectileIndex];
-    projectile.position = impact.point;
     if (impact.kind == ImpactKind::Core) {
+        state.projectiles[projectileIndex].position = impact.point;
         const CombatSide hitSide = static_cast<CombatSide>(impact.targetIndex);
         state.actors[SideIndex(hitSide)].coreHit = 1;
         state.phase = CombatPhase::HitFreeze;
@@ -570,6 +569,7 @@ bool ProcessImpact(
     CombatState candidate = state;
     PhysicalLedger ledgerCandidate = ledger;
     ProjectileSlot& shot = candidate.projectiles[projectileIndex];
+    shot.position = impact.point;
     std::uint16_t neutralIndex = kInvalidSlotIndex;
     if (impact.kind == ImpactKind::Shell) {
         const CombatSide targetSide = static_cast<CombatSide>(impact.targetIndex);
