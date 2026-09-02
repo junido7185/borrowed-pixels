@@ -1,0 +1,6 @@
+T06 RIGHTS AND PROVENANCE
+
+- Implementation and tests are original project code produced under Human Director instruction from the repository's authoritative v2.1 documents and approved T03 amendment.
+- No external code, image, font, audio, text, package, library, or downloaded asset was copied or introduced.
+- AI-assisted design and implementation; human-directed and reviewed.
+- T06 adds no runtime-distributed rights item.

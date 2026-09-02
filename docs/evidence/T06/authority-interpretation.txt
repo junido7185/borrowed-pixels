@@ -1,0 +1,19 @@
+T06 AUTHORITY INTERPRETATIONS
+
+1. Reclaim incorporation contact
+   The authority defines attraction, accumulation, and incorporation but no separate Neutral pickup radius. Incorporation begins when the point-like Neutral center enters the authoritative actor silhouette radius derived from current Shell mass. A center-coincident cluster is always in the cone.
+
+2. Ordinary merge survivor kinematics
+   "smaller stableId absorbs" is implemented literally: the smaller-ID cluster retains its position and velocity, masses/provenance sum, and each countdown takes the maximum. This matches T05 emergency slot recovery and adds no invented impulse.
+
+3. Integer 18-degree cone
+   Runtime simulation remains integer-only. cos(18 degrees) is frozen as Q1.15 value 31164 and compared with squared dot products; no float or runtime trig is used.
+
+4. HUD maturity ordering
+   Tick order moves Transit before maturity. When TO_SHELL_TRANSIT completes, the module becomes INACTIVE and the maturity step on that same tick changes 720 to 719. DUE is reached after exactly 720 maturity steps.
+
+5. Automatic Due repayment
+   TickHudLoan accepts only the amount newly reclaimed into PLAYER Shell that tick. DUE moves at most that amount Shell->Transit, so pre-existing Shell is not silently seized. Partial repayment remains DUE until the exact module mass is present in Transit.
+
+6. Reallocation lock
+   The runtime contract freezes 90 ticks but does not place the start edge. The lock begins when reverse Transit fully restores the module, preventing a new dismantle until the restored placement has remained stable for 90 subsequent ticks.

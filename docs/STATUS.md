@@ -14,7 +14,8 @@
 | T03 | LOCALLY_INTEGRATED | Candidate `1e49151c...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
 | T04 | LOCALLY_INTEGRATED | Candidate `b8739064...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
 | T05 | LOCALLY_INTEGRATED | Candidate `f8f1c042...`; post-integration full regression PASS; independent review P0/P1=0, P2=1 test-only fault-injection debt |
-| T06-T14 | PENDING | Sequential controller execution |
+| T06 | REVIEW_PENDING | Neutral dynamics/merge/reclaim and all 3x7 HUD loan states implemented; independent review pending |
+| T07-T14 | PENDING | Sequential controller execution |
 
 ## Gate status
 

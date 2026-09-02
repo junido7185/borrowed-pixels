@@ -1,0 +1,6 @@
+T06 CONTEST REACHABILITY AND DEPENDENCIES
+
+- T06 adds only C++20 fixed-array simulation code and headless tests.
+- Encounter placement and live GameState/Win32 connection remain T07-owned; no unsupported reachability PASS is claimed.
+- No engine, third-party library/runtime, runtime asset, runtime JSON parser, network, browser, runtime AI, heap simulation container, or system clock was added.
+- Contest remains one executable under dist/contest; no document, test, PDB, JSON, or asset is emitted there.

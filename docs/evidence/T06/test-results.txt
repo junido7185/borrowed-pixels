@@ -1,0 +1,29 @@
+T06 TEST RESULTS
+
+COMMAND: build/windows-msvc/bin/TEST/bp_test.exe
+EXIT: 0
+
+T06_PASS checks=5830 hud_states=21 neutral_capacity=64
+T05_PASS checks=4052 projectiles=32 neutrals=64
+T04_INFO replay=61646592 ticks=4096
+T04_PASS checks=333093 replay_ticks=4096
+T03_INFO hangul=160B0D5B
+T03_INFO policy_profiles=81 language_modes=1 overlap_pixels=0
+T03_PASS checks=5035224 latin_glyphs=59 hangul_syllables=11172 captures=6
+T02_PASS checks=2365194 combinations=19683 save_bytes=96
+
+T06 COVERAGE:
+
+- VITAL/VECTOR/IMPULSE exact masses and select numbers; every 3x7 module/state combination reached.
+- Exact 45/60 channel, 36 Transit, 720 maturity, 120 warning, and 90 reallocation-lock boundaries.
+- One-open-loan enforcement, hold release, PLAYER Shell-hit pending commit cancellation, insufficient Shell rollback, Due fire lock, partial repayment 32+47+1, and exact reverse arrival proportion.
+- Neutral inertia, damping, boundary reflection, ordinary merge distance/speed/mass gates, stable-ID survivor, provenance, and slot invalidation.
+- Reclaim range/cone/score/stable tie, Cover Bresenham occlusion, lock, player/opponent acceleration, 32/60 incorporation, own/general/other provenance order, and contested final-TILE PLAYER tie.
+- Neutral64 saturation without loss and 128-tick dual-world byte-identical combat/ledger/reclaim replay.
+
+COMMAND: ctest --preset all --output-on-failure
+EXIT: 0
+RESULT: 1/1 PASS
+
+COMMAND: Start-Process build/windows-msvc/bin/DEBUG/bp_debug.exe -ArgumentList '--smoke-test' -Wait -PassThru
+EXIT: 0
