@@ -1,0 +1,16 @@
+T08A INDEPENDENT REVIEW RECORD
+
+Reviewed SHA ff95ac857f98ba5850ddaf2622718b448cd16ca4:
+FAIL P0=0 P1=6 P2=1.
+
+Repairs on candidate preparation branch:
+- derive all FRAME observations from current visible physical state;
+- implement exact SHIFT target/routes, proximity TOLL, structure-backed EVICT
+  slab after material Charge32, CLAIM Charge32, and MOVE;
+- apply ADAPTER door acceleration and both-actor circle/AABB collision;
+- restore pause/HUD/hit-freeze/retry/settlement common orchestration;
+- use circle/AABB COMPACTOR push resolution;
+- validate spawn/boundary/AABB, 20x20 flood-fill and two free directions;
+- replace raw-struct hashing with explicit field-wise hashing.
+
+Final exact-candidate review: PENDING.

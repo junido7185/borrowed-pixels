@@ -1,0 +1,12 @@
+T08A AUTHORITY INTERPRETATION
+
+Production spec 8.6 requires recovered ESCROW to open the PLAYER door faster,
+but supplies no numeric door-rate table. The implementation uses the smallest
+integer, monotonic realization: progress per tick = 1 + floor(playerEscrow/8),
+with the runtime-contract 4500 ticks as the opening threshold. Thus zero
+recovery opens at the timeout and each complete 8-TILE group accelerates it.
+
+This affects no claim transfer, settlement range, movement maximum, encounter
+duration, coordinate, save layout, or game-rule constant. It is covered by a
+dedicated zero-versus-48 escrow test and is recorded rather than claimed as an
+explicit numeric authority value.

@@ -1,14 +1,14 @@
 T08A CONTEST DIST
 
-FILE=BorrowedPixels.exe BYTES=198656
+FILE=BorrowedPixels.exe BYTES=205312
 DIST_FILES=1
-DIST_BYTES=198656
+DIST_BYTES=205312
 INTERNAL_CAP=1350000 PASS
 HARD_CAP=1474560 PASS
-SHA256=104d46097a57b02afad363a9ddfb11739840ed73a727ce81271504d6fb71faec
+SHA256=ced662bfb9cc64add281de95abce4f8b90c4140c3391392483d5b4e36a3d52dc
 
 T07 baseline: 183808 bytes
-T08A delta: +14848 bytes
+T08A delta: +21504 bytes
 
 The increase is below 25 KB and is attributed by the final MAP to reachable
 Act 2 encounter, process, settlement, rendering, and Win32 transition code.

@@ -76,6 +76,23 @@ void TestDefinitionsExact() noexcept {
     Check(frame.field[0].centerX == 96 && frame.field[0].centerY == 48
         && frame.field[11].centerX == 208 && frame.field[11].centerY == 108,
         "FRAME panel endpoints exact");
+    bp::Act2EncounterDef invalid = frame;
+    invalid.playerX = invalid.field[0].centerX;
+    invalid.playerY = invalid.field[0].centerY;
+    Check(!bp::ValidateAct2Battlefield(invalid), "battlefield rejects spawn-circle AABB overlap");
+    invalid = frame;
+    invalid.playerX = 13;
+    Check(!bp::ValidateAct2Battlefield(invalid), "battlefield rejects spawn-circle boundary overlap");
+    invalid = frame;
+    invalid.fieldCount = 1;
+    invalid.field[0] = bp::Act2RectMassDef{160, 92, 8, 148, 32};
+    Check(!bp::ValidateAct2Battlefield(invalid), "battlefield rejects missing 20x20 flood-fill path");
+    invalid = frame;
+    invalid.fieldCount = 3;
+    invalid.field[0] = bp::Act2RectMassDef{44, 62, 16, 16, 32};
+    invalid.field[1] = bp::Act2RectMassDef{44, 122, 16, 16, 32};
+    invalid.field[2] = bp::Act2RectMassDef{74, 92, 16, 16, 32};
+    Check(!bp::ValidateAct2Battlefield(invalid), "battlefield rejects spawn with fewer than two free directions");
 }
 
 void TestAdapterAllResults() noexcept {
@@ -136,6 +153,7 @@ void TestFrameActions() noexcept {
     Check(shift.frame.actionCooldown == 30, "FRAME SHIFT 90 cooldown overlaps 60 movement ticks");
 
     bp::Act2Runtime toll = FrameWorld();
+    toll.combat.actors[0].position = bp::Vec2Q8{96*bp::kQ8One, 48*bp::kQ8One};
     const std::uint16_t tollCover = toll.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Cover)];
     const std::uint16_t tollNeutral = toll.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Neutral)];
     Check(bp::ForceFrameActionForTest(toll, bp::FrameAction::Toll), "FRAME TOLL begins");
@@ -163,18 +181,48 @@ void TestFrameActions() noexcept {
     const std::uint16_t evictCover = evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Cover)];
     const std::uint16_t evictShell = evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::OpponentShell)];
     Check(bp::ForceFrameActionForTest(evict, bp::FrameAction::Evict), "FRAME EVICT begins");
-    Check(evict.frame.structureControlMass == 96 && evict.frame.actionCooldown == 120,
-        "FRAME EVICT spends structure32 with cooldown120");
+    Check(evict.frame.structureControlMass == 96 && evict.frame.actionCooldown == 120
+        && evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Cover)] == evictCover-32
+        && evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Charge)] == 32,
+        "FRAME EVICT converts exact structure32 into material Charge telegraph");
+    for (std::uint8_t tick = 0; tick < 29; ++tick) {
+        Check(bp::TickFrameActionForTest(evict), "FRAME EVICT telegraph advances");
+    }
+    Check(evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Charge)] == 32
+        && evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Projectile)] == 0,
+        "FRAME EVICT remains physical Charge through tick29");
+    Check(bp::TickFrameActionForTest(evict), "FRAME EVICT releases at tick30");
+    const bp::ProjectileSlot* evictShot = nullptr;
+    for (const bp::ProjectileSlot& shot : evict.combat.projectiles) {
+        if (shot.active != 0 && shot.owner == bp::CombatSide::Opponent) evictShot = &shot;
+    }
+    Check(evict.frame.structureControlMass == 96 && evictShot != nullptr
+        && evictShot->mass == 32 && evictShot->widthPixels == 16
+        && evictShot->heightPixels == 2,
+        "FRAME EVICT deactivates panel and releases exact mass32 16x2 slab");
     Check(evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Cover)] == evictCover - 32
-        && evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::OpponentShell)] == evictShell - 32
+        && evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::OpponentShell)] == evictShell
         && evict.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Projectile)] == 32,
-        "FRAME EVICT deactivates panel and launches exact mass32 slab");
+        "FRAME EVICT conserves exact structure and attack accounts");
 
     bp::Act2Runtime claim = FrameWorld();
     Check(bp::ForceFrameActionForTest(claim, bp::FrameAction::Claim), "FRAME CLAIM begins");
     Check(claim.frame.actionCooldown == 75
+        && claim.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Charge)] == 32,
+        "FRAME CLAIM begins exact material Charge32 with cooldown75");
+    for (std::uint8_t tick = 0; tick < 30; ++tick) {
+        Check(bp::TickFrameActionForTest(claim), "FRAME CLAIM telegraph advances");
+    }
+    Check(claim.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Charge)] == 0
         && claim.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Projectile)] == 32,
-        "FRAME CLAIM launches mass32 with cooldown75");
+        "FRAME CLAIM releases only after exact 30-tick telegraph");
+
+    bp::Act2Runtime observed = FrameWorld();
+    const bp::FrameObservation initial = bp::ObserveFrameForTest(observed);
+    observed.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::PlayerShell)] = 40;
+    const bp::FrameObservation lowShell = bp::ObserveFrameForTest(observed);
+    Check(initial.playerLowShell == 0 && lowShell.playerLowShell == 1,
+        "FRAME observations derive player shell from physical state");
 }
 
 void TestFrameScoresExhaustive() noexcept {
@@ -304,6 +352,21 @@ void TestProcessesAndPopulation() noexcept {
             * adapterMotion.combat.actors[1].velocity.y));
     Check(adapterSpeed <= bp::PixelsPerSecondToQ8PerTick(88),
         "ADAPTER movement clamps to authoritative 88px/s maximum");
+    bp::Act2Runtime slowDoor{};
+    bp::Act2Runtime fastDoor{};
+    Check(bp::InitializeAct2Runtime(slowDoor, claims, narrative)
+        && bp::InitializeAct2Runtime(fastDoor, claims, narrative),
+        "ADAPTER door comparison worlds initialize");
+    slowDoor.encounterIndex = fastDoor.encounterIndex = 1;
+    slowDoor.scene = fastDoor.scene = bp::Act2Scene::Playing;
+    Check(bp::PopulateAct2Encounter(slowDoor) && bp::PopulateAct2Encounter(fastDoor),
+        "ADAPTER door comparison worlds populate");
+    fastDoor.adapter.playerEscrow = 48;
+    Check(bp::TickAct2Runtime(slowDoor, idle) && bp::TickAct2Runtime(fastDoor, idle),
+        "ADAPTER door progress worlds advance");
+    Check(slowDoor.adapter.playerDoorProgress == 1
+        && fastDoor.adapter.playerDoorProgress == 7,
+        "ADAPTER recovered escrow accelerates own door in exact eight-tile groups");
 
     state.encounterIndex = 2;
     state.keeper.destroyedStructures = 2;
@@ -335,11 +398,32 @@ void TestRuntimeReachabilityAndPixels() noexcept {
         Check(bp::TickAct2Runtime(state, input), "runtime intro and objective advance");
     }
     Check(state.scene == bp::Act2Scene::Playing, "KEEPER becomes playable");
-    Check(bp::ForceAct2EncounterSuccessForTest(state), "KEEPER forced deterministic success");
-    input = Input(true);
-    for (std::uint16_t tick = 0; tick < 31; ++tick) Check(bp::TickAct2Runtime(state, input), "KEEPER confirm hold");
+    input.focused = 0;
+    const std::uint32_t pausedEncounterTick = state.encounterTick;
+    Check(bp::TickAct2Runtime(state, input) && state.movement.paused != 0,
+        "Act 2 focus loss enters pause gate");
+    Check(bp::TickAct2Runtime(state, input) && state.encounterTick == pausedEncounterTick,
+        "Act 2 pause freezes encounter progression");
     input = Input();
-    for (std::uint16_t tick = 0; tick < 216; ++tick) Check(bp::TickAct2Runtime(state, input), "KEEPER response return");
+    input.actions[static_cast<std::uint8_t>(bp::PlatformAction::Pause)].pressed = 1;
+    Check(bp::TickAct2Runtime(state, input) && state.movement.paused == 0,
+        "Act 2 pause edge resumes without same-tick simulation");
+    input = Input();
+    Check(bp::ForceAct2EncounterSuccessForTest(state), "KEEPER forced deterministic success");
+    for (std::uint16_t tick = 0; tick < bp::kHitFreezeTicks + bp::kSettlementWaitTicks; ++tick) {
+        Check(bp::TickAct2Runtime(state, input), "KEEPER freeze and settlement wait");
+    }
+    Check(state.scene == bp::Act2Scene::Settlement, "KEEPER reaches settlement after exact gates");
+    input = Input(true);
+    Check(bp::TickAct2Runtime(state, input), "KEEPER enters confirm hold");
+    for (std::uint16_t tick = 0; tick < bp::kConfirmHoldTicks; ++tick) {
+        Check(bp::TickAct2Runtime(state, input), "KEEPER confirm hold");
+    }
+    input = Input();
+    for (std::uint16_t tick = 0; tick < bp::kCommitTransitTicks
+            + bp::kEntityResponseAutomaticTicks + bp::kLedgerReturnTicks; ++tick) {
+        Check(bp::TickAct2Runtime(state, input), "KEEPER commit response return");
+    }
     Check(state.encounterIndex == 1, "runtime reaches ADAPTER");
 
     std::uint32_t pixels[bp::kRenderWidth * bp::kRenderHeight]{};

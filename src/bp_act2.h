@@ -106,8 +106,10 @@ struct KeeperRuntime {
 
 struct AdapterRuntime {
     CompactorRuntime compactor;
+    std::uint32_t playerDoorProgress;
     std::uint16_t playerEscrow;
     std::uint8_t adapterArrived;
+    std::uint8_t playerDoorOpen;
 };
 
 struct FrameRuntime {
@@ -130,8 +132,13 @@ enum class Act2Scene : std::uint8_t {
     EncounterIntro = 0,
     ObjectiveCard,
     Playing,
+    HitFreeze,
+    EncounterRetry,
+    SettlementWait,
     Settlement,
+    Preview,
     ConfirmHold,
+    CommitTransit,
     EntityResponse,
     LedgerReturn,
     Complete,
@@ -151,15 +158,19 @@ struct Act2Runtime {
     FrameRuntime frame;
     Act2Scene scene;
     ChoiceId focusedChoice;
+    ChoiceId committedChoice;
     std::uint32_t globalTick;
     std::uint32_t encounterTick;
     std::uint16_t sceneTicks;
     std::uint16_t previousPlayerReclaim;
     std::uint8_t encounterIndex;
     std::uint8_t failure;
+    std::uint8_t retryPending;
+    std::uint8_t introRevisit;
 };
 
 const Act2EncounterDef& GetAct2EncounterDef(std::uint8_t index) noexcept;
+bool ValidateAct2Battlefield(const Act2EncounterDef& definition) noexcept;
 bool ValidateAct2EncounterDef(const Act2EncounterDef& definition) noexcept;
 AdapterResult ClassifyAdapterResult(std::uint16_t playerEscrow) noexcept;
 ChoiceId AdapterChoiceForEscrow(std::uint16_t playerEscrow) noexcept;
@@ -189,6 +200,7 @@ std::uint32_t Act2RuntimeHash(const Act2Runtime& state) noexcept;
 bool ForceAct2EncounterSuccessForTest(Act2Runtime& state) noexcept;
 bool ForceFrameActionForTest(Act2Runtime& state, FrameAction action) noexcept;
 bool TickFrameActionForTest(Act2Runtime& state) noexcept;
+FrameObservation ObserveFrameForTest(const Act2Runtime& state) noexcept;
 #endif
 
 }  // namespace bp

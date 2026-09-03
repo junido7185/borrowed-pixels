@@ -10,6 +10,7 @@ Retained contest symbols include:
 - StartSweeperWave / TickSweeperWave
 - StartCompactor / TickCompactor
 - ChooseFrameAction
+- ValidateAct2Battlefield
 
 The Win32 entry point transitions from Act1Scene::ContinueReady into this
 runtime. The final linked EXE launched a live window and exited cleanly.

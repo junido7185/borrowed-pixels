@@ -20,5 +20,8 @@ T08A FINAL VERIFICATION COMMANDS
    live=true; EXIT 0
 10. powershell -NoProfile -ExecutionPolicy Bypass -File tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560
     EXIT 0; DIST_STATUS=PASS
-11. dumpbin /dependents dist/contest/BorrowedPixels.exe
+11. & 'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\bin\Hostx64\x64\dumpbin.exe' /dependents dist/contest/BorrowedPixels.exe
     EXIT 0
+
+FINAL EXE: 205312 bytes
+FINAL SHA-256: ced662bfb9cc64add281de95abce4f8b90c4140c3391392483d5b4e36a3d52dc

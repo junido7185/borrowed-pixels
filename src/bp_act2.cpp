@@ -157,6 +157,14 @@ void RenderBattle(PixelBuffer buffer, const Act2Runtime& state) noexcept {
             shot.position.y / kQ8One - 1, 3, 3},
             shot.owner == CombatSide::Player ? PaletteColor::Player : PaletteColor::Opponent);
     }
+    for (std::uint8_t side = 0; side < 2; ++side) {
+        const ChargeSlot& charge = state.combat.charges[side];
+        if (charge.active == 0) continue;
+        const std::int32_t radius = ProjectileRadiusPixels(charge.mass);
+        StrokeRect(buffer, RectI{charge.position.x/kQ8One-radius,
+            charge.position.y/kQ8One-radius, radius*2+1, radius*2+1},
+            side == 0 ? PaletteColor::Player : PaletteColor::Opponent);
+    }
     const CombatActor& player = state.combat.actors[0];
     const CombatActor& opponent = state.combat.actors[1];
     FillRect(buffer, RectI{player.position.x / kQ8One - 2,
@@ -164,6 +172,9 @@ void RenderBattle(PixelBuffer buffer, const Act2Runtime& state) noexcept {
     FillRect(buffer, RectI{opponent.position.x / kQ8One - 2,
         opponent.position.y / kQ8One - 2, 5, 5}, PaletteColor::Opponent);
     DrawLatin(buffer, 14, 6, kDefinitions[state.encounterIndex].name, PaletteColor::Warning);
+    if (state.encounterIndex == 1 && state.adapter.playerDoorOpen == 0) {
+        FillRect(buffer, RectI{284, 80, 2, 24}, PaletteColor::Warning);
+    }
     if (state.encounterIndex == 1 && state.encounterTick >= kAdapterPreviewTick) {
         char playerText[] = "PLAYER 00";
         char adapterText[] = "ADAPTER 00";
@@ -183,24 +194,62 @@ bool StartEncounterPlaying(Act2Runtime& state) noexcept {
     state.scene = Act2Scene::Playing;
     state.sceneTicks = 0;
     state.encounterTick = 0;
+    state.introRevisit = 0;
     return true;
 }
 
 void BeginSuccess(Act2Runtime& state) noexcept {
-    state.scene = state.encounterIndex == 1 ? Act2Scene::EntityResponse : Act2Scene::Settlement;
+    state.retryPending = 0;
+    state.combat.phase = CombatPhase::HitFreeze;
+    state.scene = Act2Scene::HitFreeze;
     state.sceneTicks = 0;
     state.focusedChoice = ChoiceId::Second;
-    if (state.encounterIndex == 1) {
-        const ChoiceId choice = AdapterChoiceForEscrow(state.adapter.playerEscrow);
-        if (!ApplyAdapterSettlementForEscrow(
-                state.claimLedger, state.narrative, state.adapter.playerEscrow)) {
-            state.scene = Act2Scene::Fatal;
-        } else {
-            state.narrative.encounterIndex = 5;
-            state.narrative.entityStatus[static_cast<std::uint8_t>(EncounterId::Adapter)] =
-                static_cast<std::uint8_t>(choice) + 1u;
-        }
+}
+
+void BeginRetry(Act2Runtime& state) noexcept {
+    state.retryPending = 1;
+    state.combat.phase = CombatPhase::HitFreeze;
+    state.scene = Act2Scene::HitFreeze;
+    state.sceneTicks = 0;
+}
+
+void ClearAction(InputFrame& input, PlatformAction action) noexcept {
+    input.actions[ActionIndex(action)] = ButtonState{};
+}
+
+void ClearInterruptedActions(Act2Runtime& state) noexcept {
+    state.movement.chargeActive = 0;
+    state.movement.reclaimActive = 0;
+    state.movement.hudChannelActive = 0;
+    if (state.combat.charges[SideIndex(CombatSide::Player)].active != 0) {
+        RollbackCharge(state.combat, state.movement.physicalLedger, CombatSide::Player);
     }
+}
+
+bool CanStartDash(const Act2Runtime& state) noexcept {
+    return state.movement.impulseInstalled != 0
+        && state.movement.dashCooldown == 0
+        && state.movement.dashTicksRemaining == 0
+        && state.movement.chargeActive == 0
+        && state.movement.reclaimActive == 0
+        && state.movement.hudChannelActive == 0;
+}
+
+bool ApplyAct2Choice(Act2Runtime& state) noexcept {
+    const EncounterId encounter = GetAct2EncounterDef(state.encounterIndex).id;
+    const ChoiceId choice = encounter == EncounterId::Adapter
+        ? AdapterChoiceForEscrow(state.adapter.playerEscrow) : state.committedChoice;
+    const bool applied = encounter == EncounterId::Adapter
+        ? ApplyAdapterSettlementForEscrow(
+            state.claimLedger, state.narrative, state.adapter.playerEscrow)
+        : ApplySettlement(state.claimLedger, state.narrative, encounter, choice);
+    if (!applied) return false;
+    state.narrative.encounterIndex = static_cast<std::uint8_t>(encounter) + 1u;
+    state.narrative.entityStatus[static_cast<std::uint8_t>(encounter)] =
+        static_cast<std::uint8_t>(choice) + 1u;
+    state.movement.claimLedger = state.claimLedger;
+    state.movement.narrative = state.narrative;
+    return true;
 }
 
 void RemoveCoverHandle(CombatState& combat, SlotHandle handle) noexcept {
@@ -215,6 +264,56 @@ bool Overlap(RectPixels a, RectPixels b) noexcept {
         && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
+std::uint64_t DistanceSquared(Vec2Q8 a, Vec2Q8 b) noexcept {
+    const std::int64_t dx = static_cast<std::int64_t>(a.x) - b.x;
+    const std::int64_t dy = static_cast<std::int64_t>(a.y) - b.y;
+    return static_cast<std::uint64_t>(dx*dx + dy*dy);
+}
+
+bool PointInside(std::int32_t x, std::int32_t y, RectPixels bounds) noexcept {
+    return x >= bounds.x && x < bounds.x + bounds.width
+        && y >= bounds.y && y < bounds.y + bounds.height;
+}
+
+bool CoverBlocksLine(const CombatState& combat, Vec2Q8 from, Vec2Q8 to) noexcept {
+    std::int32_t x = from.x / kQ8One;
+    std::int32_t y = from.y / kQ8One;
+    const std::int32_t endX = to.x / kQ8One;
+    const std::int32_t endY = to.y / kQ8One;
+    const std::int32_t dx = endX > x ? endX - x : x - endX;
+    const std::int32_t sx = x < endX ? 1 : -1;
+    const std::int32_t magnitudeY = endY > y ? endY - y : y - endY;
+    const std::int32_t dy = -magnitudeY;
+    const std::int32_t sy = y < endY ? 1 : -1;
+    std::int32_t error = dx + dy;
+    for (;;) {
+        for (const CoverSlot& cover : combat.covers) {
+            if (cover.active != 0 && PointInside(x, y, cover.bounds)) return true;
+        }
+        if (x == endX && y == endY) return false;
+        const std::int32_t doubled = error * 2;
+        if (doubled >= dy) { error += dy; x += sx; }
+        if (doubled <= dx) { error += dx; y += sy; }
+    }
+}
+
+bool ResolveActorCoverCollisions(CombatActor& actor, std::int32_t radiusPixels,
+    const CombatState& combat) noexcept {
+    bool collided = false;
+    for (const CoverSlot& cover : combat.covers) {
+        if (cover.active == 0) continue;
+        const CollisionResolution collision = ResolveCircleAgainstAabb(
+            actor.position, radiusPixels, cover.bounds);
+        if (!collision.collided) continue;
+        actor.position.x += collision.shiftXQ8;
+        actor.position.y += collision.shiftYQ8;
+        if (collision.shiftXQ8 != 0) actor.velocity.x = 0;
+        if (collision.shiftYQ8 != 0) actor.velocity.y = 0;
+        collided = true;
+    }
+    return collided;
+}
+
 bool ShiftRouteClear(const CombatState& combat, std::uint16_t panelIndex,
     std::int8_t dx, std::int8_t dy) noexcept {
     RectPixels destination = combat.covers[panelIndex].bounds;
@@ -223,11 +322,54 @@ bool ShiftRouteClear(const CombatState& combat, std::uint16_t panelIndex,
     if (destination.x < kPlayInterior.x || destination.y < kPlayInterior.y
         || destination.x + destination.width > kPlayInterior.x + kPlayInterior.width
         || destination.y + destination.height > kPlayInterior.y + kPlayInterior.height) return false;
+    RectPixels sweep = destination;
+    const RectPixels start = combat.covers[panelIndex].bounds;
+    if (start.x < sweep.x) { sweep.width += sweep.x - start.x; sweep.x = start.x; }
+    else sweep.width = start.x + start.width - sweep.x;
+    if (start.y < sweep.y) { sweep.height += sweep.y - start.y; sweep.y = start.y; }
+    else sweep.height = start.y + start.height - sweep.y;
     for (std::uint16_t index = 0; index < kCoverCapacity; ++index) {
         if (index != panelIndex && combat.covers[index].active != 0
-            && Overlap(destination, combat.covers[index].bounds)) return false;
+            && Overlap(sweep, combat.covers[index].bounds)) return false;
     }
     return true;
+}
+
+std::uint64_t PointSegmentDistanceSquared(Vec2Q8 point, Vec2Q8 a, Vec2Q8 b) noexcept {
+    const std::int64_t vx = static_cast<std::int64_t>(b.x) - a.x;
+    const std::int64_t vy = static_cast<std::int64_t>(b.y) - a.y;
+    const std::int64_t wx = static_cast<std::int64_t>(point.x) - a.x;
+    const std::int64_t wy = static_cast<std::int64_t>(point.y) - a.y;
+    const std::int64_t lengthSquared = vx*vx + vy*vy;
+    if (lengthSquared == 0) return DistanceSquared(point, a);
+    std::int64_t projectionQ16 = ((wx*vx + wy*vy) << 16) / lengthSquared;
+    if (projectionQ16 < 0) projectionQ16 = 0;
+    if (projectionQ16 > 65536) projectionQ16 = 65536;
+    const Vec2Q8 closest{
+        a.x + static_cast<std::int32_t>(vx * projectionQ16 / 65536),
+        a.y + static_cast<std::int32_t>(vy * projectionQ16 / 65536),
+    };
+    return DistanceSquared(point, closest);
+}
+
+std::uint16_t ClosestShiftPanel(const Act2Runtime& state) noexcept {
+    const Vec2Q8 player = state.combat.actors[0].position;
+    const Vec2Q8 exit{308 * kQ8One, 90 * kQ8One};
+    std::uint16_t best = kInvalidSlotIndex;
+    std::uint64_t bestDistance = UINT64_MAX;
+    for (SlotHandle handle : state.frame.panels) {
+        if (!CoverHandleValid(state.combat, handle)) continue;
+        const CoverSlot& panel = state.combat.covers[handle.index];
+        const Vec2Q8 center{(panel.bounds.x + panel.bounds.width / 2) * kQ8One,
+            (panel.bounds.y + panel.bounds.height / 2) * kQ8One};
+        const std::uint64_t distance = PointSegmentDistanceSquared(center, player, exit);
+        if (best == kInvalidSlotIndex || distance < bestDistance
+            || (distance == bestDistance && panel.stableId < state.combat.covers[best].stableId)) {
+            best = handle.index;
+            bestDistance = distance;
+        }
+    }
+    return best;
 }
 
 std::uint16_t ClosestPanel(const Act2Runtime& state) noexcept {
@@ -250,6 +392,54 @@ std::uint16_t ClosestPanel(const Act2Runtime& state) noexcept {
     return best;
 }
 
+bool PlayerNearPanel(const Act2Runtime& state, std::uint16_t panelIndex,
+    std::int32_t rangePixels) noexcept {
+    if (panelIndex == kInvalidSlotIndex) return false;
+    const CoverSlot& panel = state.combat.covers[panelIndex];
+    const Vec2Q8 center{(panel.bounds.x + panel.bounds.width / 2) * kQ8One,
+        (panel.bounds.y + panel.bounds.height / 2) * kQ8One};
+    const std::int64_t range = static_cast<std::int64_t>(rangePixels) * kQ8One;
+    return DistanceSquared(state.combat.actors[0].position, center)
+        <= static_cast<std::uint64_t>(range*range);
+}
+
+FrameObservation ObserveFrame(const Act2Runtime& state) noexcept {
+    FrameObservation observation{};
+    const Vec2Q8 player = state.combat.actors[0].position;
+    const Vec2Q8 frame = state.combat.actors[1].position;
+    const std::uint16_t closest = ClosestPanel(state);
+    observation.playerNearPanel = PlayerNearPanel(state, closest, 18) ? 1u : 0u;
+    observation.playerLowShell = state.movement.physicalLedger.mass[
+        AccountIndex(PhysicalAccount::PlayerShell)] <= 40 ? 1u : 0u;
+    observation.coverBlocks = CoverBlocksLine(state.combat, frame, player) ? 1u : 0u;
+    observation.lineOfSight = observation.coverBlocks == 0 ? 1u : 0u;
+    observation.blockedChoice = CoverBlocksLine(
+        state.combat, player, Vec2Q8{308*kQ8One,90*kQ8One}) ? 1u : 0u;
+    observation.playerChannel = (state.combat.charges[0].active != 0
+        || state.movement.reclaimActive != 0 || state.movement.hudChannelActive != 0) ? 1u : 0u;
+    observation.selfLowStructure = state.frame.structureControlMass < 64 ? 1u : 0u;
+    const std::uint64_t range = DistanceSquared(frame, player);
+    observation.rangeFit = range >= static_cast<std::uint64_t>(72*kQ8One)*(72*kQ8One)
+        && range <= static_cast<std::uint64_t>(132*kQ8One)*(132*kQ8One) ? 1u : 0u;
+    for (const NeutralSlot& neutral : state.combat.neutrals) {
+        if (neutral.active != 0
+            && DistanceSquared(frame, neutral.position)
+                <= static_cast<std::uint64_t>(72*kQ8One)*(72*kQ8One)) {
+            observation.neutralNear = 1;
+            break;
+        }
+    }
+    for (const ProjectileSlot& shot : state.combat.projectiles) {
+        if (shot.active != 0 && shot.owner == CombatSide::Player
+            && DistanceSquared(frame, shot.position)
+                <= static_cast<std::uint64_t>(80*kQ8One)*(80*kQ8One)) {
+            observation.incomingThreat = 1;
+            break;
+        }
+    }
+    return observation;
+}
+
 bool AddGeneralNeutral(CombatState& combat, PhysicalLedger& ledger,
     Vec2Q8 position, std::uint16_t mass, PhysicalAccount from) noexcept {
     SlotHandle handle{};
@@ -257,9 +447,44 @@ bool AddGeneralNeutral(CombatState& combat, PhysicalLedger& ledger,
         && PhysicalTransfer(ledger, from, PhysicalAccount::Neutral, mass);
 }
 
+Vec2Q8 NormalizeDirection(Vec2Q8 value) noexcept {
+    const std::uint32_t length = IntegerSqrt(
+        static_cast<std::uint64_t>(static_cast<std::int64_t>(value.x)*value.x)
+        + static_cast<std::uint64_t>(static_cast<std::int64_t>(value.y)*value.y));
+    if (length == 0) return Vec2Q8{-kInputUnit, 0};
+    return Vec2Q8{
+        RoundDivideSigned(static_cast<std::int64_t>(value.x)*kInputUnit,
+            static_cast<std::int32_t>(length)),
+        RoundDivideSigned(static_cast<std::int64_t>(value.y)*kInputUnit,
+            static_cast<std::int32_t>(length)),
+    };
+}
+
+bool BeginOpponentMaterialCharge(Act2Runtime& state, PhysicalAccount sourceAccount) noexcept {
+    CombatState& combat = state.combat;
+    PhysicalLedger& ledger = state.movement.physicalLedger;
+    ChargeSlot& charge = combat.charges[SideIndex(CombatSide::Opponent)];
+    if (charge.active != 0 || combat.nextStableId == 0
+        || combat.nextStableId == UINT32_MAX
+        || !PhysicalTransfer(ledger, sourceAccount, PhysicalAccount::Charge, 32)) return false;
+    const Vec2Q8 from = combat.actors[1].position;
+    const Vec2Q8 player = combat.actors[0].position;
+    charge.position = from;
+    charge.directionQ15 = NormalizeDirection(Vec2Q8{player.x-from.x, player.y-from.y});
+    charge.stableId = combat.nextStableId++;
+    charge.generation = static_cast<std::uint16_t>(charge.generation + 1u);
+    if (charge.generation == 0) charge.generation = 1;
+    charge.mass = 32;
+    charge.stageMass = 32;
+    charge.ageTicks = 0;
+    charge.active = 1;
+    return CombatStateValid(combat, ledger);
+}
+
 bool BeginFrameActionMutable(Act2Runtime& state, FrameAction action) noexcept {
     PhysicalLedger& ledger = state.movement.physicalLedger;
-    const std::uint16_t panelIndex = ClosestPanel(state);
+    const std::uint16_t panelIndex = action == FrameAction::Shift
+        ? ClosestShiftPanel(state) : ClosestPanel(state);
     state.frame.action = action;
     state.frame.actionTicks = 0;
     if (action == FrameAction::Shift) {
@@ -275,7 +500,8 @@ bool BeginFrameActionMutable(Act2Runtime& state, FrameAction action) noexcept {
         state.frame.shiftY = routeY[route];
         state.frame.actionCooldown = 90;
     } else if (action == FrameAction::Toll) {
-        if (panelIndex == kInvalidSlotIndex || state.frame.structureControlMass < 16) return false;
+        if (panelIndex == kInvalidSlotIndex || state.frame.structureControlMass < 16
+            || !PlayerNearPanel(state, panelIndex, 18)) return false;
         CoverSlot& panel = state.combat.covers[panelIndex];
         if (panel.mass < 16) return false;
         const Vec2Q8 center{(panel.bounds.x + panel.bounds.width / 2) * kQ8One,
@@ -292,11 +518,10 @@ bool BeginFrameActionMutable(Act2Runtime& state, FrameAction action) noexcept {
         state.frame.actionCooldown = 90;
     } else if (action == FrameAction::Evict) {
         if (panelIndex == kInvalidSlotIndex || state.frame.structureControlMass < 32
-            || ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)] < 32) return false;
+            || ledger.mass[AccountIndex(PhysicalAccount::Cover)] < 32) return false;
+        state.frame.shiftPanel = SlotHandle{panelIndex, state.combat.covers[panelIndex].generation};
         CoverSlot& panel = state.combat.covers[panelIndex];
-        const Vec2Q8 center{(panel.bounds.x + panel.bounds.width / 2) * kQ8One,
-            (panel.bounds.y + panel.bounds.height / 2) * kQ8One};
-        if (!AddGeneralNeutral(state.combat, ledger, center, panel.mass, PhysicalAccount::Cover)) return false;
+        if (panel.mass != 32) return false;
         panel.mass = 0;
         panel.active = 0;
         for (std::uint8_t index = 0; index < kAct2MaximumFieldCount; ++index) {
@@ -306,23 +531,13 @@ bool BeginFrameActionMutable(Act2Runtime& state, FrameAction action) noexcept {
                 break;
             }
         }
-        const Vec2Q8 player = state.combat.actors[0].position;
-        if (!SpawnScriptedProjectile(state.combat, ledger, CombatSide::Opponent, 32,
-                state.combat.actors[1].position,
-                Vec2Q8{player.x - state.combat.actors[1].position.x,
-                    player.y - state.combat.actors[1].position.y},
-                PixelsPerSecondToQ8PerTick(105))) return false;
         state.frame.structureControlMass = static_cast<std::uint16_t>(
             state.frame.structureControlMass - 32);
+        if (!BeginOpponentMaterialCharge(state, PhysicalAccount::Cover)) return false;
         state.frame.actionCooldown = 120;
     } else if (action == FrameAction::Claim) {
         if (ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)] < 32) return false;
-        const Vec2Q8 player = state.combat.actors[0].position;
-        if (!SpawnScriptedProjectile(state.combat, ledger, CombatSide::Opponent, 32,
-                state.combat.actors[1].position,
-                Vec2Q8{player.x - state.combat.actors[1].position.x,
-                    player.y - state.combat.actors[1].position.y},
-                ProjectileSpeedQ8(32))) return false;
+        if (!BeginOpponentMaterialCharge(state, PhysicalAccount::OpponentShell)) return false;
         state.frame.actionCooldown = 75;
     } else if (action == FrameAction::Reclaim) {
         state.frame.actionCooldown = 1;
@@ -349,6 +564,51 @@ bool TickFrameActionMutable(Act2Runtime& state) noexcept {
         CoverSlot& panel = state.combat.covers[state.frame.shiftPanel.index];
         panel.bounds.x = state.frame.shiftStart.x + state.frame.shiftX * state.frame.actionTicks / 60;
         panel.bounds.y = state.frame.shiftStart.y + state.frame.shiftY * state.frame.actionTicks / 60;
+    }
+    if ((state.frame.action == FrameAction::Claim || state.frame.action == FrameAction::Evict)
+        && state.combat.charges[1].active != 0) {
+        ++state.frame.actionTicks;
+        ChargeSlot& charge = state.combat.charges[1];
+        charge.position = state.combat.actors[1].position;
+        const Vec2Q8 player = state.combat.actors[0].position;
+        charge.directionQ15 = NormalizeDirection(Vec2Q8{
+            player.x-charge.position.x, player.y-charge.position.y});
+        if (state.frame.actionTicks >= 30) {
+            const std::uint32_t stableId = charge.stableId;
+            if (!ReleaseCharge(state.combat, ledger, CombatSide::Opponent)) return false;
+            if (state.frame.action == FrameAction::Evict) {
+                for (ProjectileSlot& shot : state.combat.projectiles) {
+                    if (shot.active != 0 && shot.stableId == stableId) {
+                        shot.velocity = Vec2Q8{
+                            RoundDivideSigned(static_cast<std::int64_t>(charge.directionQ15.x)
+                                * PixelsPerSecondToQ8PerTick(105), kInputUnit),
+                            RoundDivideSigned(static_cast<std::int64_t>(charge.directionQ15.y)
+                                * PixelsPerSecondToQ8PerTick(105), kInputUnit),
+                        };
+                        shot.widthPixels = 16;
+                        shot.heightPixels = 2;
+                        break;
+                    }
+                }
+            }
+        }
+    } else if (state.frame.action == FrameAction::Move) {
+        CombatActor& frame = state.combat.actors[1];
+        const CombatActor& player = state.combat.actors[0];
+        constexpr std::int32_t acceleration = PixelsPerSecondSquaredToQ8PerTickSquared(500);
+        const bool tooFar = DistanceSquared(frame.position, player.position)
+            > static_cast<std::uint64_t>(112*kQ8One)*(112*kQ8One);
+        const std::int32_t sign = (player.position.x < frame.position.x) == tooFar ? -1 : 1;
+        frame.velocity.x += sign * acceleration;
+        frame.velocity.y = TruncMultiplyDivide(frame.velocity.y, 86, 100);
+        ClampVectorLength(frame.velocity, LargeOpponentMaximumSpeedQ8(
+            ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]));
+        frame.position.x += frame.velocity.x;
+        frame.position.y += frame.velocity.y;
+        ClampCircleToRect(frame.position, ActorRadiusPixels(
+            ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]), kPlayInterior);
+        ResolveActorCoverCollisions(frame, ActorRadiusPixels(
+            ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]), state.combat);
     }
     if (state.frame.doorArmed != 0) {
         const Vec2Q8 player = state.combat.actors[0].position;
@@ -382,6 +642,114 @@ const Act2EncounterDef& GetAct2EncounterDef(std::uint8_t index) noexcept {
     return kDefinitions[index < kAct2EncounterCount ? index : 0];
 }
 
+bool ValidateAct2Battlefield(const Act2EncounterDef& definition) noexcept {
+    const auto circleOverlaps = [](std::int32_t x, std::int32_t y,
+            std::int32_t radius, RectPixels bounds) noexcept {
+        const std::int32_t closestX = x < bounds.x ? bounds.x
+            : (x > bounds.x + bounds.width ? bounds.x + bounds.width : x);
+        const std::int32_t closestY = y < bounds.y ? bounds.y
+            : (y > bounds.y + bounds.height ? bounds.y + bounds.height : y);
+        const std::int64_t dx = static_cast<std::int64_t>(x) - closestX;
+        const std::int64_t dy = static_cast<std::int64_t>(y) - closestY;
+        return dx*dx + dy*dy < static_cast<std::int64_t>(radius)*radius;
+    };
+    const auto spawnFree = [&](std::int32_t x, std::int32_t y,
+            std::int32_t radius) noexcept {
+        if (x-radius < kPlayInterior.x || y-radius < kPlayInterior.y
+            || x+radius > kPlayInterior.x+kPlayInterior.width
+            || y+radius > kPlayInterior.y+kPlayInterior.height) return false;
+        for (std::uint8_t i = 0; i < definition.fieldCount; ++i) {
+            if (circleOverlaps(x, y, radius, Bounds(definition.field[i]))) return false;
+        }
+        if (definition.id == EncounterId::Keeper) {
+            for (const Act2RectMassDef& structure : kKeeperStructures) {
+                if (circleOverlaps(x, y, radius, Bounds(structure))) return false;
+            }
+        }
+        return true;
+    };
+    const std::int32_t playerRadius = ActorRadiusPixels(64);
+    const std::int32_t opponentRadius = ActorRadiusPixels(definition.opponentMass);
+    if (!spawnFree(definition.playerX, definition.playerY, playerRadius)
+        || !spawnFree(definition.opponentX, definition.opponentY, opponentRadius)) return false;
+    const std::int64_t spawnDx = definition.playerX-definition.opponentX;
+    const std::int64_t spawnDy = definition.playerY-definition.opponentY;
+    if (spawnDx*spawnDx + spawnDy*spawnDy
+        < static_cast<std::int64_t>(playerRadius+opponentRadius)
+            * (playerRadius+opponentRadius)) return false;
+
+    constexpr std::int32_t kGrid = 20;
+    constexpr std::int32_t kColumns = (kPlayInterior.width+kGrid-1)/kGrid;
+    constexpr std::int32_t kRows = (kPlayInterior.height+kGrid-1)/kGrid;
+    bool blocked[kRows][kColumns]{};
+    for (std::int32_t row = 0; row < kRows; ++row) {
+        for (std::int32_t column = 0; column < kColumns; ++column) {
+            const std::int32_t x = kPlayInterior.x
+                + (column*kGrid+kGrid/2 < kPlayInterior.width
+                    ? column*kGrid+kGrid/2 : kPlayInterior.width-1);
+            const std::int32_t y = kPlayInterior.y
+                + (row*kGrid+kGrid/2 < kPlayInterior.height
+                    ? row*kGrid+kGrid/2 : kPlayInterior.height-1);
+            for (std::uint8_t i = 0; i < definition.fieldCount; ++i) {
+                if (PointInside(x, y, Bounds(definition.field[i]))) blocked[row][column] = true;
+            }
+            if (definition.id == EncounterId::Keeper) {
+                for (const Act2RectMassDef& structure : kKeeperStructures) {
+                    if (PointInside(x, y, Bounds(structure))) blocked[row][column] = true;
+                }
+            }
+        }
+    }
+    const auto columnFor = [](std::int32_t x) noexcept {
+        const std::int32_t value = (x-kPlayInterior.x)/kGrid;
+        return value < 0 ? 0 : (value >= kColumns ? kColumns-1 : value);
+    };
+    const auto rowFor = [](std::int32_t y) noexcept {
+        const std::int32_t value = (y-kPlayInterior.y)/kGrid;
+        return value < 0 ? 0 : (value >= kRows ? kRows-1 : value);
+    };
+    const std::int32_t startColumn = columnFor(definition.playerX);
+    const std::int32_t startRow = rowFor(definition.playerY);
+    const std::int32_t goalColumn = columnFor(definition.opponentX);
+    const std::int32_t goalRow = rowFor(definition.opponentY);
+    blocked[startRow][startColumn] = false;
+    blocked[goalRow][goalColumn] = false;
+    bool reached[kRows][kColumns]{};
+    std::uint8_t queueRow[kRows*kColumns]{};
+    std::uint8_t queueColumn[kRows*kColumns]{};
+    std::uint16_t read = 0;
+    std::uint16_t write = 1;
+    queueRow[0] = static_cast<std::uint8_t>(startRow);
+    queueColumn[0] = static_cast<std::uint8_t>(startColumn);
+    reached[startRow][startColumn] = true;
+    constexpr std::int8_t dx[4] = {-1,1,0,0};
+    constexpr std::int8_t dy[4] = {0,0,-1,1};
+    while (read < write) {
+        const std::int32_t row = queueRow[read];
+        const std::int32_t column = queueColumn[read++];
+        for (std::uint8_t direction = 0; direction < 4; ++direction) {
+            const std::int32_t nextColumn = column+dx[direction];
+            const std::int32_t nextRow = row+dy[direction];
+            if (nextColumn < 0 || nextColumn >= kColumns || nextRow < 0 || nextRow >= kRows
+                || blocked[nextRow][nextColumn] || reached[nextRow][nextColumn]) continue;
+            reached[nextRow][nextColumn] = true;
+            queueRow[write] = static_cast<std::uint8_t>(nextRow);
+            queueColumn[write++] = static_cast<std::uint8_t>(nextColumn);
+        }
+    }
+    if (!reached[goalRow][goalColumn]) return false;
+    const auto freeDirections = [&](std::int32_t x, std::int32_t y,
+            std::int32_t radius) noexcept {
+        std::uint8_t free = 0;
+        for (std::uint8_t direction = 0; direction < 4; ++direction) {
+            if (spawnFree(x+dx[direction]*kGrid, y+dy[direction]*kGrid, radius)) ++free;
+        }
+        return free >= 2;
+    };
+    return freeDirections(definition.playerX, definition.playerY, playerRadius)
+        && freeDirections(definition.opponentX, definition.opponentY, opponentRadius);
+}
+
 bool ValidateAct2EncounterDef(const Act2EncounterDef& definition) noexcept {
     if (definition.id < EncounterId::Keeper || definition.id > EncounterId::Frame
         || definition.fieldCount == 0 || definition.fieldCount > kAct2MaximumFieldCount
@@ -404,7 +772,8 @@ bool ValidateAct2EncounterDef(const Act2EncounterDef& definition) noexcept {
             || neutral.y >= kPlayInterior.y + kPlayInterior.height) return false;
         neutralMass += neutral.mass;
     }
-    return fieldMass == definition.fieldMass && neutralMass == definition.neutralMass;
+    return fieldMass == definition.fieldMass && neutralMass == definition.neutralMass
+        && ValidateAct2Battlefield(definition);
 }
 
 AdapterResult ClassifyAdapterResult(std::uint16_t playerEscrow) noexcept {
@@ -553,16 +922,19 @@ bool TickCompactor(CombatState& combat, const PhysicalLedger& ledger,
         CoverSlot& wall = combat.covers[compactor.walls[index].index];
         wall.bounds.y = index == 0
             ? 18 + inset : 164 - inset;
-        for (CombatActor& actor : combat.actors) {
-            const std::int32_t x = actor.position.x / kQ8One;
-            const std::int32_t y = actor.position.y / kQ8One;
-            if (x >= wall.bounds.x && x < wall.bounds.x + wall.bounds.width
-                && y >= wall.bounds.y - 3 && y < wall.bounds.y + wall.bounds.height + 3) {
-                actor.position.y = (index == 0
-                    ? wall.bounds.y + wall.bounds.height + 3
-                    : wall.bounds.y - 3) * kQ8One;
-                actor.velocity.y = 0;
-            }
+        for (std::uint8_t side = 0; side < 2; ++side) {
+            CombatActor& actor = combat.actors[side];
+            const PhysicalAccount shellAccount = side == 0
+                ? PhysicalAccount::PlayerShell : PhysicalAccount::OpponentShell;
+            const CollisionResolution collision = ResolveCircleAgainstAabb(
+                actor.position,
+                ActorRadiusPixels(ledger.mass[AccountIndex(shellAccount)]),
+                wall.bounds);
+            if (!collision.collided) continue;
+            actor.position.x += collision.shiftXQ8;
+            actor.position.y += collision.shiftYQ8;
+            if (collision.shiftXQ8 != 0) actor.velocity.x = 0;
+            if (collision.shiftYQ8 != 0) actor.velocity.y = 0;
         }
     }
     if (compactor.tick >= 300) {
@@ -661,26 +1033,64 @@ bool InitializeAct2Runtime(Act2Runtime& state, const ClaimLedger& claims,
 }
 
 bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
-    if (state.scene == Act2Scene::Fatal || state.scene == Act2Scene::Complete) return state.scene != Act2Scene::Fatal;
-    ++state.sceneTicks;
+    if (state.scene == Act2Scene::Fatal || state.scene == Act2Scene::Complete) {
+        return state.scene != Act2Scene::Fatal;
+    }
     ++state.globalTick;
     if (state.scene == Act2Scene::EncounterIntro) {
-        if (state.sceneTicks >= 180 || (state.sceneTicks >= 90 && Pressed(input, PlatformAction::Confirm))) {
+        ++state.sceneTicks;
+        const std::uint16_t minimum = state.introRevisit != 0
+            ? kEncounterRevisitIntroMinimumTicks : kEncounterIntroMinimumTicks;
+        if (state.sceneTicks >= kEncounterIntroAutomaticTicks
+            || (state.sceneTicks >= minimum && Pressed(input, PlatformAction::Confirm))) {
             state.scene = Act2Scene::ObjectiveCard;
             state.sceneTicks = 0;
         }
         return true;
     }
     if (state.scene == Act2Scene::ObjectiveCard) {
-        if (state.sceneTicks >= 90) return StartEncounterPlaying(state);
+        if (++state.sceneTicks >= kObjectiveCardTicks) return StartEncounterPlaying(state);
+        return true;
+    }
+    if (state.scene == Act2Scene::HitFreeze) {
+        if (++state.sceneTicks >= kHitFreezeTicks) {
+            state.scene = state.retryPending != 0
+                ? Act2Scene::EncounterRetry : Act2Scene::SettlementWait;
+            state.sceneTicks = 0;
+        }
+        return true;
+    }
+    if (state.scene == Act2Scene::EncounterRetry) {
+        state.introRevisit = 1;
+        state.scene = Act2Scene::EncounterIntro;
+        state.sceneTicks = 0;
+        return true;
+    }
+    if (state.scene == Act2Scene::SettlementWait) {
+        if (++state.sceneTicks >= kSettlementWaitTicks) {
+            state.scene = Act2Scene::Settlement;
+            state.sceneTicks = 0;
+        }
         return true;
     }
     if (state.scene == Act2Scene::Settlement) {
-        if (Pressed(input, PlatformAction::SelectLeft)) state.focusedChoice = ChoiceId::First;
-        if (Pressed(input, PlatformAction::SelectUp)) state.focusedChoice = ChoiceId::Second;
-        if (Pressed(input, PlatformAction::SelectRight)) state.focusedChoice = ChoiceId::Third;
-        if (Held(input, PlatformAction::Confirm)) {
+        ChoiceId requested = state.focusedChoice;
+        if (Pressed(input, PlatformAction::SelectLeft)) requested = ChoiceId::First;
+        if (Pressed(input, PlatformAction::SelectUp)) requested = ChoiceId::Second;
+        if (Pressed(input, PlatformAction::SelectRight)) requested = ChoiceId::Third;
+        if (requested != state.focusedChoice) {
+            state.focusedChoice = requested;
+            state.scene = Act2Scene::Preview;
+            state.sceneTicks = 0;
+        } else if (Held(input, PlatformAction::Confirm)) {
             state.scene = Act2Scene::ConfirmHold;
+            state.sceneTicks = 0;
+        }
+        return true;
+    }
+    if (state.scene == Act2Scene::Preview) {
+        if (++state.sceneTicks >= kAllocationPreviewTicks) {
+            state.scene = Act2Scene::Settlement;
             state.sceneTicks = 0;
         }
         return true;
@@ -689,29 +1099,36 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
         if (!Held(input, PlatformAction::Confirm)) {
             state.scene = Act2Scene::Settlement;
             state.sceneTicks = 0;
-        } else if (state.sceneTicks >= 30) {
-            const EncounterId encounter = GetAct2EncounterDef(state.encounterIndex).id;
-            if (!ApplySettlement(state.claimLedger, state.narrative, encounter, state.focusedChoice)) {
+        } else if (++state.sceneTicks >= kConfirmHoldTicks) {
+            state.committedChoice = state.focusedChoice;
+            state.scene = Act2Scene::CommitTransit;
+            state.sceneTicks = 0;
+        }
+        return true;
+    }
+    if (state.scene == Act2Scene::CommitTransit) {
+        if (++state.sceneTicks >= kCommitTransitTicks) {
+            if (!ApplyAct2Choice(state)) {
                 state.scene = Act2Scene::Fatal;
                 return false;
             }
-            state.narrative.encounterIndex = static_cast<std::uint8_t>(encounter) + 1u;
-            state.narrative.entityStatus[static_cast<std::uint8_t>(encounter)] =
-                static_cast<std::uint8_t>(state.focusedChoice) + 1u;
             state.scene = Act2Scene::EntityResponse;
             state.sceneTicks = 0;
         }
         return true;
     }
     if (state.scene == Act2Scene::EntityResponse) {
-        if (state.sceneTicks >= 180 || (state.sceneTicks >= 90 && Pressed(input, PlatformAction::Confirm))) {
+        ++state.sceneTicks;
+        if (state.sceneTicks >= kEntityResponseAutomaticTicks
+            || (state.sceneTicks >= kEntityResponseMinimumTicks
+                && Pressed(input, PlatformAction::Confirm))) {
             state.scene = Act2Scene::LedgerReturn;
             state.sceneTicks = 0;
         }
         return true;
     }
     if (state.scene == Act2Scene::LedgerReturn) {
-        if (state.sceneTicks >= 36) {
+        if (++state.sceneTicks >= kLedgerReturnTicks) {
             ++state.encounterIndex;
             if (state.encounterIndex >= kAct2EncounterCount) state.scene = Act2Scene::Complete;
             else {
@@ -722,17 +1139,52 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
         return true;
     }
 
-    ++state.encounterTick;
     PhysicalLedger& ledger = state.movement.physicalLedger;
+    if (state.movement.paused != 0) {
+        if (input.focused != 0 && Pressed(input, PlatformAction::Pause)) {
+            state.movement.paused = 0;
+            ClearInterruptedActions(state);
+        }
+        return true;
+    }
+    if (state.movement.dashCooldown > 0) --state.movement.dashCooldown;
+    if (state.movement.dashInvulnerableRemaining > 0) --state.movement.dashInvulnerableRemaining;
     TickCombatCountdowns(state.combat);
+    if (input.focused == 0 || Pressed(input, PlatformAction::Pause)) {
+        state.movement.paused = 1;
+        ClearInterruptedActions(state);
+        return true;
+    }
+
+    InputFrame effectiveInput = input;
+    if (state.movement.dashTicksRemaining > 0) {
+        ClearAction(effectiveInput, PlatformAction::HudReallocate);
+        ClearAction(effectiveInput, PlatformAction::Dash);
+        ClearAction(effectiveInput, PlatformAction::Fire);
+        ClearAction(effectiveInput, PlatformAction::Reclaim);
+    }
     state.movement.claimLedger = state.claimLedger;
     state.movement.narrative = state.narrative;
-    const GameplayIntent intent = ResolveGameplayInput(state.movement.inputArbiter, input,
-        state.movement.dashCooldown == 0, true);
+    state.movement.impulseInstalled = HudModuleFullyInstalled(
+        state.hudLoan, HudModuleId::Impulse) ? 1u : 0u;
+    const GameplayIntent intent = ResolveGameplayInput(state.movement.inputArbiter,
+        effectiveInput, CanStartDash(state), true);
+    if (!AdvanceHudLoanEarly(state.hudLoan, ledger,
+            intent.action == GameplayAction::HudReallocate,
+            state.previousPlayerReclaim)) return false;
+    state.previousPlayerReclaim = 0;
+    if (Pressed(input, PlatformAction::HudCycle)) {
+        const std::uint8_t next = static_cast<std::uint8_t>(
+            (static_cast<std::uint8_t>(state.hudLoan.selected) + 1u) % kHudModuleCount);
+        SelectHudModule(state.hudLoan, static_cast<HudModuleId>(next));
+    }
+    ++state.encounterTick;
     const Vec2Q8 aim = AimDirection(state, input);
     state.combat.actors[0].aimDirectionQ15 = aim;
     ChargeSlot& charge = state.combat.charges[0];
-    if (intent.action == GameplayAction::Fire && !HudFireLocked(state.hudLoan)) {
+    if (intent.action == GameplayAction::HudReallocate && charge.active != 0) {
+        if (!RollbackCharge(state.combat, ledger, CombatSide::Player)) return false;
+    } else if (intent.action == GameplayAction::Fire && !HudFireLocked(state.hudLoan)) {
         if (charge.active == 0) {
             if (state.combat.actors[0].shotCooldownTicks == 0
                 && ledger.mass[AccountIndex(PhysicalAccount::PlayerShell)] >= 8
@@ -748,6 +1200,22 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
     if (!AdvanceGameIntent(state.movement, intent)) return false;
     state.combat.actors[0].position = state.movement.playerPosition;
     state.combat.actors[0].velocity = state.movement.playerVelocity;
+    const std::int32_t playerRadius = ActorRadiusPixels(
+        ledger.mass[AccountIndex(PhysicalAccount::PlayerShell)]);
+    const bool playerHitCover = ResolveActorCoverCollisions(
+        state.combat.actors[0], playerRadius, state.combat);
+    if (playerHitCover && state.movement.dashTicksRemaining > 0) {
+        state.movement.dashTicksRemaining = 0;
+        state.movement.dashInvulnerableRemaining = 0;
+        state.combat.actors[0].velocity = Vec2Q8{0,0};
+    }
+    if (state.encounterIndex == 1 && state.adapter.playerDoorOpen == 0
+        && state.combat.actors[0].position.x > (284-playerRadius)*kQ8One) {
+        state.combat.actors[0].position.x = (284-playerRadius)*kQ8One;
+        state.combat.actors[0].velocity.x = 0;
+    }
+    state.movement.playerPosition = state.combat.actors[0].position;
+    state.movement.playerVelocity = state.combat.actors[0].velocity;
 
     if (state.encounterIndex == 0) {
         const std::uint16_t waveStarts[3] = {0, 1800, 3600};
@@ -756,6 +1224,12 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
             && !StartSweeperWave(state.combat, ledger, state.keeper.sweeper)) return false;
         if (!TickSweeperWave(state.combat, ledger, state.keeper.sweeper)) return false;
     } else if (state.encounterIndex == 1) {
+        const std::uint32_t doorRate = 1u + state.adapter.playerEscrow / 8u;
+        state.adapter.playerDoorProgress += doorRate;
+        if (state.adapter.playerDoorProgress >= kAdapterDurationTicks) {
+            state.adapter.playerDoorProgress = kAdapterDurationTicks;
+            state.adapter.playerDoorOpen = 1;
+        }
         if (state.encounterTick == kCompactorStartTick
             && !StartCompactor(state.combat, ledger, state.adapter.compactor)) return false;
         if (!TickCompactor(state.combat, ledger, state.adapter.compactor)) return false;
@@ -774,21 +1248,21 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
                 kPlayInterior);
             if (boundary.shiftXQ8 != 0) adapter.velocity.x = 0;
             if (boundary.shiftYQ8 != 0) adapter.velocity.y = 0;
+            ResolveActorCoverCollisions(adapter,
+                ActorRadiusPixels(ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]),
+                state.combat);
             if (adapter.position.x <= 34 * kQ8One) state.adapter.adapterArrived = 1;
         }
     } else if (state.encounterTick % kFrameDecisionTicks == 0
         && state.frame.actionCooldown == 0) {
-        FrameObservation observation{};
-        observation.lineOfSight = 1;
-        observation.rangeFit = 1;
-        observation.neutralNear = ledger.mass[AccountIndex(PhysicalAccount::Neutral)] != 0;
-        observation.selfLowStructure = state.frame.structureControlMass < 64;
-        observation.playerChannel = charge.active != 0;
+        const FrameObservation observation = ObserveFrame(state);
         std::uint8_t available = 1u << static_cast<std::uint8_t>(FrameAction::Move);
-        if (ClosestPanel(state) != kInvalidSlotIndex) {
+        const std::uint16_t closestPanel = ClosestPanel(state);
+        if (closestPanel != kInvalidSlotIndex) {
             available = static_cast<std::uint8_t>(available
                 | (1u << static_cast<std::uint8_t>(FrameAction::Shift))
                 | (state.frame.structureControlMass >= 16
+                    && PlayerNearPanel(state, closestPanel, 18)
                     ? (1u << static_cast<std::uint8_t>(FrameAction::Toll)) : 0)
                 | (state.frame.structureControlMass >= 32
                     ? (1u << static_cast<std::uint8_t>(FrameAction::Evict)) : 0));
@@ -833,8 +1307,8 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
     }
     if (state.combat.actors[0].coreHit != 0) {
         ++state.failure;
-        state.scene = Act2Scene::EncounterIntro;
-        state.sceneTicks = 0;
+        ++state.movement.globalTick;
+        BeginRetry(state);
         return true;
     }
     if (state.combat.actors[1].coreHit != 0 && state.encounterIndex == 2) {
@@ -855,6 +1329,9 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
     state.adapter.playerEscrow = static_cast<std::uint16_t>(
         state.adapter.playerEscrow + reclaimed.playerAdapterEscrowMass);
     if (!MergeNeutralClusters(state.combat, ledger)) return false;
+    const bool playerShellHit = state.combat.shellDamageThisTick[
+        SideIndex(CombatSide::Player)] != 0;
+    if (!ResolvePendingHudCommit(state.hudLoan, ledger, playerShellHit)) return false;
 
     if (state.encounterIndex == 0) {
         std::uint8_t destroyed = 0;
@@ -869,15 +1346,20 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
         state.keeper.wavesCompleted = completed;
         if (destroyed == kKeeperStructureCount || state.encounterTick >= kKeeperDurationTicks) BeginSuccess(state);
     } else if (state.encounterIndex == 1) {
-        if (state.combat.actors[0].position.x >= 286 * kQ8One
+        if ((state.adapter.playerDoorOpen != 0
+                && state.combat.actors[0].position.x >= 286 * kQ8One)
             || state.encounterTick >= kAdapterDurationTicks) BeginSuccess(state);
     }
+    ++state.movement.globalTick;
     return PhysicalLedgerValid(ledger) && ClaimLedgerValid(state.claimLedger)
-        && CombatStateValid(state.combat, ledger);
+        && CombatStateValid(state.combat, ledger)
+        && HudLoanSystemValid(state.hudLoan, ledger);
 }
 
 void RenderAct2Runtime(PixelBuffer buffer, const Act2Runtime& state) noexcept {
-    if (state.scene == Act2Scene::Playing) {
+    if (state.scene == Act2Scene::Playing || state.scene == Act2Scene::HitFreeze
+        || state.scene == Act2Scene::EncounterRetry
+        || state.scene == Act2Scene::SettlementWait) {
         RenderBattle(buffer, state);
         return;
     }
@@ -893,7 +1375,9 @@ void RenderAct2Runtime(PixelBuffer buffer, const Act2Runtime& state) noexcept {
         DrawCentered(buffer, 92, definition.objective, PaletteColor::Warning);
         break;
     case Act2Scene::Settlement:
+    case Act2Scene::Preview:
     case Act2Scene::ConfirmHold:
+    case Act2Scene::CommitTransit:
         DrawCentered(buffer, 50, definition.name, PaletteColor::Opponent);
         if (state.encounterIndex == 0) {
             DrawCentered(buffer, 80, "PRIVATIZE   MAINTAIN   MAKE COMMON", PaletteColor::Neutral);
@@ -917,12 +1401,104 @@ void RenderAct2Runtime(PixelBuffer buffer, const Act2Runtime& state) noexcept {
 }
 
 std::uint32_t Act2RuntimeHash(const Act2Runtime& state) noexcept {
-    const std::uint8_t* bytes = reinterpret_cast<const std::uint8_t*>(&state);
     std::uint32_t hash = 2166136261u;
-    for (std::size_t index = 0; index < sizeof(state); ++index) {
-        hash ^= bytes[index];
-        hash *= 16777619u;
+    const auto add = [&hash](std::uint32_t value) noexcept {
+        for (std::uint8_t i = 0; i < 4; ++i) {
+            hash ^= static_cast<std::uint8_t>(value >> (i*8));
+            hash *= 16777619u;
+        }
+    };
+    const auto addVec = [&add](Vec2Q8 value) noexcept {
+        add(static_cast<std::uint32_t>(value.x));
+        add(static_cast<std::uint32_t>(value.y));
+    };
+    const auto addHandle = [&add](SlotHandle handle) noexcept {
+        add(handle.index); add(handle.generation);
+    };
+    const auto addRect = [&add](RectPixels rect) noexcept {
+        add(static_cast<std::uint32_t>(rect.x)); add(static_cast<std::uint32_t>(rect.y));
+        add(static_cast<std::uint32_t>(rect.width)); add(static_cast<std::uint32_t>(rect.height));
+    };
+
+    for (std::uint16_t value : state.claimLedger.mass) add(value);
+    add(state.narrative.choiceBits); add(state.narrative.adjudicatedMass);
+    add(state.narrative.encounterIndex); add(state.narrative.role);
+    for (std::uint8_t value : state.narrative.entityStatus) add(value);
+    add(state.narrative.endingsSeen); add(GameStateHash(state.movement));
+    for (const ChargeSlot& charge : state.combat.charges) {
+        addVec(charge.position); addVec(charge.directionQ15);
+        add(charge.stableId); add(charge.generation); add(charge.mass);
+        add(charge.stageMass); add(charge.ageTicks); add(charge.active);
     }
+    for (const ProjectileSlot& shot : state.combat.projectiles) {
+        addVec(shot.position); addVec(shot.velocity);
+        add(shot.stableId); add(shot.generation); add(shot.mass);
+        add(shot.widthPixels); add(shot.heightPixels);
+        add(static_cast<std::uint32_t>(shot.owner)); add(shot.active);
+    }
+    for (const NeutralSlot& neutral : state.combat.neutrals) {
+        addVec(neutral.position); addVec(neutral.velocity);
+        add(neutral.stableId); add(neutral.generation); add(neutral.mass);
+        add(neutral.reclaimLockTicks); add(neutral.immunityTicks);
+        add(neutral.playerMissMass); add(neutral.opponentMissMass);
+        add(neutral.protocolTagMass); add(neutral.patchFeedMass);
+        add(neutral.adapterEscrowMass); add(neutral.structureMass);
+        add(neutral.inertiaTicks); add(neutral.active);
+    }
+    for (const CoverSlot& cover : state.combat.covers) {
+        addRect(cover.bounds); add(cover.stableId); add(cover.generation); add(cover.mass);
+        add(static_cast<std::uint32_t>(cover.backingAccount));
+        add(static_cast<std::uint32_t>(cover.behavior)); add(cover.active);
+    }
+    for (const CombatActor& actor : state.combat.actors) {
+        addVec(actor.position); addVec(actor.velocity); addVec(actor.aimDirectionQ15);
+        add(actor.exposureGraceTicks); add(actor.shotCooldownTicks);
+        add(actor.projectileImmune); add(actor.coreHit);
+    }
+    for (std::uint16_t value : state.combat.settlement.physicalLedger.mass) add(value);
+    for (std::uint16_t value : state.combat.settlement.claimLedger.mass) add(value);
+    add(state.combat.settlement.tick);
+    add(static_cast<std::uint32_t>(state.combat.settlement.hitSide));
+    add(state.combat.settlement.valid);
+    add(state.combat.shellDamageThisTick[0]); add(state.combat.shellDamageThisTick[1]);
+    add(state.combat.nextStableId); add(state.combat.globalTick);
+    add(static_cast<std::uint32_t>(state.combat.phase));
+    add(static_cast<std::uint32_t>(state.combat.error));
+    for (std::uint16_t value : state.reclaim.accumulator) add(value);
+    for (std::uint16_t value : state.reclaim.targetIndex) add(value);
+    for (const HudModuleLoan& module : state.hudLoan.modules) {
+        add(module.mass); add(module.channelTicks); add(module.stateTicks);
+        add(module.maturityRemaining); add(module.maturityAdvanceTicks);
+        add(module.transitMass); add(module.arrivedMass);
+        add(static_cast<std::uint32_t>(module.state)); add(module.warning);
+    }
+    add(static_cast<std::uint32_t>(state.hudLoan.selected));
+    add(static_cast<std::uint32_t>(state.hudLoan.pendingModule));
+    add(state.hudLoan.reallocationLockTicks); add(state.hudLoan.pendingCommit);
+    for (SlotHandle handle : state.neutrals) addHandle(handle);
+    for (SlotHandle handle : state.keeper.structures) addHandle(handle);
+    for (SlotHandle handle : state.keeper.sweeper.segments) addHandle(handle);
+    add(state.keeper.sweeper.waveTick); add(state.keeper.sweeper.returnTick);
+    add(state.keeper.sweeper.escrowInitial); add(state.keeper.sweeper.active);
+    add(state.keeper.sweeper.returning); add(state.keeper.destroyedStructures);
+    add(state.keeper.wavesCompleted);
+    for (SlotHandle handle : state.adapter.compactor.walls) addHandle(handle);
+    add(state.adapter.compactor.tick); add(state.adapter.compactor.active);
+    add(state.adapter.playerDoorProgress); add(state.adapter.playerEscrow);
+    add(state.adapter.adapterArrived); add(state.adapter.playerDoorOpen);
+    for (SlotHandle handle : state.frame.panels) addHandle(handle);
+    addRect(state.frame.shiftStart); addHandle(state.frame.shiftPanel); addRect(state.frame.door);
+    add(state.frame.actionCooldown); add(state.frame.actionTicks);
+    add(state.frame.structureControlMass); add(state.frame.doorCooldown);
+    add(state.frame.panelAliveMask); add(static_cast<std::uint32_t>(state.frame.action));
+    add(static_cast<std::uint32_t>(state.frame.shiftX));
+    add(static_cast<std::uint32_t>(state.frame.shiftY)); add(state.frame.doorArmed);
+    add(static_cast<std::uint32_t>(state.scene));
+    add(static_cast<std::uint32_t>(state.focusedChoice));
+    add(static_cast<std::uint32_t>(state.committedChoice));
+    add(state.globalTick); add(state.encounterTick); add(state.sceneTicks);
+    add(state.previousPlayerReclaim); add(state.encounterIndex); add(state.failure);
+    add(state.retryPending); add(state.introRevisit);
     return hash;
 }
 
@@ -943,6 +1519,10 @@ bool ForceFrameActionForTest(Act2Runtime& state, FrameAction action) noexcept {
 
 bool TickFrameActionForTest(Act2Runtime& state) noexcept {
     return state.encounterIndex == 2 && TickFrameAction(state);
+}
+
+FrameObservation ObserveFrameForTest(const Act2Runtime& state) noexcept {
+    return ObserveFrame(state);
 }
 #endif
 
