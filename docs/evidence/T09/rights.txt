@@ -1,0 +1,9 @@
+T09_RIGHTS_STATUS=PASS
+EXTERNAL_LIBRARIES=NONE
+DOWNLOADED_ASSETS=NONE
+NEW_RUNTIME_MATERIAL=NONE
+AUTHORITY_FILES_MODIFIED=NO
+
+All T09 implementation, tests, and evidence are repository-native source and
+generated local build evidence. System imports remain KERNEL32, USER32, GDI32,
+and WINMM only.

@@ -1,0 +1,11 @@
+LINK_OPT_REF=ENABLED
+MAP=docs/evidence/T09/t09-final.map
+InitializePrecedentRuntime=REACHABLE
+TickPrecedentRuntime=REACHABLE
+RenderPrecedentRuntime=REACHABLE
+DerivePolicyDecision=REACHABLE
+FoldPrecedentBorrow=REACHABLE
+
+All symbols have live addresses in the final Contest MAP after /OPT:REF. The
+entry route is Act3Scene::Complete -> InitializePrecedentRuntime ->
+TickPrecedentRuntime, with RenderPrecedentRuntime selected while active.

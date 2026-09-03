@@ -1,0 +1,20 @@
+T09 PRIMARY
+src/bp_precedent.cpp
+src/bp_precedent.h
+tests/bp_precedent_tests.cpp
+docs/STATUS.md
+docs/evidence/T09/**
+docs/handoffs/T09/OUTPUT.md
+
+CROSS_TICKET_GLUE
+src/bp_win32.cpp
+src/bp_reclaim.cpp
+src/bp_reclaim.h
+src/bp_combat.cpp
+
+The Win32 delta is the smallest entry-point connector from completed Act 3 to
+PRECEDENT and changes no earlier rule. The reclaim delta carries the exact
+ORIGIN_LOCK projectile stable-id priority into the existing resolver. The
+combat delta reserves opponent shell mass that physically backs RELATION cover,
+preventing shell damage from breaking the 1,440-mass relation invariant.
+Dedicated T09 tests cover each connector and the complete regression passed.

@@ -1,0 +1,31 @@
+T09 FINAL EXECUTABLE VERIFICATION
+
+IMPLEMENTATION_SHA=830c56e2ff4db789f3747a0a0281213fc3402fd7
+SOURCE_TREE=aeb73d3e784b9fddc7bd3ae3acd1c83803ae7ca3
+
+1. powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_authority.ps1
+   EXIT 0; AUTHORITY_STATUS=PASS
+2. Get-FileHash -Algorithm SHA256 docs/authority/BORROWED_PIXELS_AMENDMENT_v2.2_T03_UI_PLATFORM.md
+   EXIT 0; expected 9431ddb6... matched
+3. cmake --build --preset test --clean-first
+   EXIT 0
+4. build/windows-msvc/bin/TEST/bp_test.exe
+   EXIT 0
+5. ctest --preset all --output-on-failure
+   EXIT 0; 1/1 PASS
+6. cmake --build --preset debug --clean-first
+   EXIT 0
+7. build/windows-msvc/bin/DEBUG/bp_debug.exe --smoke-test
+   EXIT 0
+8. LINK=/MAP:<repo>/docs/evidence/T09/t09-final.map; cmake --build --preset contest --clean-first
+   EXIT 0
+9. Start-Process dist/contest/BorrowedPixels.exe; wait for MainWindowHandle; CloseMainWindow
+   LIVE_WINDOW=True; EXIT 0
+10. powershell -NoProfile -ExecutionPolicy Bypass -File tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560
+    EXIT 0; DIST_STATUS=PASS
+11. dumpbin.exe /dependents dist/contest/BorrowedPixels.exe
+    EXIT 0
+
+FINAL_EXE_BYTES=245760
+FINAL_EXE_SHA256=2f2e9cbdd2cb8488743a0720398f24e55522dc80e1ba548a29d04f017e2f4aa8
+LIVE_WINDOW=True
