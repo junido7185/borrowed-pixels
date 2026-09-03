@@ -1,0 +1,19 @@
+T09 INDEPENDENT REVIEW — SUPERSEDED CANDIDATE
+
+REVIEWED_SHA=55c3d0be936178ee82922a9970ce63ce6b2c0fab
+P0=0
+P1=1
+P2=1
+INTEGRATION_ELIGIBLE=NO
+
+P1: ORIGIN_LOCK used one global stable id/timer, lost split-release provenance,
+retained Charge provenance after mark expiry, and did not preserve player-miss
+provenance through shell/general-cover residue creation.
+
+P2: PrecedentRuntimeHash omitted future-affecting OUTPUT_SCORE accumulators,
+previous reclaim, retry routing and related runtime state.
+
+DISPOSITION: repaired in implementation commit
+0c8289d0b06ceac5fd021d7efc354def6beb4b3d with dedicated boundary tests. This
+failed review is retained as machine-verifiable repair history and is not the
+final integration review.

@@ -4,7 +4,7 @@
 - Current controller state: `T09_FINAL_REVIEW_PENDING`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: T09 PRECEDENT
-- Contest dist: `245,760B` (T09 executable delta `+17,920B`, internal cap PASS)
+- Contest dist: `246,272B` (T09 executable delta `+18,432B`, internal cap PASS)
 
 | Ticket | State | Evidence |
 |---|---|---|
@@ -18,7 +18,7 @@
 | T07 | LOCALLY_INTEGRATED | Candidate `c04cab55...`; Human Director byte-budget reapproval; post-integration full regression PASS |
 | T08A | LOCALLY_INTEGRATED | Candidate `6febd613...`; post-integration full regression PASS; final review P0/P1/P2=0 |
 | T08B | LOCALLY_INTEGRATED | Candidate `84b2bc1d...`; P0/P1/P2=0; post-integration evidence reused on identical executable tree |
-| T09 | FINAL_REVIEW_PENDING | Implementation `830c56e2...`; full automated verification PASS |
+| T09 | FINAL_REVIEW_PENDING | Implementation `0c8289d0...`; full automated verification PASS |
 | T10-T14 | PENDING | Sequential controller execution |
 
 ## Gate status

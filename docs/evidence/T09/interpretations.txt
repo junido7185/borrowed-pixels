@@ -6,9 +6,11 @@ T09 AUTHORITY INTERPRETATIONS
 - An exception is the first switch between mutually opposite combat choices
   FIRE and RECLAIM in the most recent 180 simulation ticks. JUDGMENT permits it;
   RULE and COMMONS render the frozen one-per-run denial copy with punctuation.
-- ORIGIN_LOCK moves the exact marked shell into Charge, records the released
-  projectile stable id, and grants the +128 residue priority only to that id for
-  the exact 90-tick window. Rollback restores the marked origin exactly.
+- ORIGIN_LOCK moves the exact marked shell into Charge, independently records up
+  to two minimum-mass releases from the exact Shell16 mark, and grants +128 to
+  each resulting projectile/residue stable id for its own exact 90-tick window.
+  Mark expiry clears both shell and in-flight Charge provenance; rollback before
+  expiry restores the marked origin exactly.
 - Relation covers are opponent-shell-backed physical mass. Shell damage reserves
   live cover backing, preserving exact physical accounting and core protection.
 - VOTE_NODES counts backed actor shells, Charge, projectiles, Neutral and Cover

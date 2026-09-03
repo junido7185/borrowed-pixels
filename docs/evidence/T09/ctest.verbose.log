@@ -1,7 +1,7 @@
 Test project C:/Users/sdjsd/Desktop/BORROWED_PIXELS/build/windows-msvc
     Start 1: bp_target_skeleton
-1/1 Test #1: bp_target_skeleton ...............   Passed    2.00 sec
+1/1 Test #1: bp_target_skeleton ...............   Passed    1.94 sec
 
 100% tests passed out of 1
 
-Total Test time (real) =   2.01 sec
+Total Test time (real) =   1.96 sec

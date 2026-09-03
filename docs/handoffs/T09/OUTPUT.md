@@ -4,7 +4,7 @@ TICKET: T09 PRECEDENT
 
 BASE SHA: `8c322e0d427335b582ed8fb966b016201384da8e`
 
-IMPLEMENTATION SHA: `830c56e2ff4db789f3747a0a0281213fc3402fd7`
+IMPLEMENTATION SHA: `0c8289d0b06ceac5fd021d7efc354def6beb4b3d`
 
 IMPLEMENTED:
 
@@ -19,11 +19,11 @@ IMPLEMENTED:
 
 AUTOMATED RESULTS:
 
-- T09 117,825 focused checks PASS; 19,683 combinations, 81 profiles, softlocks 0.
+- T09 117,838 focused checks PASS; 19,683 combinations, 81 profiles, softlocks 0.
 - All T02-T08B regression suites, CTest, Debug smoke and Contest live-window PASS.
 - Both ledgers remain exactly 1,440 for every profile.
-- `dist/contest`: one EXE, 245,760 bytes, internal and hard caps PASS.
-- Contest SHA-256: `2f2e9cbdd2cb8488743a0720398f24e55522dc80e1ba548a29d04f017e2f4aa8`.
+- `dist/contest`: one EXE, 246,272 bytes, internal and hard caps PASS.
+- Contest SHA-256: `61d247e93c6136d15f542b138f2fdd0c700d05ed16e632e0e347281a03ca286c`.
 - Dependencies: KERNEL32.dll, USER32.dll, GDI32.dll, WINMM.dll only.
 
 GATES:
