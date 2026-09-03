@@ -33,7 +33,7 @@ IMPLEMENTED:
 
 AUTOMATED RESULTS:
 
-- T08B 900 focused exhaustive checks PASS; all T02-T08A regressions PASS.
+- T08B 899 focused exhaustive checks PASS; all T02-T08A regressions PASS.
 - Windows x64 MSVC configure, clean Test, direct suite, CTest, clean Debug,
   debug smoke, clean Contest, live contest launch, and MAP reachability PASS.
 - dist/contest: one file, 227,840 bytes; internal and hard caps PASS.

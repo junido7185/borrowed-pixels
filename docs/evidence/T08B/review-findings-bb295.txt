@@ -1,0 +1,19 @@
+T08B INDEPENDENT REVIEW OF bb295a8c59268cc7c250fd5c87f998291bdc452e
+
+RESULT: P0=0 P1=0 P2=1; ELIGIBLE ON REQUIRED P0/P1 GATE
+
+The reviewer confirmed all functional repairs, authority/config stability,
+full validation, exact 227840-byte dist, and SHA-256
+1990cacfac26442cd5cb53cb175d8eb8aa5f5a10557be7a68b01c892bf2c9b1b.
+
+P2 evidence repair applied after review:
+
+- The ORBIT reservation fixture now executes the first shot, fills shared
+  capacity to 31, advances to action tick 6, then exercises the scheduled tick
+  7 opponent shot and same-tick player BeginCharge through TickAct3Runtime.
+  This fails the superseded count<32 implementation and passes only when the
+  dynamic reservation guard leaves the final slot free.
+
+Only test/evidence files changed after this review; the reviewed contest
+executable and source tree remain unchanged. A final read-only confirmation of
+the corrected test/evidence commit is still required before integration.

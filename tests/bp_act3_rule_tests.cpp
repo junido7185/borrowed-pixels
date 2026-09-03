@@ -277,21 +277,27 @@ void TestPopulationAndPhysicalMass() noexcept {
     fire.actions[static_cast<std::uint8_t>(bp::PlatformAction::Fire)].held=1;
     bp::Act3Runtime orbitReserved=World(2);
     Check(bp::PhysicalTransfer(orbitReserved.movement.physicalLedger,
-        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::PlayerShell,120)
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::PlayerShell,112)
         && bp::PhysicalTransfer(orbitReserved.movement.physicalLedger,
-            bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,57),
+            bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,57)
+        && bp::TickCurrentScriptForTest(orbitReserved)
+        && orbitReserved.current.orbitShots==1,
         "CURRENT ORBIT reserves player Charge fixture mass");
-    for (std::uint8_t i=0;i<15;++i)
+    for (std::uint8_t i=0;i<14;++i)
         Check(bp::SpawnScriptedProjectile(orbitReserved.combat,
             orbitReserved.movement.physicalLedger,bp::CombatSide::Player,8,
             bp::Vec2Q8{40*bp::kQ8One,40*bp::kQ8One},
             bp::Vec2Q8{bp::kInputUnit,0},1),
             "CURRENT ORBIT reserves player Charge fixture slot");
-    Check(bp::TickAct3Runtime(orbitReserved,fire)
+    bool orbitSlotReady=true;
+    for (std::uint8_t tick=0;tick<5;++tick)
+        orbitSlotReady=orbitSlotReady && bp::TickCurrentScriptForTest(orbitReserved);
+    Check(orbitSlotReady && orbitReserved.current.actionTicks==6
+        && bp::TickAct3Runtime(orbitReserved,fire)
         && orbitReserved.current.action==bp::CurrentAction::ReturnA
         && orbitReserved.combat.charges[0].active!=0
         && orbitReserved.combat.phase==bp::CombatPhase::Active,
-        "CURRENT ORBIT leaves last slot for same-tick player BeginCharge");
+        "CURRENT scheduled ORBIT shot leaves last slot for same-tick player BeginCharge");
 
     bp::Act3Runtime waveReserved=World(2);
     Check(bp::PhysicalTransfer(waveReserved.movement.physicalLedger,
