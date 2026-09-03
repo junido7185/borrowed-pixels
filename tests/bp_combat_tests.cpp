@@ -816,6 +816,39 @@ void TestAct2BackedCoverProcesses() noexcept {
     Check(sweeper.ledger.mass[AccountIndex(bp::PhysicalAccount::Neutral)] == 4,
         "cancelled player mass becomes ordinary neutral");
     CheckWorld(sweeper, "sweeper collision conserves mass");
+
+    World checksum = MakeWorld();
+    Check(bp::AddBackedCover(checksum.combat, bp::RectPixels{100, 86, 8, 8}, 16,
+        bp::PhysicalAccount::ProtocolActive, bp::CoverBehavior::Checksum, handle),
+        "checksum probe enters shared collision sweep");
+    SeedProjectile(checksum, bp::CombatSide::Player, 8,
+        bp::Vec2Q8{90 * bp::kQ8One, 90 * bp::kQ8One},
+        bp::Vec2Q8{20 * bp::kQ8One, 0});
+    Check(bp::StepCombatProjectiles(checksum.combat, checksum.ledger, checksum.claims),
+        "checksum probe impact resolves at common TOI stage");
+    const std::uint16_t tagged = FindNeutral(checksum);
+    Check(!bp::CoverHandleValid(checksum.combat, handle)
+        && tagged != bp::kInvalidSlotIndex
+        && checksum.combat.neutrals[tagged].mass == 24
+        && checksum.combat.neutrals[tagged].protocolTagMass == 16,
+        "checksum collision preserves exact protocol-tag provenance");
+    CheckWorld(checksum, "checksum collision conserves mass");
+
+    World ordered = MakeWorld(240, 64, 32, 0);
+    bp::SlotHandle nearCover{};
+    bp::SlotHandle farChecksum{};
+    Check(bp::AddCover(ordered.combat, bp::RectPixels{98, 86, 4, 8}, 32, nearCover)
+        && bp::AddBackedCover(ordered.combat, bp::RectPixels{110, 86, 8, 8}, 16,
+            bp::PhysicalAccount::ProtocolActive, bp::CoverBehavior::Checksum,
+            farChecksum), "checksum TOI-priority fixture prepared");
+    SeedProjectile(ordered, bp::CombatSide::Player, 8,
+        bp::Vec2Q8{90 * bp::kQ8One, 90 * bp::kQ8One},
+        bp::Vec2Q8{30 * bp::kQ8One, 0});
+    Check(bp::StepCombatProjectiles(ordered.combat, ordered.ledger, ordered.claims)
+        && bp::CoverHandleValid(ordered.combat, farChecksum)
+        && ordered.combat.covers[nearCover.index].mass == 24,
+        "common TOI resolves nearer cover before checksum probe");
+    CheckWorld(ordered, "checksum TOI priority conserves mass");
 }
 
 void TestNeutralSaturationRecoveryAndInvariantFailure() noexcept {

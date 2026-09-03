@@ -97,6 +97,7 @@ enum class CoverBehavior : std::uint8_t {
     OwnedStructure,
     Compactor,
     Sweeper,
+    Checksum,
 };
 
 struct CoverSlot {

@@ -65,6 +65,7 @@ struct IndexRuntime {
     struct Probe {
         Vec2Q8 position;
         Vec2Q8 directionQ15;
+        SlotHandle physicalHandle;
         std::uint16_t respawnTicks;
         std::uint8_t targetCore;
         std::uint8_t active;

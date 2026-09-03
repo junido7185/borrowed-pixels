@@ -2,7 +2,7 @@
 Copyright (C) Microsoft Corporation.  All rights reserved.
 
 
-Dump of file C:\Users\sdjsd\Desktop\BORROWED_PIXELS\dist\contest\BorrowedPixels.exe
+Dump of file dist\contest\BorrowedPixels.exe
 
 File Type: EXECUTABLE IMAGE
 

@@ -19,7 +19,8 @@ IMPLEMENTED:
   cycle, x22/y36 ORBIT, WAVE, exact mass48/tick75 FORECLOSE release, locked aim,
   RETURN priority, Shell41 affordability gate, and settlement outcomes.
 - Section 32.9 step-07 opponent-policy ordering before player charge/movement,
-  plus atomic exact-or-zero ledger transfers at capacity boundaries.
+  common step-11/12 TOI ordering for CHECKSUM probe contacts, plus atomic
+  exact-or-zero ledger transfers at capacity boundaries.
 - Battlefield validation, common pause/HUD/hit-freeze/settlement flow,
   padding-independent runtime hashing, palette rendering, and minimal tested
   Win32 Act 2→Act 3 reachability glue.
@@ -30,7 +31,7 @@ AUTOMATED RESULTS:
 - Windows x64 MSVC configure, clean Test, direct suite, CTest, clean Debug,
   debug smoke, clean Contest, live contest launch, and MAP reachability PASS.
 - dist/contest: one file, 224,256 bytes; internal and hard caps PASS.
-- Contest SHA-256: `981b9453521443241f3f2b852e8d5d56018a08fd5dc326590774551ceebfbb83`.
+- Contest SHA-256: `b849e6f8fef8220ee8ac1747d90535ad9d7d695d5ed16f11a4d3e481800f951c`.
 
 GATES:
 

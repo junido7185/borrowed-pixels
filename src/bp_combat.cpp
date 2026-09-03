@@ -524,6 +524,8 @@ ImpactCandidate FindEarliestImpactInternal(
     for (std::uint16_t index = 0; index < kCoverCapacity; ++index) {
         const CoverSlot& cover = state.covers[index];
         if (cover.active == 0) continue;
+        if (cover.behavior == CoverBehavior::Checksum
+            && projectile.owner != CombatSide::Player) continue;
         const std::int32_t minimumX = cover.bounds.x * kQ8One - projectileHalfWidthQ8;
         const std::int32_t minimumY = cover.bounds.y * kQ8One - projectileHalfHeightQ8;
         const std::int32_t maximumX = (cover.bounds.x + cover.bounds.width) * kQ8One + projectileHalfWidthQ8;
@@ -743,6 +745,39 @@ bool ProcessImpact(
                 shot.velocity.y = TruncMultiplyDivide(shot.velocity.y, 85, 100);
             }
             if (cover.mass == 0) cover.active = 0;
+        } else if (cover.behavior == CoverBehavior::Checksum) {
+            const std::uint16_t neutralMass = static_cast<std::uint16_t>(
+                shot.mass + cover.mass);
+            if (!AllocateNeutralSlot(
+                    candidate,
+                    impact.point,
+                    Vec2Q8{0, 0},
+                    neutralMass,
+                    shot.mass,
+                    0,
+                    shot.stableId,
+                    neutralIndex)
+                || !PhysicalTransfer(
+                    ledgerCandidate,
+                    PhysicalAccount::Projectile,
+                    PhysicalAccount::Neutral,
+                    shot.mass)
+                || !PhysicalTransfer(
+                    ledgerCandidate,
+                    PhysicalAccount::ProtocolActive,
+                    PhysicalAccount::Neutral,
+                    cover.mass)) {
+                state.phase = CombatPhase::Fatal;
+                state.error = candidate.error != CombatError::None
+                    ? candidate.error
+                    : CombatError::LedgerTransactionFailed;
+                return false;
+            }
+            candidate.neutrals[neutralIndex].protocolTagMass = cover.mass;
+            shot.mass = 0;
+            shot.active = 0;
+            cover.mass = 0;
+            cover.active = 0;
         } else {
         const std::uint16_t damage = ProjectileCoverDamage(shot.mass) < cover.mass
             ? ProjectileCoverDamage(shot.mass)
@@ -982,7 +1017,9 @@ bool CombatStateValid(const CombatState& state, const PhysicalLedger& ledger) no
             if (slot.behavior == CoverBehavior::OwnedStructure
                 && slot.backingAccount != PhysicalAccount::Cover
                 && slot.backingAccount != PhysicalAccount::OpponentShell) return false;
-            if ((slot.behavior == CoverBehavior::Compactor || slot.behavior == CoverBehavior::Sweeper)
+            if ((slot.behavior == CoverBehavior::Compactor
+                    || slot.behavior == CoverBehavior::Sweeper
+                    || slot.behavior == CoverBehavior::Checksum)
                 && slot.backingAccount != PhysicalAccount::ProtocolActive) return false;
             if (slot.backingAccount == PhysicalAccount::Cover) coverMass += slot.mass;
             else if (slot.backingAccount == PhysicalAccount::OpponentShell) opponentStructureMass += slot.mass;
@@ -1187,7 +1224,9 @@ bool AddBackedCover(
         || (behavior == CoverBehavior::OwnedStructure
             && backingAccount != PhysicalAccount::Cover
             && backingAccount != PhysicalAccount::OpponentShell)
-        || ((behavior == CoverBehavior::Compactor || behavior == CoverBehavior::Sweeper)
+        || ((behavior == CoverBehavior::Compactor
+                || behavior == CoverBehavior::Sweeper
+                || behavior == CoverBehavior::Checksum)
             && backingAccount != PhysicalAccount::ProtocolActive)) return false;
     CoverSlot& slot = state.covers[index];
     std::uint32_t stableId = 0;

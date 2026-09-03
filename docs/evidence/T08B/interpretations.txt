@@ -17,6 +17,9 @@ T08B AUTHORITY INTERPRETATIONS
   jump to RETURN while retaining Shell41.
 - Opponent policy selection runs at section 32.9 step 07, before player charge
   and movement mutate the observed state for that tick.
+- INDEX CHECKSUM movement/retargeting remains at step 07, while its physical
+  probe handles participate in the shared step 11-12 collision sweep so an
+  earlier actor, projectile, or Cover TOI cannot be bypassed.
 - Runtime-contract coordinates and masses are copied without presentation
   adjustment. Validation checks totals, bounds, spawn overlap, route existence,
   and two free directions at each spawn.

@@ -127,26 +127,6 @@ std::uint64_t DistanceSquared(Vec2Q8 left, Vec2Q8 right) noexcept {
     return static_cast<std::uint64_t>(dx*dx+dy*dy);
 }
 
-bool SweptWithinRadius(Vec2Q8 start,Vec2Q8 delta,Vec2Q8 target,
-    std::int32_t radiusQ8) noexcept {
-    const std::int64_t rx=static_cast<std::int64_t>(target.x)-start.x;
-    const std::int64_t ry=static_cast<std::int64_t>(target.y)-start.y;
-    const std::int64_t vx=delta.x;
-    const std::int64_t vy=delta.y;
-    const std::int64_t lengthSquared=vx*vx+vy*vy;
-    const std::int64_t projection=rx*vx+ry*vy;
-    Vec2Q8 closest=start;
-    if (lengthSquared!=0 && projection>0) {
-        if (projection>=lengthSquared) { closest.x+=delta.x; closest.y+=delta.y; }
-        else {
-            closest.x+=static_cast<std::int32_t>(vx*projection/lengthSquared);
-            closest.y+=static_cast<std::int32_t>(vy*projection/lengthSquared);
-        }
-    }
-    return DistanceSquared(closest,target)
-        <=static_cast<std::uint64_t>(radiusQ8)*radiusQ8;
-}
-
 Vec2Q8 TurnAtMostSixDegrees(Vec2Q8 current,Vec2Q8 target) noexcept {
     current=NormalizeDirection(current);
     target=NormalizeDirection(target);
@@ -570,31 +550,6 @@ bool TickCurrent(Act3Runtime& state) noexcept {
     return true;
 }
 
-bool DisableIndexProbe(Act3Runtime& state,std::uint8_t probeIndex,
-    std::uint16_t projectileIndex) noexcept {
-    CombatState combat=state.combat;
-    PhysicalLedger ledger=state.movement.physicalLedger;
-    ProjectileSlot& shot=combat.projectiles[projectileIndex];
-    const Vec2Q8 position=state.index.probes[probeIndex].position;
-    const std::uint16_t mass=static_cast<std::uint16_t>(shot.mass+16);
-    SlotHandle neutral{};
-    if (!AddNeutral(combat,position,mass,shot.mass,0,neutral)
-        || !PhysicalTransfer(ledger,PhysicalAccount::Projectile,PhysicalAccount::Neutral,
-            shot.mass)
-        || !PhysicalTransfer(ledger,PhysicalAccount::ProtocolActive,
-            PhysicalAccount::Neutral,16)) return false;
-    combat.neutrals[neutral.index].protocolTagMass=16;
-    shot.mass=0;
-    shot.active=0;
-    shot.velocity=Vec2Q8{0,0};
-    if (!CombatStateValid(combat,ledger)) return false;
-    state.combat=combat;
-    state.movement.physicalLedger=ledger;
-    state.index.probes[probeIndex].active=0;
-    state.index.probes[probeIndex].respawnTicks=120;
-    return true;
-}
-
 bool TryRespawnIndexProbe(Act3Runtime& state,std::uint8_t probeIndex) noexcept {
     IndexRuntime::Probe& probe=state.index.probes[probeIndex];
     if (probe.active!=0) return true;
@@ -630,7 +585,12 @@ bool TryRespawnIndexProbe(Act3Runtime& state,std::uint8_t probeIndex) noexcept {
         if (neutral.mass==0) neutral.active=0;
     }
     if (!PhysicalTransfer(ledger,PhysicalAccount::Neutral,
-            PhysicalAccount::ProtocolActive,16) || !CombatStateValid(combat,ledger)) return false;
+            PhysicalAccount::ProtocolActive,16)
+        || !AddBackedCover(combat,
+            RectPixels{spawn.x/kQ8One-4,spawn.y/kQ8One-4,8,8},16,
+            PhysicalAccount::ProtocolActive,CoverBehavior::Checksum,
+            probe.physicalHandle)
+        || !CombatStateValid(combat,ledger)) return false;
     state.combat=combat;
     state.movement.physicalLedger=ledger;
     state.index.probes[probeIndex].position=spawn;
@@ -655,17 +615,20 @@ bool TickIndexProbes(Act3Runtime& state) noexcept {
         };
         probe.position.x+=velocity.x;
         probe.position.y+=velocity.y;
-        for (std::uint16_t shotIndex=0;shotIndex<kProjectileCapacity;++shotIndex) {
-            const ProjectileSlot& shot=state.combat.projectiles[shotIndex];
-            if (shot.active==0 || shot.owner!=CombatSide::Player) continue;
-            if (SweptWithinRadius(shot.position,shot.velocity,probe.position,
-                    (ProjectileRadiusPixels(shot.mass)+4)*kQ8One)) {
-                if (!DisableIndexProbe(state,probeIndex,shotIndex)) return false;
-                break;
-            }
-        }
+        if (!CoverHandleValid(state.combat,probe.physicalHandle)) return false;
+        CoverSlot& physical=state.combat.covers[probe.physicalHandle.index];
+        physical.bounds=RectPixels{probe.position.x/kQ8One-4,
+            probe.position.y/kQ8One-4,8,8};
     }
     return true;
+}
+
+void ResolveIndexProbeImpacts(Act3Runtime& state) noexcept {
+    for (IndexRuntime::Probe& probe:state.index.probes) {
+        if (probe.active==0 || CoverHandleValid(state.combat,probe.physicalHandle)) continue;
+        probe.active=0;
+        probe.respawnTicks=120;
+    }
 }
 
 void RemoveWitnessSegment(CombatState& combat,SlotHandle handle) noexcept {
@@ -1072,6 +1035,9 @@ bool PopulateAct3Encounter(Act3Runtime& state) noexcept {
             state.index.probes[i].directionQ15=NormalizeDirection(Vec2Q8{
                 target.x-state.index.probes[i].position.x,
                 target.y-state.index.probes[i].position.y});
+            if (!AddBackedCover(state.combat,RectPixels{156,spawnY[i]-4,8,8},16,
+                    PhysicalAccount::ProtocolActive,CoverBehavior::Checksum,
+                    state.index.probes[i].physicalHandle)) return false;
             state.index.probes[i].active=1;
         }
     } else if (definition.id==EncounterId::Current && !PopulateCurrent(state)) return false;
@@ -1260,6 +1226,7 @@ bool TickAct3Runtime(Act3Runtime& state,const InputFrame& input) noexcept {
     state.movement.playerPosition=state.combat.actors[0].position;
     state.movement.playerVelocity=state.combat.actors[0].velocity;
     if (!StepCombatProjectiles(state.combat,ledger,state.claimLedger)) return false;
+    if (state.encounterIndex==0) ResolveIndexProbeImpacts(state);
     if (state.combat.actors[0].coreHit!=0) {
         ++state.movement.globalTick; ++state.globalTick; BeginRetry(state); return true;
     }
@@ -1396,7 +1363,8 @@ std::uint32_t Act3RuntimeHash(const Act3Runtime& state) noexcept {
     add(state.hudLoan.reallocationLockTicks); add(state.hudLoan.pendingCommit);
     for (SlotHandle handle:state.neutrals) addHandle(handle);
     for (const IndexRuntime::Probe& probe:state.index.probes) {
-        addVec(probe.position); addVec(probe.directionQ15); add(probe.respawnTicks);
+        addVec(probe.position); addVec(probe.directionQ15); addHandle(probe.physicalHandle);
+        add(probe.respawnTicks);
         add(probe.targetCore); add(probe.active);
     }
     for (SlotHandle handle:state.index.metricNodes) addHandle(handle);

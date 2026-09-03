@@ -1,7 +1,7 @@
 ﻿T07_PASS	checks=2066	encounters=3	act1_ledgers=1440
 T08A_PASS	checks=72445	adapter_ranges=49	frame_observations=1024
 T08B_PASS	checks=762	index_cases=64	witness_cases=16	cycle_ticks=454
-T05_PASS	checks=4116	projectiles=32	neutrals=64
+T05_PASS	checks=4135	projectiles=32	neutrals=64
 T04_INFO	replay=61646592	ticks=4096
 T04_PASS	checks=333093	replay_ticks=4096
 T06_PASS	checks=6512	hud_states=21	neutral_capacity=64

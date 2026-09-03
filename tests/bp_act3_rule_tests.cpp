@@ -253,7 +253,10 @@ void TestPopulationAndPhysicalMass() noexcept {
 
 void TestChecksumAndWitnessProcesses() noexcept {
     bp::Act3Runtime index=World(0);
-    const bp::Vec2Q8 probePosition=index.index.probes[0].position;
+    const bp::Vec2Q8 probePosition{160*bp::kQ8One,70*bp::kQ8One};
+    index.index.probes[0].position=probePosition;
+    index.combat.covers[index.index.probes[0].physicalHandle.index].bounds=
+        bp::RectPixels{156,66,8,8};
     Check(bp::SpawnScriptedProjectile(index.combat,index.movement.physicalLedger,
         bp::CombatSide::Player,8,probePosition,bp::Vec2Q8{bp::kInputUnit,0},1),
         "INDEX player shot prepared at CHECKSUM probe");

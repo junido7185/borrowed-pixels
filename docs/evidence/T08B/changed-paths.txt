@@ -8,8 +8,22 @@ tests/bp_act3_rule_tests.cpp
 
 CROSS_TICKET_GLUE
 src/bp_win32.cpp
+src/bp_combat.cpp
+src/bp_combat.h
+tests/bp_combat_tests.cpp
+
+HUMAN_DIRECTOR_OPERATING_CONTRACT
+docs/guides/BP_QUOTA_AWARE_RC_AUTORUN_v3.md
 
 The Win32 delta only stores Act3Runtime, initializes it after Act2Scene::Complete,
 ticks it while active, and routes presentation to RenderAct3Runtime. It changes no
 game rule, constant, copy, coordinate, timing, ledger, save layout, or presentation
 decision.
+
+The combat delta adds one CHECKSUM-backed Cover behavior so probes enter the
+existing common swept-TOI ordering instead of resolving collisions early in
+the encounter-policy step. Its dedicated tests cover exact tagged mass,
+conservation, and a nearer-Cover priority case.
+
+The operating-contract document is user-provided execution authority for the
+remaining RC pipeline; it changes procedure only and no game rule or build.

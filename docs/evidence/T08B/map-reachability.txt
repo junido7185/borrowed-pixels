@@ -5,6 +5,7 @@ TickAct3Runtime=REACHABLE
 RenderAct3Runtime=REACHABLE
 TickCurrent=REACHABLE
 FinishWitnessSweeper=REACHABLE
+ChecksumProbeCommonTOI=REACHABLE_VIA_TickAct3Runtime_AND_StepCombatProjectiles
 ResolveIndexResult=INLINED_BY_LTCG_IN_REACHABLE_TICK
 ResolveWitnessResult=INLINED_BY_LTCG_IN_REACHABLE_TICK
 RESULT=PASS
