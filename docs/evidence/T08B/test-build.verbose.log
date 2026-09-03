@@ -1,0 +1,32 @@
+﻿msbuild 버전 17.9.5+33de0b227(.NET Framework용)
+
+
+  Checking File Globs
+  1>Checking Build System
+  Building Custom Rule C:/Users/sdjsd/Desktop/BORROWED_PIXELS/CMakeLists.txt
+  bp_act1_encounter_tests.cpp
+  bp_act2_process_tests.cpp
+  bp_act3_rule_tests.cpp
+  bp_combat_tests.cpp
+  bp_game_input_math_tests.cpp
+  bp_ledger_save_tests.cpp
+  bp_reclaim_hud_loan_tests.cpp
+  bp_render_font_ui_tests.cpp
+  bp_act1.cpp
+  bp_act2.cpp
+  bp_act3.cpp
+  bp_claim_ledger.cpp
+  bp_combat.cpp
+  bp_encounter.cpp
+  bp_font.cpp
+  bp_game.cpp
+  bp_hud_loan.cpp
+  bp_input.cpp
+  bp_physical_ledger.cpp
+  bp_reclaim.cpp
+  코드를 생성하고 있습니다...
+  컴파일하고 있습니다...
+  bp_render.cpp
+  bp_save.cpp
+  코드를 생성하고 있습니다...
+  bp_test.vcxproj -> C:\Users\sdjsd\Desktop\BORROWED_PIXELS\build\windows-msvc\bin\TEST\bp_test.exe

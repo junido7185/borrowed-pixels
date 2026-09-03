@@ -1,0 +1,27 @@
+T08B FINAL VERIFICATION COMMANDS
+
+1. powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_authority.ps1
+   EXIT 0; AUTHORITY_STATUS=PASS
+2. cmake --preset windows-msvc
+   EXIT 0
+3. cmake --build --preset test --clean-first
+   EXIT 0
+4. build/windows-msvc/bin/TEST/bp_test.exe
+   EXIT 0
+5. ctest --preset all --output-on-failure
+   EXIT 0; 1/1 PASS
+6. cmake --build --preset debug --clean-first
+   EXIT 0
+7. build/windows-msvc/bin/DEBUG/bp_debug.exe --smoke-test
+   EXIT 0
+8. $env:LINK='/MAP:<repo>/build/windows-msvc/t08b-final.map'; cmake --build --preset contest --clean-first
+   EXIT 0; map copied to docs/evidence/T08B/t08b-final.map after linking
+9. Start-Process dist/contest/BorrowedPixels.exe; wait for MainWindowHandle; CloseMainWindow
+   LIVE_WINDOW=True; EXIT 0
+10. powershell -NoProfile -ExecutionPolicy Bypass -File tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560
+    EXIT 0; DIST_STATUS=PASS
+11. dumpbin.exe /dependents dist/contest/BorrowedPixels.exe
+    EXIT 0
+
+FINAL EXE: 223232 bytes
+FINAL SHA-256: 191d5ac5260768f44a7797be5b44526162ea304d0cba7c395d45408adfd48492

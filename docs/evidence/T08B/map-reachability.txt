@@ -1,0 +1,9 @@
+MSVC_CONTEST_FLAGS=/GL /Gy /Gw /LTCG /OPT:REF /OPT:ICF
+MAP=docs/evidence/T08B/t08b-final.map
+InitializeAct3Runtime=REACHABLE
+TickAct3Runtime=REACHABLE
+RenderAct3Runtime=REACHABLE
+TickCurrent=REACHABLE
+ResolveIndexResult=INLINED_BY_LTCG_IN_REACHABLE_TICK
+ResolveWitnessResult=INLINED_BY_LTCG_IN_REACHABLE_TICK
+RESULT=PASS

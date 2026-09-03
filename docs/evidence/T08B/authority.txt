@@ -1,0 +1,4 @@
+AUTHORITY_STATUS=PASS
+MANIFEST_SHA256=db043feb0abeeaff6136c420e99fc6bd45393886846fed8efb329f90575dc937
+AMENDMENT_T03_SHA256=9431ddb6e512ed7842f8c0c1d36ae7c33374cdb1824ab5037e4f87f0256c961f
+Verified by tools/verify_authority.ps1 before the final clean builds.

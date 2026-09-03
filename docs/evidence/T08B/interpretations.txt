@@ -1,0 +1,17 @@
+T08B AUTHORITY INTERPRETATIONS
+
+- INDEX reuses the existing deterministic CHECKSUM behavior: two 16 TILE
+  PROTOCOL probes, 30-tick alternating core targets, 84 px/s tracking with a
+  six-degree turn cap, hit-to-PROTOCOL_TAG Neutral, and 120-tick rebuild.
+- INDEX result resolution is total and ordered REWRITE, REFUSE, OPTIMIZE; the
+  authority fallback is REFUSE.
+- WITNESS records are separate opponent-owned physical mass, so PLAYER shots do
+  not damage them. A shot can cancel the approaching SWEEPER path, while a
+  continuous nearby reclaim action dismantles one record at exactly 60 ticks.
+- CURRENT starts with core16, shell48, sixteen owned projectile8, owned
+  orbit-neutral48, and active-reserve48 inside its 240 claim. Its nominal cycle
+  is exactly 454 ticks; unaffordable attacks jump to RETURN while retaining
+  Shell41.
+- Runtime-contract coordinates and masses are copied without presentation
+  adjustment. Validation checks totals, bounds, spawn overlap, route existence,
+  and two free directions at each spawn.

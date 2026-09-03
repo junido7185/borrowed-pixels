@@ -1,0 +1,3 @@
+No external library, runtime, downloaded asset, font, audio, image, network,
+browser, or runtime AI was added. T08B consists only of repository-authored C++
+source, deterministic tests, and machine-generated local verification evidence.

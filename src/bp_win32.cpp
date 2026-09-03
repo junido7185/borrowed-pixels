@@ -4,6 +4,7 @@
 #include "bp_render.h"
 #include "bp_encounter.h"
 #include "bp_act2.h"
+#include "bp_act3.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -62,7 +63,9 @@ struct PlatformState {
     bp::InputFrame lastInputFrame;
     bp::Act1Runtime act1;
     bp::Act2Runtime act2;
+    bp::Act3Runtime act3;
     bool act2Active;
+    bool act3Active;
     std::uint32_t globalTick;
     std::uint32_t renderFrame;
     bool running;
@@ -188,7 +191,8 @@ void PresentBackbuffer(PlatformState& state, HDC destination, const RECT& client
             bp::kCanvasHeight,
             bp::kCanvasWidth,
         };
-    if (state.act2Active) bp::RenderAct2Runtime(buffer, state.act2);
+    if (state.act3Active) bp::RenderAct3Runtime(buffer, state.act3);
+    else if (state.act2Active) bp::RenderAct2Runtime(buffer, state.act2);
     else bp::RenderAct1Runtime(buffer, state.act1);
     const std::int32_t clientWidth = client.right - client.left;
     const std::int32_t clientHeight = client.bottom - client.top;
@@ -839,8 +843,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
                             state.act2, state.act1.claimLedger, state.act1.narrative);
                         state.act2Active = tickOk;
                     }
-                } else {
+                } else if (!state.act3Active) {
                     tickOk = bp::TickAct2Runtime(state.act2, state.lastInputFrame);
+                    if (tickOk && state.act2.scene == bp::Act2Scene::Complete) {
+                        tickOk = bp::InitializeAct3Runtime(
+                            state.act3, state.act2.claimLedger, state.act2.narrative);
+                        state.act3Active = tickOk;
+                    }
+                } else {
+                    tickOk = bp::TickAct3Runtime(state.act3, state.lastInputFrame);
                 }
                 if (!tickOk) {
                     state.running = false;

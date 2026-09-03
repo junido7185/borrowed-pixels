@@ -1,0 +1,15 @@
+T08B PRIMARY
+docs/STATUS.md
+docs/evidence/T08B/**
+docs/handoffs/T08B/OUTPUT.md
+src/bp_act3.cpp
+src/bp_act3.h
+tests/bp_act3_rule_tests.cpp
+
+CROSS_TICKET_GLUE
+src/bp_win32.cpp
+
+The Win32 delta only stores Act3Runtime, initializes it after Act2Scene::Complete,
+ticks it while active, and routes presentation to RenderAct3Runtime. It changes no
+game rule, constant, copy, coordinate, timing, ledger, save layout, or presentation
+decision.
