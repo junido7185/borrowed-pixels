@@ -199,6 +199,26 @@ void TestAuditAndDeterminism() noexcept {
     ++left.combat.actors[0].position.x;
     Check(bp::PrecedentRuntimeHash(left)!=fullHash,
         "PRECEDENT hash includes combat actor state without padding");
+    bp::PrecedentRuntime hashMutation=right;
+    const std::uint32_t baselineHash=bp::PrecedentRuntimeHash(hashMutation);
+    ++hashMutation.outputDamage[0];
+    Check(bp::PrecedentRuntimeHash(hashMutation)!=baselineHash,
+        "PRECEDENT hash includes OUTPUT_SCORE accumulators");
+    hashMutation=right; ++hashMutation.previousPlayerReclaim;
+    Check(bp::PrecedentRuntimeHash(hashMutation)!=baselineHash,
+        "PRECEDENT hash includes prior reclaim input");
+    hashMutation=right; hashMutation.retryPending^=1u;
+    Check(bp::PrecedentRuntimeHash(hashMutation)!=baselineHash,
+        "PRECEDENT hash includes retry routing state");
+    hashMutation=right; ++hashMutation.tetherNodes[0].generation;
+    Check(bp::PrecedentRuntimeHash(hashMutation)!=baselineHash,
+        "PRECEDENT hash includes policy slot handles");
+    hashMutation=right; ++hashMutation.combat.nextStableId;
+    Check(bp::PrecedentRuntimeHash(hashMutation)!=baselineHash,
+        "PRECEDENT hash includes combat allocation state");
+    hashMutation=right; ++hashMutation.narrative.entityStatus[0];
+    Check(bp::PrecedentRuntimeHash(hashMutation)!=baselineHash,
+        "PRECEDENT hash includes complete narrative state");
 }
 
 void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noexcept {
@@ -416,6 +436,13 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
         originPriority.reclaim,false,true,priorityResult,false,marked.stableId)
         && priorityResult.opponentTarget==originPriority.neutrals[0].index,
         "ORIGIN_LOCK gives player projectile residue exact +128 reclaim priority");
+    bp::PrecedentRuntime secondaryPriority=originPriority;
+    bp::ReclaimTickResult secondaryResult{};
+    Check(bp::TickReclaim(secondaryPriority.combat,
+        secondaryPriority.movement.physicalLedger,secondaryPriority.reclaim,
+        false,true,secondaryResult,false,ordinary.stableId,marked.stableId)
+        && secondaryResult.opponentTarget==originPriority.neutrals[0].index,
+        "ORIGIN_LOCK second live Projectile id receives the same +128 priority");
 
     bp::PrecedentRuntime originProjectile=world(0);
     originProjectile.encounterTick=719;
@@ -428,11 +455,12 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
     bp::InputFrame release=Idle();
     release.actions[static_cast<std::uint8_t>(bp::PlatformAction::Fire)].released=1;
     Check(bp::TickPrecedentRuntime(originProjectile,release)
-        && originProjectile.reclaimPriorityTicks==90
-        && originProjectile.originPriorityStableId!=0,
+        && originProjectile.reclaimPriorityTicks[0]==90
+        && originProjectile.originPriorityStableId[0]!=0,
         "ORIGIN_LOCK provenance follows released Projectile for exact 90 ticks");
+    const std::uint32_t firstOriginId=originProjectile.originPriorityStableId[0];
     for (bp::ProjectileSlot& shot:originProjectile.combat.projectiles)
-        if (shot.active!=0 && shot.stableId==originProjectile.originPriorityStableId) {
+        if (shot.active!=0 && shot.stableId==firstOriginId) {
             shot.position=bp::Vec2Q8{309*bp::kQ8One,92*bp::kQ8One};
             shot.velocity=bp::Vec2Q8{4*bp::kQ8One,0};
         }
@@ -440,9 +468,38 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
         "ORIGIN_LOCK marked Projectile reaches boundary safely");
     bool markedResidue=false;
     for (const bp::NeutralSlot& neutral:originProjectile.combat.neutrals)
-        if (neutral.active!=0 && neutral.stableId==originProjectile.originPriorityStableId
+        if (neutral.active!=0 && neutral.stableId==firstOriginId
             && neutral.playerMissMass!=0) markedResidue=true;
     Check(markedResidue,"ORIGIN_LOCK priority stable id follows actual missed residue");
+
+    originProjectile.combat.actors[0].shotCooldownTicks=0;
+    Check(bp::TickPrecedentRuntime(originProjectile,ActionInput(bp::PlatformAction::Fire))
+        && originProjectile.originChargeMass==8,
+        "ORIGIN_LOCK second marked half enters a distinct Charge");
+    Check(bp::TickPrecedentRuntime(originProjectile,release)
+        && originProjectile.reclaimPriorityTicks[0]>0
+        && originProjectile.reclaimPriorityTicks[1]==90
+        && originProjectile.originPriorityStableId[0]==firstOriginId
+        && originProjectile.originPriorityStableId[1]!=0
+        && originProjectile.originPriorityStableId[1]!=firstOriginId,
+        "ORIGIN_LOCK retains both split Projectile priorities independently");
+
+    bp::PrecedentRuntime expiredOrigin=world(0);
+    expiredOrigin.encounterTick=719;
+    Check(bp::TickPrecedentRuntime(expiredOrigin,Idle())
+        && bp::TickPrecedentRuntime(expiredOrigin,ActionInput(bp::PlatformAction::Fire))
+        && expiredOrigin.originChargeMass==8,
+        "ORIGIN_LOCK expiry fixture captures marked Charge mass");
+    expiredOrigin.markedOriginTicks=1;
+    Check(bp::TickPrecedentRuntime(expiredOrigin,ActionInput(bp::PlatformAction::Fire))
+        && expiredOrigin.markedOriginTicks==0
+        && expiredOrigin.markedOriginMass==0
+        && expiredOrigin.originChargeMass==0,
+        "ORIGIN_LOCK expiration clears shell and in-flight Charge provenance");
+    Check(bp::TickPrecedentRuntime(expiredOrigin,release)
+        && expiredOrigin.reclaimPriorityTicks[0]==0
+        && expiredOrigin.reclaimPriorityTicks[1]==0,
+        "expired ORIGIN_LOCK Charge release cannot create a fresh priority window");
 
     bp::PrecedentRuntime fixedCycle=world(0);
     DamageOpponentTo(fixedCycle,80);

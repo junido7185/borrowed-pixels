@@ -430,8 +430,10 @@ void ApplyIdentity(PrecedentRuntime& state) noexcept {
                 Account(PhysicalAccount::PlayerShell)];
             state.markedOriginMass=shell<16?shell:16;
             state.markedOriginTicks=90;
-        } else if (state.markedOriginTicks>0 && --state.markedOriginTicks==0)
+        } else if (state.markedOriginTicks>0 && --state.markedOriginTicks==0) {
             state.markedOriginMass=0;
+            state.originChargeMass=0;
+        }
     } else if (policy==IdentityPolicy::Continuity) {
         if (state.encounterTick%600u==0) state.forkTicks=180;
         else if (state.forkTicks>0) --state.forkTicks;
@@ -847,8 +849,8 @@ bool PopulatePrecedentBattlefield(PrecedentRuntime& state) noexcept {
     candidate.markedOriginMass=0;
     candidate.markedOriginTicks=0;
     candidate.originChargeMass=0;
-    candidate.reclaimPriorityTicks=0;
-    candidate.originPriorityStableId=0;
+    std::memset(candidate.reclaimPriorityTicks,0,sizeof(candidate.reclaimPriorityTicks));
+    std::memset(candidate.originPriorityStableId,0,sizeof(candidate.originPriorityStableId));
     candidate.forkTicks=0;
     candidate.echoTicks=0;
     candidate.echoClaimTotal=0;
@@ -1056,8 +1058,10 @@ bool TickPrecedentRuntime(PrecedentRuntime& state,const InputFrame& input) noexc
 
     const Vec2Q8 aim=AimDirection(state,input);
     state.combat.actors[0].aimDirectionQ15=aim;
-    if (state.reclaimPriorityTicks>0 && --state.reclaimPriorityTicks==0)
-        state.originPriorityStableId=0;
+    for (std::uint8_t priority=0;priority<2;++priority)
+        if (state.reclaimPriorityTicks[priority]>0
+            && --state.reclaimPriorityTicks[priority]==0)
+            state.originPriorityStableId[priority]=0;
     ChargeSlot& playerCharge=state.combat.charges[0];
     if (intent.action==GameplayAction::HudReallocate && playerCharge.active!=0) {
         RestoreOriginCharge(state);
@@ -1085,8 +1089,12 @@ bool TickPrecedentRuntime(PrecedentRuntime& state,const InputFrame& input) noexc
             if (!ReleaseCharge(state.combat,ledger,CombatSide::Player)) return false;
             state.originChargeMass=0;
             if (originMass>0) {
-                state.originPriorityStableId=stableId;
-                state.reclaimPriorityTicks=90;
+                std::uint8_t priority=state.reclaimPriorityTicks[0]==0?0u:1u;
+                if (state.reclaimPriorityTicks[priority]!=0
+                    && state.reclaimPriorityTicks[0]>state.reclaimPriorityTicks[1])
+                    priority=0;
+                state.originPriorityStableId[priority]=stableId;
+                state.reclaimPriorityTicks[priority]=90;
             }
         } else {
             RestoreOriginCharge(state);
@@ -1136,7 +1144,8 @@ bool TickPrecedentRuntime(PrecedentRuntime& state,const InputFrame& input) noexc
         if (!TickReclaim(state.combat,ledger,state.reclaim,
                 intent.action==GameplayAction::Reclaim,
                 state.action==PrecedentAction::Reclaim,reclaimed,false,
-                state.reclaimPriorityTicks>0?state.originPriorityStableId:0u)) return false;
+                state.reclaimPriorityTicks[0]>0?state.originPriorityStableId[0]:0u,
+                state.reclaimPriorityTicks[1]>0?state.originPriorityStableId[1]:0u)) return false;
         state.previousPlayerReclaim=reclaimed.playerMass;
         state.outputReclaim[0]=static_cast<std::uint16_t>(
             state.outputReclaim[0]+reclaimed.playerMass);
@@ -1192,7 +1201,10 @@ std::uint32_t PrecedentRuntimeHash(const PrecedentRuntime& state) noexcept {
     };
     for (std::uint16_t mass:state.claimLedger.mass) add(mass);
     for (std::uint16_t mass:state.movement.physicalLedger.mass) add(mass);
-    add(state.narrative.choiceBits);
+    add(state.narrative.choiceBits); add(state.narrative.adjudicatedMass);
+    add(state.narrative.encounterIndex); add(state.narrative.role);
+    for (std::uint8_t status:state.narrative.entityStatus) add(status);
+    add(state.narrative.endingsSeen);
     add(state.policy.profile.identity); add(state.policy.profile.distribution);
     add(state.policy.profile.governance); add(state.policy.profile.memory);
     for (std::uint8_t i=0;i<4;++i) {
@@ -1203,13 +1215,28 @@ std::uint32_t PrecedentRuntimeHash(const PrecedentRuntime& state) noexcept {
     add(static_cast<std::uint8_t>(state.pendingAction)); add(state.globalTick); add(state.encounterTick);
     add(state.sceneTicks); add(state.phaseTicks); add(state.phaseDisplayTicks);
     add(state.exceptionTicks); add(state.auditRow); add(state.phase);
+    for (std::uint8_t side=0;side<2;++side) {
+        add(state.outputDamage[side]); add(state.outputReclaim[side]);
+        add(state.outputMovementQ8[side]);
+    }
+    add(state.previousPlayerReclaim); add(state.retryPending);
     add(state.markedOriginMass); add(state.markedOriginTicks); add(state.originChargeMass);
-    add(state.reclaimPriorityTicks); add(state.originPriorityStableId);
+    for (std::uint8_t priority=0;priority<2;++priority) {
+        add(state.reclaimPriorityTicks[priority]);
+        add(state.originPriorityStableId[priority]);
+    }
     add(state.forkTicks); add(state.echoTicks); add(state.echoIndex);
     add(state.echoClaimTotal); add(state.borrowedFoldedMass);
     add(state.borrowedActive); add(state.pendingValid); add(state.exceptionShown);
     add(state.exceptionDeniedShown); add(state.lastPlayerPolicyAction);
     add(state.lastPlayerPolicyTick); add(GameStateHash(state.movement));
+    const auto addHandle=[&add](SlotHandle handle) noexcept {
+        add(handle.index); add(handle.generation);
+    };
+    for (SlotHandle handle:state.covers) addHandle(handle);
+    for (SlotHandle handle:state.neutrals) addHandle(handle);
+    for (SlotHandle handle:state.tetherNodes) addHandle(handle);
+    for (SlotHandle handle:state.voteNodes) addHandle(handle);
     for (const ChargeSlot& charge:state.combat.charges) {
         add(charge.position.x); add(charge.position.y); add(charge.directionQ15.x);
         add(charge.directionQ15.y); add(charge.stableId); add(charge.generation);
@@ -1241,6 +1268,15 @@ std::uint32_t PrecedentRuntimeHash(const PrecedentRuntime& state) noexcept {
         add(actor.exposureGraceTicks); add(actor.shotCooldownTicks);
         add(actor.projectileImmune); add(actor.coreHit);
     }
+    for (std::uint16_t mass:state.combat.settlement.physicalLedger.mass) add(mass);
+    for (std::uint16_t mass:state.combat.settlement.claimLedger.mass) add(mass);
+    add(state.combat.settlement.tick);
+    add(static_cast<std::uint8_t>(state.combat.settlement.hitSide));
+    add(state.combat.settlement.valid);
+    add(state.combat.shellDamageThisTick[0]); add(state.combat.shellDamageThisTick[1]);
+    add(state.combat.nextStableId); add(state.combat.globalTick);
+    add(static_cast<std::uint8_t>(state.combat.phase));
+    add(static_cast<std::uint8_t>(state.combat.error));
     for (std::uint8_t side=0;side<2;++side) {
         add(state.reclaim.accumulator[side]); add(state.reclaim.targetIndex[side]);
     }

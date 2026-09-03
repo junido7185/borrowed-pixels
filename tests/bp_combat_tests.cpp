@@ -387,6 +387,8 @@ void TestSweptShellAndCore() noexcept {
             "shell neutral reclaim lock formula");
         Check(shell.combat.neutrals[neutral].immunityTicks == 45,
             "shell neutral immunity 45");
+        Check(shell.combat.neutrals[neutral].playerMissMass == 8,
+            "shell impact preserves player Projectile provenance");
     }
     CheckWorld(shell, "post-shell-hit world valid");
 
@@ -438,6 +440,10 @@ void TestCoverAndBoundaryTransactions() noexcept {
         "cover hit strips exact projectile mass");
     Check(cover.ledger.mass[AccountIndex(bp::PhysicalAccount::Neutral)] == 16,
         "cover hit neutral combines cover and projectile");
+    const std::uint16_t coverNeutral=FindNeutral(cover);
+    Check(coverNeutral!=bp::kInvalidSlotIndex
+        && cover.combat.neutrals[coverNeutral].playerMissMass==8,
+        "cover impact preserves player Projectile provenance");
     Check(!bp::CoverHandleValid(cover.combat, coverHandle), "destroyed cover handle invalid");
     CheckWorld(cover, "cover transaction conserves mass");
     const std::uint16_t rebuildSource = FindNeutral(cover);

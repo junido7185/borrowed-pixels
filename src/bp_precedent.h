@@ -79,7 +79,7 @@ struct PrecedentRuntime {
     std::uint16_t markedOriginMass;
     std::uint16_t markedOriginTicks;
     std::uint16_t originChargeMass;
-    std::uint16_t reclaimPriorityTicks;
+    std::uint16_t reclaimPriorityTicks[2];
     std::uint16_t forkTicks;
     std::uint16_t echoTicks;
     std::uint16_t echoClaimTotal;
@@ -94,7 +94,7 @@ struct PrecedentRuntime {
     std::uint8_t retryPending;
     std::uint8_t lastPlayerPolicyAction;
     std::uint32_t lastPlayerPolicyTick;
-    std::uint32_t originPriorityStableId;
+    std::uint32_t originPriorityStableId[2];
 };
 
 ChoiceId ChoiceForEncounter(const NarrativeState& narrative,EncounterId encounter) noexcept;

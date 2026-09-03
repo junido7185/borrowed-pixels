@@ -673,13 +673,15 @@ bool ProcessImpact(
             ? ProjectileShellDamage(shot.mass)
             : damageable;
         const std::uint16_t neutralMass = static_cast<std::uint16_t>(shot.mass + damage);
+        const std::uint16_t playerMiss=shot.owner==CombatSide::Player?shot.mass:0u;
+        const std::uint16_t opponentMiss=shot.owner==CombatSide::Opponent?shot.mass:0u;
         if (!AllocateNeutralSlot(
                 candidate,
                 impact.point,
                 DeflectionVelocity(shot, 90, 24),
                 neutralMass,
-                0,
-                0,
+                playerMiss,
+                opponentMiss,
                 shot.stableId,
                 neutralIndex)
             || !PhysicalTransfer(ledgerCandidate, PhysicalAccount::Projectile, PhysicalAccount::Neutral, shot.mass)
@@ -703,13 +705,15 @@ bool ProcessImpact(
     } else if (impact.kind == ImpactKind::Cover) {
         CoverSlot& cover = candidate.covers[impact.targetIndex];
         if (cover.behavior == CoverBehavior::Compactor) {
+            const std::uint16_t playerMiss=shot.owner==CombatSide::Player?shot.mass:0u;
+            const std::uint16_t opponentMiss=shot.owner==CombatSide::Opponent?shot.mass:0u;
             if (!AllocateNeutralSlot(
                     candidate,
                     impact.point,
                     DeflectionVelocity(shot, 75, 20),
                     shot.mass,
-                    0,
-                    0,
+                    playerMiss,
+                    opponentMiss,
                     shot.stableId,
                     neutralIndex)
                 || !PhysicalTransfer(
@@ -727,13 +731,15 @@ bool ProcessImpact(
             shot.mass = 0;
         } else if (cover.behavior == CoverBehavior::Sweeper) {
             const std::uint16_t common = shot.mass < cover.mass ? shot.mass : cover.mass;
+            const std::uint16_t playerMiss=shot.owner==CombatSide::Player?common:0u;
+            const std::uint16_t opponentMiss=shot.owner==CombatSide::Opponent?common:0u;
             if (!AllocateNeutralSlot(
                     candidate,
                     impact.point,
                     DeflectionVelocity(shot, 75, 20),
                     common,
-                    0,
-                    0,
+                    playerMiss,
+                    opponentMiss,
                     shot.mass == common ? shot.stableId : 0,
                     neutralIndex)
                 || !PhysicalTransfer(
@@ -763,13 +769,15 @@ bool ProcessImpact(
         } else if (cover.behavior == CoverBehavior::Checksum) {
             const std::uint16_t neutralMass = static_cast<std::uint16_t>(
                 shot.mass + cover.mass);
+            const std::uint16_t playerMiss=shot.owner==CombatSide::Player?shot.mass:0u;
+            const std::uint16_t opponentMiss=shot.owner==CombatSide::Opponent?shot.mass:0u;
             if (!AllocateNeutralSlot(
                     candidate,
                     impact.point,
                     Vec2Q8{0, 0},
                     neutralMass,
-                    shot.mass,
-                    0,
+                    playerMiss,
+                    opponentMiss,
                     shot.stableId,
                     neutralIndex)
                 || !PhysicalTransfer(
@@ -798,13 +806,15 @@ bool ProcessImpact(
             ? ProjectileCoverDamage(shot.mass)
             : cover.mass;
         const std::uint16_t neutralMass = static_cast<std::uint16_t>(shot.mass + damage);
+        const std::uint16_t playerMiss=shot.owner==CombatSide::Player?shot.mass:0u;
+        const std::uint16_t opponentMiss=shot.owner==CombatSide::Opponent?shot.mass:0u;
         if (!AllocateNeutralSlot(
                 candidate,
                 impact.point,
                 DeflectionVelocity(shot, 75, 20),
                 neutralMass,
-                0,
-                0,
+                playerMiss,
+                opponentMiss,
                 shot.stableId,
                 neutralIndex)
             || !PhysicalTransfer(ledgerCandidate, PhysicalAccount::Projectile, PhysicalAccount::Neutral, shot.mass)
