@@ -1,9 +1,9 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
-- Latest integrated candidate SHA: `6febd613a5c5c9c20e6acb9b9ba86a81e8d9f1a1`
-- Current controller state: `T08B_READY_FOR_INTEGRATION`
+- Latest integrated candidate SHA: `84b2bc1de6c34f77511987a91f56ee37c07dfc72`
+- Current controller state: `T09_READY`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
-- Current ticket: T08B Act 3 rule encounters
+- Current ticket: T09 PRECEDENT
 - Contest dist: `227,840B` (T08B delta `+21,504B`, internal cap PASS)
 
 | Ticket | State | Evidence |
@@ -17,7 +17,7 @@
 | T06 | LOCALLY_INTEGRATED | Candidate `70a2ae0b...`; post-integration full regression PASS; final independent review P0/P1/P2=0 |
 | T07 | LOCALLY_INTEGRATED | Candidate `c04cab55...`; Human Director byte-budget reapproval; post-integration full regression PASS |
 | T08A | LOCALLY_INTEGRATED | Candidate `6febd613...`; post-integration full regression PASS; final review P0/P1/P2=0 |
-| T08B | READY_FOR_INTEGRATION | Reviewed candidate `1de33694...`; P0/P1/P2=0 |
+| T08B | LOCALLY_INTEGRATED | Candidate `84b2bc1d...`; P0/P1/P2=0; post-integration evidence reused on identical executable tree |
 | T09-T14 | PENDING | Sequential controller execution |
 
 ## Gate status

@@ -45,4 +45,4 @@ GATES:
 - Independent final review: P0=0, P1=0, P2=0; integration eligible.
 - No push, tag, publication, submission, or external release was performed.
 
-STATUS: READY_FOR_INTEGRATION; not externally accepted.
+STATUS: LOCALLY_INTEGRATED by `--ff-only` at `84b2bc1de6c34f77511987a91f56ee37c07dfc72`; not externally accepted.

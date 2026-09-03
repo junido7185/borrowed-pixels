@@ -1,0 +1,20 @@
+T08B POST-INTEGRATION VERIFICATION
+
+INTEGRATION_HEAD=84b2bc1de6c34f77511987a91f56ee37c07dfc72
+MERGE_MODE=FAST_FORWARD_ONLY
+SOURCE_TREE=f32ba365dd0327dbe25cf174c3fd2d5217605da9
+AUTHORITY_TREE=6b07cf6e60fcd8dc78b76307c93db9d8f1ab1fb9
+CMAKE_BLOB=13601e899c8a5932f3bc78e45c9c0d22451649a0
+
+FULL_REGRESSION=EVIDENCE_REUSED
+REUSE_REASON=Candidate integration only moved the branch ref; source,
+authority, CMake, toolchain, build configuration, and commands are identical
+to the final candidate validation in suite.verbose.log and ctest.verbose.log.
+That validation reports T08B checks=899 and all T02-T08A regressions PASS.
+
+POST_INTEGRATION_DIST_COMMAND=powershell -NoProfile -ExecutionPolicy Bypass -File tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560
+POST_INTEGRATION_DIST_EXIT=0
+DIST_FILES=1
+DIST_BYTES=227840
+DIST_STATUS=PASS
+EXE_SHA256=1990cacfac26442cd5cb53cb175d8eb8aa5f5a10557be7a68b01c892bf2c9b1b
