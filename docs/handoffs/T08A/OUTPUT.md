@@ -4,7 +4,7 @@ TICKET: T08A
 
 BASE SHA: `dd1791d501a49328d70a59f366f84100ae99a79f`
 
-CANDIDATE SHA: resolve `candidate/T08A-final` after final evidence commit.
+CANDIDATE SHA: `6febd613a5c5c9c20e6acb9b9ba86a81e8d9f1a1`
 
 IMPLEMENTED:
 
@@ -40,7 +40,7 @@ GATES:
 - Independent reviews reported P1 counts 6, 3, then 1; every finding was
   repaired and regression-tested. Final code SHA `62fde282...` review:
   P0=0/P1=0/P2=0 PASS.
-- No push, tag, publication, submission, or merge was performed on the ticket branch.
+- Approved local fast-forward integration and post-integration regression were
+  completed. No push, tag, publication, or submission was performed.
 
-STATUS: ready for approved local fast-forward integration; not externally
-accepted or released.
+STATUS: LOCALLY_INTEGRATED; not externally accepted or released.

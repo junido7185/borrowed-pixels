@@ -1,0 +1,37 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260903164905
+Username: DESKTOP-HUVFN38\sdjsd
+RunAs User: DESKTOP-HUVFN38\sdjsd
+Configuration Name: 
+Machine: DESKTOP-HUVFN38 (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -Command try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8 } catch {}
+$log='docs\evidence\T08A\integration-regression.verbose.log'; Start-Transcript -Path $log -Force | Out-Null; try { powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_authority.ps1; if($LASTEXITCODE -ne 0){throw "authority $LASTEXITCODE"}; cmake --preset windows-msvc; if($LASTEXITCODE -ne 0){throw "configure $LASTEXITCODE"}; cmake --build --preset test --clean-first; if($LASTEXITCODE -ne 0){throw "test build $LASTEXITCODE"}; & .\build\windows-msvc\bin\Test\bp_test.exe; if($LASTEXITCODE -ne 0){throw "direct test $LASTEXITCODE"}; ctest --preset all --output-on-failure; if($LASTEXITCODE -ne 0){throw "ctest $LASTEXITCODE"}; cmake --build --preset debug --clean-first; if($LASTEXITCODE -ne 0){throw "debug build $LASTEXITCODE"}; & .\build\windows-msvc\bin\Debug\bp_debug.exe --smoke-test; if($LASTEXITCODE -ne 0){throw "debug smoke $LASTEXITCODE"}; $env:LINK='/MAP:C:\Users\sdjsd\Desktop\BORROWED_PIXELS\docs\evidence\T08A\t08a-final.map'; cmake --build --preset contest --clean-first; if($LASTEXITCODE -ne 0){throw "contest build $LASTEXITCODE"}; $p=Start-Process -FilePath (Resolve-Path '.\dist\contest\BorrowedPixels.exe') -PassThru; $live=$false; for($i=0;$i -lt 50;$i++){Start-Sleep -Milliseconds 100;$p.Refresh();if($p.MainWindowHandle -ne 0){$live=$true;break}}; "LIVE_WINDOW=$live HANDLE=$($p.MainWindowHandle)"; if($live){$null=$p.CloseMainWindow()}; if(-not $p.WaitForExit(5000)){Stop-Process -Id $p.Id;throw 'window timeout'}; "WINDOW_EXIT=$($p.ExitCode)"; if(-not $live -or $p.ExitCode -ne 0){throw 'window failure'}; powershell -NoProfile -ExecutionPolicy Bypass -File tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560; if($LASTEXITCODE -ne 0){throw "dist $LASTEXITCODE"}; $exe=Get-Item .\dist\contest\BorrowedPixels.exe; "EXE_BYTES=$($exe.Length)"; "EXE_SHA256=$((Get-FileHash -Algorithm SHA256 $exe.FullName).Hash.ToLowerInvariant())"; & 'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\bin\Hostx64\x64\dumpbin.exe' /dependents $exe.FullName; if($LASTEXITCODE -ne 0){throw "dumpbin $LASTEXITCODE"}; 'POST_INTEGRATION_STATUS=PASS' } finally { Stop-Transcript | Out-Null }
+Process ID: 46920
+PSVersion: 5.1.26100.9168
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9168
+BuildVersion: 10.0.26100.9168
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+
+
+
+
+
+
+LIVE_WINDOW=True HANDLE=2952218
+WINDOW_EXIT=0
+
+EXE_BYTES=206336
+EXE_SHA256=ce910ed6afda19a285de275511a5c70f3e54cb2747bfa85c5ddd07b18a33e831
+
+POST_INTEGRATION_STATUS=PASS
+**********************
+Windows PowerShell transcript end
+End time: 20260903164914
+**********************
