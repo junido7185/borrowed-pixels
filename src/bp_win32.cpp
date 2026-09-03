@@ -6,6 +6,9 @@
 #include "bp_act2.h"
 #include "bp_act3.h"
 #include "bp_precedent.h"
+#include "bp_narrative.h"
+#include "bp_save.h"
+#include "bp_font.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -66,9 +69,23 @@ struct PlatformState {
     bp::Act2Runtime act2;
     bp::Act3Runtime act3;
     bp::PrecedentRuntime precedent;
+    bp::NarrativeRuntime narrativeFlow;
+    bp::SaveBoundaryObserver saveObserver;
+    bp::SaveData persistentSave;
     bool act2Active;
     bool act3Active;
     bool precedentActive;
+    bool narrativeActive;
+    bool savePathReady;
+    wchar_t saveDirectory[MAX_PATH];
+    wchar_t savePath[MAX_PATH];
+    wchar_t saveTempPath[MAX_PATH];
+    wchar_t saveInvalidPath[MAX_PATH];
+    std::uint32_t options;
+    std::uint32_t runSeed;
+    std::uint32_t bestFullRunTicks;
+    std::uint16_t saveWarningTicks;
+    std::uint8_t tutorial;
     std::uint32_t globalTick;
     std::uint32_t renderFrame;
     bool running;
@@ -194,10 +211,13 @@ void PresentBackbuffer(PlatformState& state, HDC destination, const RECT& client
             bp::kCanvasHeight,
             bp::kCanvasWidth,
         };
-    if (state.precedentActive) bp::RenderPrecedentRuntime(buffer, state.precedent);
+    if (state.narrativeActive) bp::RenderNarrativeRuntime(buffer,state.narrativeFlow);
+    else if (state.precedentActive) bp::RenderPrecedentRuntime(buffer, state.precedent);
     else if (state.act3Active) bp::RenderAct3Runtime(buffer, state.act3);
     else if (state.act2Active) bp::RenderAct2Runtime(buffer, state.act2);
     else bp::RenderAct1Runtime(buffer, state.act1);
+    if (state.saveWarningTicks!=0)
+        (void)bp::DrawLatin(buffer,210,168,"SAVE NOT WRITTEN",bp::PaletteColor::Warning);
     const std::int32_t clientWidth = client.right - client.left;
     const std::int32_t clientHeight = client.bottom - client.top;
     const bp::Viewport viewport = bp::ComputeViewport(clientWidth, clientHeight);
@@ -725,6 +745,179 @@ int RunPlatformSelfTests() noexcept {
 }
 #endif
 
+bool AppendPath(wchar_t (&path)[MAX_PATH],const wchar_t* suffix) noexcept {
+    DWORD length=lstrlenW(path);
+    const DWORD suffixLength=lstrlenW(suffix);
+    if (length+suffixLength>=MAX_PATH) return false;
+    for (DWORD index=0;index<=suffixLength;++index) path[length+index]=suffix[index];
+    return true;
+}
+
+bool ResolveSavePaths(PlatformState& state) noexcept {
+    const DWORD length=GetEnvironmentVariableW(
+        L"LOCALAPPDATA",state.saveDirectory,MAX_PATH);
+    if (length==0 || length>=MAX_PATH
+        || !AppendPath(state.saveDirectory,L"\\BorrowedPixels")) return false;
+    if (!CreateDirectoryW(state.saveDirectory,nullptr)
+        && GetLastError()!=ERROR_ALREADY_EXISTS) return false;
+    lstrcpyW(state.savePath,state.saveDirectory);
+    lstrcpyW(state.saveTempPath,state.saveDirectory);
+    lstrcpyW(state.saveInvalidPath,state.saveDirectory);
+    if (!AppendPath(state.savePath,L"\\save.bin")
+        || !AppendPath(state.saveTempPath,L"\\save.tmp")
+        || !AppendPath(state.saveInvalidPath,L"\\save.invalid")) return false;
+    state.savePathReady=true;
+    return true;
+}
+
+bool ReadExactSave(const wchar_t* path,std::uint8_t (&bytes)[bp::kSaveV2Bytes]) noexcept {
+    HANDLE file=CreateFileW(path,GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,nullptr);
+    if (file==INVALID_HANDLE_VALUE) return false;
+    LARGE_INTEGER size{};
+    DWORD read=0;
+    const bool ok=GetFileSizeEx(file,&size) && size.QuadPart==bp::kSaveV2Bytes
+        && ReadFile(file,bytes,bp::kSaveV2Bytes,&read,nullptr)
+        && read==bp::kSaveV2Bytes;
+    CloseHandle(file);
+    return ok;
+}
+
+bool WriteSaveAtomically(PlatformState& state,const bp::SaveData& save) noexcept {
+    if (!state.savePathReady) return false;
+    std::uint8_t bytes[bp::kSaveV2Bytes]{};
+    if (!bp::SerializeSaveV2(save,bytes)) return false;
+    HANDLE file=CreateFileW(state.saveTempPath,GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL|FILE_FLAG_WRITE_THROUGH,nullptr);
+    if (file==INVALID_HANDLE_VALUE) return false;
+    DWORD written=0;
+    const bool wrote=WriteFile(file,bytes,bp::kSaveV2Bytes,&written,nullptr)
+        && written==bp::kSaveV2Bytes && FlushFileBuffers(file);
+    CloseHandle(file);
+    if (!wrote) {
+        DeleteFileW(state.saveTempPath);
+        return false;
+    }
+    if (GetFileAttributesW(state.savePath)!=INVALID_FILE_ATTRIBUTES) {
+        if (!ReplaceFileW(state.savePath,state.saveTempPath,nullptr,
+                REPLACEFILE_WRITE_THROUGH,nullptr,nullptr)) {
+            DeleteFileW(state.saveTempPath);
+            return false;
+        }
+    } else if (!MoveFileExW(state.saveTempPath,state.savePath,
+            MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)) {
+        DeleteFileW(state.saveTempPath);
+        return false;
+    }
+    return true;
+}
+
+void NarrativeFromSave(const bp::SaveData& save,bp::NarrativeState& narrative) noexcept {
+    narrative=bp::NarrativeState{};
+    narrative.choiceBits=save.choiceBits;
+    narrative.adjudicatedMass=save.adjudicatedMass;
+    narrative.encounterIndex=save.encounterIndex;
+    narrative.role=save.role;
+    for (std::uint8_t index=0;index<bp::kSettlementEncounterCount;++index)
+        narrative.entityStatus[index]=save.entityStatus[index];
+    narrative.endingsSeen=static_cast<std::uint8_t>(save.endingsSeen);
+}
+
+void LoadPersistentSave(PlatformState& state) noexcept {
+    if (!ResolveSavePaths(state)) return;
+    if (GetFileAttributesW(state.savePath)==INVALID_FILE_ATTRIBUTES) return;
+    std::uint8_t bytes[bp::kSaveV2Bytes]{};
+    bp::SaveData save{};
+    if (!ReadExactSave(state.savePath,bytes)
+        || !bp::DeserializeSaveV2(bytes,bp::kSaveV2Bytes,save)) {
+        if (GetFileAttributesW(state.saveInvalidPath)==INVALID_FILE_ATTRIBUTES)
+            (void)MoveFileW(state.savePath,state.saveInvalidPath);
+        return;
+    }
+    bp::NarrativeState narrative{};
+    NarrativeFromSave(save,narrative);
+    if (!bp::InitializeTitleNarrative(
+            state.narrativeFlow,save.claimLedger,narrative,save.flags)) return;
+    state.persistentSave=save;
+    state.options=save.options;
+    state.runSeed=save.runSeed;
+    state.bestFullRunTicks=save.bestFullRunTicks;
+    state.tutorial=save.tutorial;
+    state.narrativeActive=true;
+}
+
+void CurrentStoryState(PlatformState& state,const bp::ClaimLedger*& claims,
+    const bp::NarrativeState*& narrative) noexcept {
+    if (state.narrativeActive) {
+        claims=&state.narrativeFlow.claimLedger; narrative=&state.narrativeFlow.narrative;
+    } else if (state.precedentActive) {
+        claims=&state.precedent.claimLedger; narrative=&state.precedent.narrative;
+    } else if (state.act3Active) {
+        claims=&state.act3.claimLedger; narrative=&state.act3.narrative;
+    } else if (state.act2Active) {
+        claims=&state.act2.claimLedger; narrative=&state.act2.narrative;
+    } else {
+        claims=&state.act1.claimLedger; narrative=&state.act1.narrative;
+    }
+}
+
+void WriteCurrentSave(PlatformState& state) noexcept {
+    const bp::ClaimLedger* claims=nullptr;
+    const bp::NarrativeState* narrative=nullptr;
+    CurrentStoryState(state,claims,narrative);
+    std::uint32_t flags=1u;
+    if (state.narrativeActive) {
+        if (state.narrativeFlow.vesselContinueAvailable!=0) flags|=1u<<1u;
+        if (state.narrativeFlow.fullEndingReached!=0) flags|=1u<<2u;
+        if (state.narrativeFlow.auditTraceUnlocked!=0) flags|=1u<<3u;
+    } else flags|=state.persistentSave.flags&0x0eu;
+    const bp::SaveData save=bp::MakeSaveData(*claims,*narrative,flags,state.options,
+        state.runSeed,state.bestFullRunTicks,state.tutorial);
+    if (WriteSaveAtomically(state,save)) state.persistentSave=save;
+    else state.saveWarningTicks=180;
+}
+
+void MaybeWriteBoundarySave(PlatformState& state) noexcept {
+    std::uint8_t stage=1;
+    std::uint8_t encounter=state.act1.encounterIndex;
+    std::uint8_t scene=static_cast<std::uint8_t>(state.act1.scene);
+    bool boundary=state.act1.scene==bp::Act1Scene::LedgerFocus
+        || state.act1.scene==bp::Act1Scene::EncounterIntro
+        || state.act1.scene==bp::Act1Scene::Settlement
+        || state.act1.scene==bp::Act1Scene::EntityResponse;
+    bool forbidden=state.act1.scene==bp::Act1Scene::Preview
+        || state.act1.scene==bp::Act1Scene::HitFreeze;
+    if (state.narrativeActive) {
+        stage=5; encounter=state.narrativeFlow.auditIndex;
+        scene=static_cast<std::uint8_t>(state.narrativeFlow.scene);
+        boundary=state.narrativeFlow.scene==bp::NarrativeScene::Ending;
+        forbidden=state.narrativeFlow.scene==bp::NarrativeScene::FinalPreview;
+    } else if (state.precedentActive) {
+        stage=4; encounter=static_cast<std::uint8_t>(bp::EncounterId::Precedent);
+        scene=static_cast<std::uint8_t>(state.precedent.scene);
+        boundary=state.precedent.scene==bp::PrecedentScene::RoleAssign;
+        forbidden=state.precedent.scene==bp::PrecedentScene::HitFreeze;
+    } else if (state.act3Active) {
+        stage=3; encounter=state.act3.encounterIndex;
+        scene=static_cast<std::uint8_t>(state.act3.scene);
+        boundary=state.act3.scene==bp::Act3Scene::EncounterIntro
+            || state.act3.scene==bp::Act3Scene::Settlement
+            || state.act3.scene==bp::Act3Scene::EntityResponse;
+        forbidden=state.act3.scene==bp::Act3Scene::Preview
+            || state.act3.scene==bp::Act3Scene::HitFreeze;
+    } else if (state.act2Active) {
+        stage=2; encounter=state.act2.encounterIndex;
+        scene=static_cast<std::uint8_t>(state.act2.scene);
+        boundary=state.act2.scene==bp::Act2Scene::EncounterIntro
+            || state.act2.scene==bp::Act2Scene::Settlement
+            || state.act2.scene==bp::Act2Scene::EntityResponse;
+        forbidden=state.act2.scene==bp::Act2Scene::Preview
+            || state.act2.scene==bp::Act2Scene::HitFreeze;
+    }
+    if (bp::ObserveSaveBoundary(state.saveObserver,stage,encounter,scene,state.options,
+            boundary,forbidden)) WriteCurrentSave(state);
+}
+
 void ShutdownPlatform(PlatformState& state) noexcept {
     if (state.xinputModule) {
         FreeLibrary(state.xinputModule);
@@ -762,6 +955,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
     if (!bp::InitializeAct1Runtime(state.act1)) {
         return 2;
     }
+    LoadPersistentSave(state);
     state.windowedPlacement.length = sizeof(state.windowedPlacement);
     state.dpiAware = InitializeDpiAwareness();
     state.audioAvailable = ProbeWaveOut();
@@ -840,9 +1034,31 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
             while (state.accumulator60 >= state.qpcFrequency.QuadPart && ticks < bp::kMaxCatchUpTicks) {
                 BuildInputFrame(state);
                 bool tickOk = true;
-                if (!state.act2Active) {
+                if (state.narrativeActive) {
+                    tickOk=bp::TickNarrativeRuntime(state.narrativeFlow,state.lastInputFrame);
+                    if (tickOk && state.narrativeFlow.routeRequest
+                            ==bp::NarrativeRouteRequest::NewRun) {
+                        tickOk=bp::InitializeAct1Runtime(state.act1);
+                        state.act2Active=false;
+                        state.act3Active=false;
+                        state.precedentActive=false;
+                        state.narrativeActive=false;
+                    } else if (tickOk && state.narrativeFlow.routeRequest
+                            ==bp::NarrativeRouteRequest::ContinueVessel) {
+                        tickOk=bp::InitializeAct2Runtime(state.act2,
+                            state.narrativeFlow.claimLedger,state.narrativeFlow.narrative);
+                        state.act2Active=tickOk;
+                        state.act3Active=false;
+                        state.precedentActive=false;
+                        state.narrativeActive=false;
+                    }
+                } else if (!state.act2Active) {
                     tickOk = bp::TickAct1Runtime(state.act1, state.lastInputFrame);
-                    if (tickOk && state.act1.scene == bp::Act1Scene::ContinueReady) {
+                    if (tickOk && state.act1.scene==bp::Act1Scene::EnoughEnding) {
+                        tickOk=bp::InitializeEnoughNarrative(state.narrativeFlow,
+                            state.act1.claimLedger,state.act1.narrative);
+                        state.narrativeActive=tickOk;
+                    } else if (tickOk && state.act1.scene == bp::Act1Scene::ContinueReady) {
                         tickOk = bp::InitializeAct2Runtime(
                             state.act2, state.act1.claimLedger, state.act1.narrative);
                         state.act2Active = tickOk;
@@ -863,11 +1079,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
                     }
                 } else {
                     tickOk = bp::TickPrecedentRuntime(state.precedent,state.lastInputFrame);
+                    if (tickOk && state.precedent.scene==bp::PrecedentScene::Complete) {
+                        tickOk=bp::InitializeFinalNarrative(state.narrativeFlow,
+                            state.precedent.claimLedger,state.precedent.narrative);
+                        state.narrativeActive=tickOk;
+                    }
                 }
                 if (!tickOk) {
                     state.running = false;
                     break;
                 }
+                MaybeWriteBoundarySave(state);
+                if (state.saveWarningTicks!=0) --state.saveWarningTicks;
                 state.accumulator60 -= state.qpcFrequency.QuadPart;
                 ++ticks;
             }

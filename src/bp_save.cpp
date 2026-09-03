@@ -163,4 +163,29 @@ bool DeserializeSaveV2(
     return true;
 }
 
+SaveData MakeSaveData(
+    const ClaimLedger& claims,
+    const NarrativeState& narrative,
+    std::uint32_t flags,
+    std::uint32_t options,
+    std::uint32_t runSeed,
+    std::uint32_t bestFullRunTicks,
+    std::uint8_t tutorial) noexcept {
+    SaveData save{};
+    save.flags=(flags&kAllowedSaveFlags)&~(1u<<4u);
+    save.options=options&kAllowedOptions;
+    save.endingsSeen=narrative.endingsSeen;
+    save.bestFullRunTicks=bestFullRunTicks;
+    save.claimLedger=claims;
+    save.choiceBits=narrative.choiceBits;
+    save.adjudicatedMass=narrative.adjudicatedMass;
+    save.runSeed=runSeed;
+    save.encounterIndex=narrative.encounterIndex;
+    save.role=narrative.role;
+    for (std::uint8_t index=0;index<kSettlementEncounterCount;++index)
+        save.entityStatus[index]=narrative.entityStatus[index];
+    save.tutorial=tutorial;
+    return save;
+}
+
 }  // namespace bp

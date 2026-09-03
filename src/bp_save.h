@@ -36,4 +36,13 @@ bool DeserializeSaveV2(
     std::size_t count,
     SaveData& save) noexcept;
 
+SaveData MakeSaveData(
+    const ClaimLedger& claims,
+    const NarrativeState& narrative,
+    std::uint32_t flags,
+    std::uint32_t options,
+    std::uint32_t runSeed,
+    std::uint32_t bestFullRunTicks,
+    std::uint8_t tutorial) noexcept;
+
 }  // namespace bp
