@@ -11,6 +11,9 @@ src/bp_win32.cpp
 src/bp_combat.cpp
 src/bp_combat.h
 tests/bp_combat_tests.cpp
+src/bp_reclaim.cpp
+src/bp_encounter.cpp
+src/bp_act2.cpp
 
 HUMAN_DIRECTOR_OPERATING_CONTRACT
 docs/guides/BP_QUOTA_AWARE_RC_AUTORUN_v3.md
@@ -24,6 +27,11 @@ The combat delta adds one CHECKSUM-backed Cover behavior so probes enter the
 existing common swept-TOI ordering instead of resolving collisions early in
 the encounter-policy step. Its dedicated tests cover exact tagged mass,
 conservation, and a nearer-Cover priority case.
+
+The shared Neutral provenance field and merge/reclaim/hash updates are the
+smallest connector that keeps INDEX UNSCORED mass exact after shared Neutral
+slot operations. The shared actor-separation helper connects Act 3 to the
+existing step-10 rule. No prior encounter rule or constant changes.
 
 The operating-contract document is user-provided execution authority for the
 remaining RC pipeline; it changes procedure only and no game rule or build.

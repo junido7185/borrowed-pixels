@@ -115,6 +115,8 @@ bool RecoverNeutralSlot(CombatState& state) noexcept {
         survivor.adapterEscrowMass + released.adapterEscrowMass);
     survivor.structureMass = static_cast<std::uint16_t>(
         survivor.structureMass + released.structureMass);
+    survivor.unscoredMass = static_cast<std::uint16_t>(
+        survivor.unscoredMass + released.unscoredMass);
     if (released.reclaimLockTicks > survivor.reclaimLockTicks) {
         survivor.reclaimLockTicks = released.reclaimLockTicks;
     }
@@ -131,6 +133,7 @@ bool RecoverNeutralSlot(CombatState& state) noexcept {
     released.patchFeedMass = 0;
     released.adapterEscrowMass = 0;
     released.structureMass = 0;
+    released.unscoredMass = 0;
     released.reclaimLockTicks = 0;
     released.immunityTicks = 0;
     released.inertiaTicks = 0;
@@ -254,6 +257,7 @@ bool AllocateNeutralSlot(
     slot.patchFeedMass = 0;
     slot.adapterEscrowMass = 0;
     slot.structureMass = 0;
+    slot.unscoredMass = 0;
     slot.inertiaTicks = 15;
     slot.active = 1;
     indexOut = index;
@@ -1002,7 +1006,7 @@ bool CombatStateValid(const CombatState& state, const PhysicalLedger& ledger) no
                 || static_cast<std::uint32_t>(slot.playerMissMass)
                     + slot.opponentMissMass + slot.protocolTagMass
                     + slot.patchFeedMass + slot.adapterEscrowMass
-                    + slot.structureMass > slot.mass) return false;
+                    + slot.structureMass + slot.unscoredMass > slot.mass) return false;
             neutralMass += slot.mass;
         } else if (slot.mass != 0) return false;
     }
@@ -1033,6 +1037,108 @@ bool CombatStateValid(const CombatState& state, const PhysicalLedger& ledger) no
         && opponentStructureMass <= ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]
         && protocolCoverMass <= ledger.mass[AccountIndex(PhysicalAccount::ProtocolActive)]
         && StableIdsUnique(state);
+}
+
+void SeparateCombatActorsByMass(
+    CombatState& state,
+    const PhysicalLedger& ledger,
+    const RectPixels& interior) noexcept {
+    CombatActor& player = state.actors[SideIndex(CombatSide::Player)];
+    CombatActor& opponent = state.actors[SideIndex(CombatSide::Opponent)];
+    const std::uint16_t playerShell = ledger.mass[AccountIndex(PhysicalAccount::PlayerShell)];
+    const std::uint16_t opponentShell = ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)];
+    const std::int32_t playerRadius = ActorRadiusPixels(playerShell);
+    const std::int32_t opponentRadius = ActorRadiusPixels(opponentShell);
+    const std::uint32_t playerMass = static_cast<std::uint32_t>(playerShell)
+        + ledger.mass[AccountIndex(PhysicalAccount::PlayerCore)];
+    const std::uint32_t opponentMass = static_cast<std::uint32_t>(opponentShell)
+        + ledger.mass[AccountIndex(PhysicalAccount::OpponentCore)];
+    const std::uint32_t totalMass = playerMass + opponentMass;
+    if (totalMass == 0) return;
+
+    auto constrain = [&](CombatActor& actor, std::int32_t radius) noexcept {
+        ClampCircleToRect(actor.position, radius, interior);
+        for (const CoverSlot& cover : state.covers) {
+            if (cover.active == 0) continue;
+            const CollisionResolution collision = ResolveCircleAgainstAabb(
+                actor.position, radius, cover.bounds);
+            actor.position.x += collision.shiftXQ8;
+            actor.position.y += collision.shiftYQ8;
+            if (collision.shiftXQ8 != 0) actor.velocity.x = 0;
+            if (collision.shiftYQ8 != 0) actor.velocity.y = 0;
+        }
+    };
+    auto normalize = [](Vec2Q8 value) noexcept {
+        const std::uint64_t squared = static_cast<std::uint64_t>(
+            static_cast<std::int64_t>(value.x) * value.x)
+            + static_cast<std::uint64_t>(static_cast<std::int64_t>(value.y) * value.y);
+        const std::uint32_t length = IntegerSqrt(squared);
+        if (length == 0) return Vec2Q8{kInputUnit, 0};
+        return Vec2Q8{
+            RoundDivideSigned(static_cast<std::int64_t>(value.x) * kInputUnit,
+                static_cast<std::int32_t>(length)),
+            RoundDivideSigned(static_cast<std::int64_t>(value.y) * kInputUnit,
+                static_cast<std::int32_t>(length)),
+        };
+    };
+
+    for (std::uint8_t pass = 0; pass < 32; ++pass) {
+        std::int64_t dx = static_cast<std::int64_t>(opponent.position.x) - player.position.x;
+        std::int64_t dy = static_cast<std::int64_t>(opponent.position.y) - player.position.y;
+        std::uint32_t distance = IntegerSqrt(static_cast<std::uint64_t>(dx * dx + dy * dy));
+        std::int32_t overlap = (playerRadius + opponentRadius) * kQ8One
+            - static_cast<std::int32_t>(distance);
+        if (overlap <= 0) break;
+        Vec2Q8 direction = distance == 0
+            ? Vec2Q8{kInputUnit, 0}
+            : normalize(Vec2Q8{static_cast<std::int32_t>(dx),
+                static_cast<std::int32_t>(dy)});
+        const std::int32_t playerShift = static_cast<std::int32_t>(
+            static_cast<std::int64_t>(overlap) * opponentMass / totalMass);
+        const std::int32_t opponentShift = overlap - playerShift;
+        player.position.x -= RoundDivideSigned(
+            static_cast<std::int64_t>(direction.x) * playerShift, kInputUnit);
+        player.position.y -= RoundDivideSigned(
+            static_cast<std::int64_t>(direction.y) * playerShift, kInputUnit);
+        opponent.position.x += RoundDivideSigned(
+            static_cast<std::int64_t>(direction.x) * opponentShift, kInputUnit);
+        opponent.position.y += RoundDivideSigned(
+            static_cast<std::int64_t>(direction.y) * opponentShift, kInputUnit);
+        constrain(player, playerRadius);
+        constrain(opponent, opponentRadius);
+
+        dx = static_cast<std::int64_t>(opponent.position.x) - player.position.x;
+        dy = static_cast<std::int64_t>(opponent.position.y) - player.position.y;
+        distance = IntegerSqrt(static_cast<std::uint64_t>(dx * dx + dy * dy));
+        overlap = (playerRadius + opponentRadius) * kQ8One
+            - static_cast<std::int32_t>(distance);
+        if (overlap <= 0) break;
+        direction = distance == 0
+            ? Vec2Q8{kInputUnit, 0}
+            : normalize(Vec2Q8{static_cast<std::int32_t>(dx),
+                static_cast<std::int32_t>(dy)});
+        player.position.x -= RoundDivideSigned(
+            static_cast<std::int64_t>(direction.x) * overlap, kInputUnit);
+        player.position.y -= RoundDivideSigned(
+            static_cast<std::int64_t>(direction.y) * overlap, kInputUnit);
+        constrain(player, playerRadius);
+
+        dx = static_cast<std::int64_t>(opponent.position.x) - player.position.x;
+        dy = static_cast<std::int64_t>(opponent.position.y) - player.position.y;
+        distance = IntegerSqrt(static_cast<std::uint64_t>(dx * dx + dy * dy));
+        overlap = (playerRadius + opponentRadius) * kQ8One
+            - static_cast<std::int32_t>(distance);
+        if (overlap <= 0) break;
+        direction = distance == 0
+            ? Vec2Q8{kInputUnit, 0}
+            : normalize(Vec2Q8{static_cast<std::int32_t>(dx),
+                static_cast<std::int32_t>(dy)});
+        opponent.position.x += RoundDivideSigned(
+            static_cast<std::int64_t>(direction.x) * overlap, kInputUnit);
+        opponent.position.y += RoundDivideSigned(
+            static_cast<std::int64_t>(direction.y) * overlap, kInputUnit);
+        constrain(opponent, opponentRadius);
+    }
 }
 
 bool BeginCharge(

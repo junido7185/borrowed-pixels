@@ -117,6 +117,7 @@ struct CurrentRuntime {
     std::uint32_t initialProjectileFirstStableId;
     std::uint8_t cycleIndex;
     std::uint8_t orbitShots;
+    std::uint8_t movePending;
 };
 
 enum class Act3Scene : std::uint8_t {
@@ -168,6 +169,10 @@ ChoiceId ResolveWitnessResult(std::uint8_t recordsPreserved,
     std::uint8_t directRecordMass) noexcept;
 CurrentAction CurrentActionAtCycleTick(std::uint16_t tick) noexcept;
 Vec2Q8 RotateCurrentDirection(Vec2Q8 directionQ15, std::int8_t degrees) noexcept;
+const char* Act3ResponseText(
+    std::uint8_t encounterIndex,
+    ChoiceId choice,
+    std::uint8_t line) noexcept;
 
 bool PopulateAct3Encounter(Act3Runtime& state) noexcept;
 bool InitializeAct3Runtime(Act3Runtime& state, const ClaimLedger& claims,

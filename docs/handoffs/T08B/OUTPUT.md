@@ -21,17 +21,21 @@ IMPLEMENTED:
 - Section 32.9 step-07 opponent-policy ordering before player charge/movement,
   common step-11/12 TOI ordering for CHECKSUM probe contacts, plus atomic
   exact-or-zero ledger transfers at capacity boundaries.
+- Exact 30-tick CHECKSUM retarget boundary and merge-safe UNSCORED provenance;
+  WITNESS unregistered-Neutral push and step-04 escrow arrival; CURRENT
+  cancellation recovery, step-10 movement, and common actor-body separation.
+- Frozen two-line response copy for all nine Act 3 outcomes.
 - Battlefield validation, common pause/HUD/hit-freeze/settlement flow,
   padding-independent runtime hashing, palette rendering, and minimal tested
   Win32 Act 2→Act 3 reachability glue.
 
 AUTOMATED RESULTS:
 
-- T08B 762 focused exhaustive checks PASS; all T02-T08A regressions PASS.
+- T08B 805 focused exhaustive checks PASS; all T02-T08A regressions PASS.
 - Windows x64 MSVC configure, clean Test, direct suite, CTest, clean Debug,
   debug smoke, clean Contest, live contest launch, and MAP reachability PASS.
-- dist/contest: one file, 224,256 bytes; internal and hard caps PASS.
-- Contest SHA-256: `b849e6f8fef8220ee8ac1747d90535ad9d7d695d5ed16f11a4d3e481800f951c`.
+- dist/contest: one file, 227,840 bytes; internal and hard caps PASS.
+- Contest SHA-256: `09e30a22d63e513b16ff51430e0e8c3a48c93ffc4edc01314b4168ab4f6dd1ba`.
 
 GATES:
 

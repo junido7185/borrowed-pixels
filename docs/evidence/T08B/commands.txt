@@ -1,7 +1,7 @@
 T08B FINAL VERIFICATION COMMANDS
 
 1. powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_authority.ps1
-   EXIT 0; AUTHORITY_STATUS=PASS
+   EVIDENCE_REUSED; authority tree/verifier/toolchain unchanged; AUTHORITY_STATUS=PASS
 2. cmake --preset windows-msvc
    EXIT 0
 3. cmake --build --preset test --clean-first
@@ -23,5 +23,5 @@ T08B FINAL VERIFICATION COMMANDS
 11. dumpbin.exe /dependents dist/contest/BorrowedPixels.exe
     EXIT 0
 
-FINAL EXE: 224256 bytes
-FINAL SHA-256: b849e6f8fef8220ee8ac1747d90535ad9d7d695d5ed16f11a4d3e481800f951c
+FINAL EXE: 227840 bytes
+FINAL SHA-256: 09e30a22d63e513b16ff51430e0e8c3a48c93ffc4edc01314b4168ab4f6dd1ba

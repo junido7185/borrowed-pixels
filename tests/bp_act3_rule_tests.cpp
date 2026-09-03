@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 namespace {
 
@@ -83,6 +84,25 @@ void TestDefinitionsExact() noexcept {
     invalid.playerX=invalid.field[0].centerX;
     invalid.playerY=invalid.field[0].centerY;
     Check(!bp::ValidateAct3EncounterDef(invalid),"spawn field overlap rejected");
+
+    constexpr const char* response[3][3][2]={
+        {{"WHAT I COULD COUNT","BECAME YOUR VALUE"},
+          {"THE ZERO REMAINS","UNPROVEN"},
+          {"YOU CHANGED THE TEST","NOT THE SCORES"}},
+        {{"THE LOSS KEEPS","ITS NAME"},
+          {"THE LOSS REMAINS","ITS OWNER DOES NOT"},
+          {"THE RUN CONTINUES","WITHOUT A WITNESS"}},
+        {{"YOU STOPPED THE FLOW","TO NAME IT YOURS"},
+          {"THE CYCLE CONTINUES","WITHOUT YOUR NAME"},
+          {"NO ONE KEEPS IT","EVERYONE DEPENDS ON IT"}},
+    };
+    for(std::uint8_t encounter=0;encounter<3;++encounter)
+        for(std::uint8_t choice=0;choice<3;++choice)
+            for(std::uint8_t line=0;line<2;++line)
+                Check(std::strcmp(bp::Act3ResponseText(encounter,
+                    static_cast<bp::ChoiceId>(choice),line),
+                    response[encounter][choice][line])==0,
+                    "Act 3 exact authoritative response copy");
 }
 
 void TestIndexPriorityExhaustive() noexcept {
@@ -236,6 +256,27 @@ void TestPopulationAndPhysicalMass() noexcept {
     Check(foreclose.current.forecloseAim.y==0 && expectedAim.y==0,
         "CURRENT FORECLOSE aim remains locked against later player movement");
 
+    bp::Act3Runtime cancelled=World(2);
+    Check(bp::PhysicalTransfer(cancelled.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,41),
+        "CURRENT cancelled FORECLOSE fixture funds shell41 reserve");
+    cancelled.current.action=bp::CurrentAction::Foreclose;
+    Check(bp::TickCurrentScriptForTest(cancelled)
+        && cancelled.combat.charges[1].active!=0,
+        "CURRENT cancelled FORECLOSE begins charge");
+    cancelled.combat.actors[1].projectileImmune=1;
+    cancelled.combat.charges[1].position=bp::Vec2Q8{180*bp::kQ8One,90*bp::kQ8One};
+    Check(bp::SpawnScriptedProjectile(cancelled.combat,
+        cancelled.movement.physicalLedger,bp::CombatSide::Player,8,
+        cancelled.combat.charges[1].position,bp::Vec2Q8{bp::kInputUnit,0},1)
+        && bp::StepCombatProjectiles(cancelled.combat,
+            cancelled.movement.physicalLedger,cancelled.claimLedger)
+        && cancelled.combat.charges[1].active==0,
+        "CURRENT player projectile fully cancels FORECLOSE charge");
+    Check(bp::TickCurrentScriptForTest(cancelled)
+        && cancelled.current.action==bp::CurrentAction::ReturnB,
+        "CURRENT cancelled FORECLOSE advances to RETURN without softlock");
+
     bp::Act3Runtime ordered=World(2);
     Check(bp::PhysicalTransfer(ordered.movement.physicalLedger,
         bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,41),
@@ -249,6 +290,41 @@ void TestPopulationAndPhysicalMass() noexcept {
         && ordered.current.forecloseAim.y==0
         && ordered.combat.actors[0].position.y>90*bp::kQ8One,
         "CURRENT decision step07 observes player before same-tick movement step10");
+
+    bp::Act3Runtime mover=World(2);
+    mover.current.action=bp::CurrentAction::MoveA;
+    const bp::Vec2Q8 opponentBefore=mover.combat.actors[1].position;
+    Check(bp::TickCurrentScriptForTest(mover)
+        && mover.current.movePending!=0
+        && mover.combat.actors[1].position.x==opponentBefore.x
+        && mover.combat.actors[1].position.y==opponentBefore.y,
+        "CURRENT step07 selects MOVE without mutating actor position");
+    Check(bp::TickAct3Runtime(mover,Input())
+        && (mover.combat.actors[1].position.x!=opponentBefore.x
+            || mover.combat.actors[1].position.y!=opponentBefore.y),
+        "CURRENT MOVE mutates actor position in common step10");
+
+    bool separated=true;
+    for(std::uint8_t encounter=0;encounter<3;++encounter) {
+        bp::Act3Runtime overlap=World(encounter);
+        const bp::Vec2Q8 shared{260*bp::kQ8One,90*bp::kQ8One};
+        overlap.combat.actors[0].position=shared;
+        overlap.combat.actors[1].position=shared;
+        overlap.movement.playerPosition=shared;
+        separated=separated && bp::TickAct3Runtime(overlap,Input());
+        const std::int64_t dx=static_cast<std::int64_t>(
+            overlap.combat.actors[1].position.x)-overlap.combat.actors[0].position.x;
+        const std::int64_t dy=static_cast<std::int64_t>(
+            overlap.combat.actors[1].position.y)-overlap.combat.actors[0].position.y;
+        const std::int32_t radii=bp::ActorRadiusPixels(
+            overlap.movement.physicalLedger.mass[Account(bp::PhysicalAccount::PlayerShell)])
+            +bp::ActorRadiusPixels(overlap.movement.physicalLedger.mass[
+                Account(bp::PhysicalAccount::OpponentShell)]);
+        separated=separated && static_cast<std::uint64_t>(dx*dx+dy*dy)
+            >=static_cast<std::uint64_t>(radii*bp::kQ8One)
+                *static_cast<std::uint64_t>(radii*bp::kQ8One);
+    }
+    Check(separated,"Act 3 step10 separates actor bodies in all encounters");
 }
 
 void TestChecksumAndWitnessProcesses() noexcept {
@@ -275,6 +351,35 @@ void TestChecksumAndWitnessProcesses() noexcept {
         && index.movement.physicalLedger.mass[Account(bp::PhysicalAccount::ProtocolActive)]==32,
         "INDEX CHECKSUM rebuilds from nearest tagged mass after 120 ticks");
 
+    bp::Act3Runtime retarget=World(0);
+    bool retargetBoundary=true;
+    for (std::uint8_t tick=0;tick<30;++tick) {
+        retargetBoundary=retargetBoundary && bp::TickAct3Runtime(retarget,Input())
+            && retarget.index.probes[0].targetCore==0;
+    }
+    retargetBoundary=retargetBoundary && bp::TickAct3Runtime(retarget,Input())
+        && retarget.index.probes[0].targetCore==1;
+    Check(retargetBoundary,"INDEX CHECKSUM retargets after exact 30 tracked ticks");
+
+    bp::Act3Runtime provenance=World(0);
+    const bp::SlotHandle unscored=provenance.index.unscored[0];
+    const bp::SlotHandle ordinary=provenance.neutrals[2];
+    provenance.combat.neutrals[ordinary.index].position=
+        provenance.combat.neutrals[unscored.index].position;
+    provenance.combat.neutrals[ordinary.index].velocity=bp::Vec2Q8{0,0};
+    provenance.combat.neutrals[unscored.index].velocity=bp::Vec2Q8{0,0};
+    Check(bp::MergeNeutralClusters(provenance.combat,provenance.movement.physicalLedger),
+        "INDEX UNSCORED fixture merges ordinary mass");
+    std::uint16_t unscoredTotal=0;
+    bool mixedUnscored=false;
+    for (const bp::NeutralSlot& neutral:provenance.combat.neutrals) {
+        if (neutral.active==0) continue;
+        unscoredTotal=static_cast<std::uint16_t>(unscoredTotal+neutral.unscoredMass);
+        if (neutral.unscoredMass!=0 && neutral.mass>neutral.unscoredMass) mixedUnscored=true;
+    }
+    Check(unscoredTotal==16 && mixedUnscored,
+        "INDEX UNSCORED provenance remains exact through ordinary merge");
+
     bp::Act3Runtime indexCore=World(0);
     Check(bp::PhysicalTransfer(indexCore.movement.physicalLedger,
         bp::PhysicalAccount::OpponentShell,bp::PhysicalAccount::Neutral,32),
@@ -290,6 +395,10 @@ void TestChecksumAndWitnessProcesses() noexcept {
         "INDEX core hit is disabled until its 60-second result condition");
 
     bp::Act3Runtime defended=World(1);
+    const bp::SlotHandle pushedHandle=defended.neutrals[0];
+    defended.combat.neutrals[pushedHandle.index].position=bp::Vec2Q8{
+        13*bp::kQ8One,78*bp::kQ8One};
+    defended.combat.neutrals[pushedHandle.index].velocity=bp::Vec2Q8{0,0};
     Check(bp::SpawnScriptedProjectile(defended.combat,defended.movement.physicalLedger,
         bp::CombatSide::Player,8,bp::Vec2Q8{13*bp::kQ8One,78*bp::kQ8One},
         bp::Vec2Q8{bp::kInputUnit,0},1),"WITNESS defense projectile prepared");
@@ -303,6 +412,8 @@ void TestChecksumAndWitnessProcesses() noexcept {
         && defended.movement.physicalLedger.mass[Account(bp::PhysicalAccount::ProtocolActive)]==28
         && defended.movement.physicalLedger.mass[Account(bp::PhysicalAccount::Transit)]==4,
         "WITNESS swept collision cancels segment4 and preserves remaining projectile4");
+    Check(defended.combat.neutrals[pushedHandle.index].position.x>=19*bp::kQ8One,
+        "WITNESS SWEEPER pushes unregistered Neutral inward");
     bool waveOk=true;
     for (std::uint8_t tick=1;tick<90;++tick)
         waveOk=waveOk && bp::TickAct3Runtime(defended,Input());

@@ -221,10 +221,9 @@ void RemoveCover(CombatState& combat, SlotHandle handle) noexcept {
 
 std::uint16_t UnscoredMass(const Act3Runtime& state) noexcept {
     std::uint16_t total = 0;
-    for (SlotHandle handle : state.index.unscored) {
-        if (NeutralHandleValid(state.combat, handle)) total = static_cast<std::uint16_t>(
-            total + state.combat.neutrals[handle.index].mass);
-    }
+    for (const NeutralSlot& neutral : state.combat.neutrals)
+        if (neutral.active!=0) total=static_cast<std::uint16_t>(
+            total+neutral.unscoredMass);
     return total;
 }
 
@@ -411,6 +410,7 @@ bool SpawnCurrentShot(Act3Runtime& state, std::uint16_t mass, Vec2Q8 direction) 
 bool TickCurrent(Act3Runtime& state) noexcept {
     CurrentRuntime& current = state.current;
     PhysicalLedger& ledger = state.movement.physicalLedger;
+    current.movePending=0;
     for (ProjectileSlot& shot : state.combat.projectiles) {
         if (shot.active==0 || shot.stableId<current.initialProjectileFirstStableId
             || shot.stableId>=current.initialProjectileFirstStableId
@@ -475,14 +475,7 @@ bool TickCurrent(Act3Runtime& state) noexcept {
             kInputUnit);
         actor.velocity.y = RoundDivideSigned(static_cast<std::int64_t>(direction.y)*speed,
             kInputUnit);
-        actor.position.x += actor.velocity.x;
-        actor.position.y += actor.velocity.y;
-        ClampCircleToRect(actor.position,
-            ActorRadiusPixels(ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]),
-            kPlayInterior);
-        ResolveActorCovers(actor,
-            ActorRadiusPixels(ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]),
-            state.combat);
+        current.movePending=1;
         if (current.actionTicks >= 60) AdvanceCurrentAction(current,
             current.action == CurrentAction::MoveA ? CurrentAction::Wave
                 : CurrentAction::Foreclose);
@@ -544,10 +537,23 @@ bool TickCurrent(Act3Runtime& state) noexcept {
                     || !ReleaseCharge(state.combat,ledger,CombatSide::Opponent)) return false;
                 AdvanceCurrentAction(current,CurrentAction::ReturnB);
             }
+        } else if (current.actionTicks>1) {
+            AdvanceCurrentAction(current,CurrentAction::ReturnB);
         }
         break;
     }
     return true;
+}
+
+void MoveCurrentActor(Act3Runtime& state) noexcept {
+    if (state.current.movePending==0) return;
+    CombatActor& actor=state.combat.actors[1];
+    actor.position.x+=actor.velocity.x;
+    actor.position.y+=actor.velocity.y;
+    const std::int32_t radius=ActorRadiusPixels(state.movement.physicalLedger.mass[
+        AccountIndex(PhysicalAccount::OpponentShell)]);
+    ClampCircleToRect(actor.position,radius,kPlayInterior);
+    ResolveActorCovers(actor,radius,state.combat);
 }
 
 bool TryRespawnIndexProbe(Act3Runtime& state,std::uint8_t probeIndex) noexcept {
@@ -604,7 +610,7 @@ bool TickIndexProbes(Act3Runtime& state) noexcept {
         IndexRuntime::Probe& probe=state.index.probes[probeIndex];
         if (probe.active==0) continue;
         probe.targetCore=static_cast<std::uint8_t>(
-            ((state.encounterTick/30u)+probeIndex)&1u);
+            (((state.encounterTick-1u)/30u)+probeIndex)&1u);
         const Vec2Q8 target=state.combat.actors[probe.targetCore].position;
         probe.directionQ15=TurnAtMostSixDegrees(probe.directionQ15,
             Vec2Q8{target.x-probe.position.x,target.y-probe.position.y});
@@ -676,28 +682,28 @@ bool FinishWitnessSweeper(Act3Runtime& state) noexcept {
     return CombatStateValid(state.combat,state.movement.physicalLedger);
 }
 
+bool TickWitnessEscrowReturn(Act3Runtime& state) noexcept {
+    WitnessRuntime& witness = state.witness;
+    if (witness.sweeperReturning==0) return true;
+    ++witness.sweeperReturnTick;
+    const std::uint16_t targetReturned=static_cast<std::uint16_t>(
+        static_cast<std::uint32_t>(witness.protocolEscrowMass)
+            *witness.sweeperReturnTick/36u);
+    const std::uint16_t baseline=static_cast<std::uint16_t>(
+        32-witness.protocolEscrowMass);
+    const std::uint16_t active=state.movement.physicalLedger.mass[
+        AccountIndex(PhysicalAccount::ProtocolActive)];
+    const std::uint16_t returned=active>baseline?static_cast<std::uint16_t>(active-baseline):0;
+    if (targetReturned>returned
+        && !PhysicalTransfer(state.movement.physicalLedger,PhysicalAccount::Transit,
+            PhysicalAccount::ProtocolActive,
+            static_cast<std::uint16_t>(targetReturned-returned))) return false;
+    if (witness.sweeperReturnTick>=36) witness.sweeperReturning=0;
+    return CombatStateValid(state.combat,state.movement.physicalLedger);
+}
+
 bool TickWitness(Act3Runtime& state, const GameplayIntent& intent) noexcept {
     WitnessRuntime& witness = state.witness;
-    if (witness.sweeperReturning!=0) {
-        ++witness.sweeperReturnTick;
-        const std::uint16_t targetReturned=static_cast<std::uint16_t>(
-            static_cast<std::uint32_t>(witness.protocolEscrowMass)
-                *witness.sweeperReturnTick/36u);
-        const std::uint16_t baseline=static_cast<std::uint16_t>(
-            32-witness.protocolEscrowMass);
-        const std::uint16_t active=state.movement.physicalLedger.mass[
-            AccountIndex(PhysicalAccount::ProtocolActive)];
-        const std::uint16_t returned=active>baseline?static_cast<std::uint16_t>(active-baseline):0;
-        if (targetReturned>returned) {
-            PhysicalLedger ledger=state.movement.physicalLedger;
-            if (!PhysicalTransfer(ledger,PhysicalAccount::Transit,
-                    PhysicalAccount::ProtocolActive,
-                    static_cast<std::uint16_t>(targetReturned-returned))
-                || !CombatStateValid(state.combat,ledger)) return false;
-            state.movement.physicalLedger=ledger;
-        }
-        if (witness.sweeperReturnTick>=36) witness.sweeperReturning=0;
-    }
     const std::uint32_t waveStarts[3] = {1,1201,2401};
     for (std::uint8_t wave=0; wave<3; ++wave) {
         if (state.encounterTick != waveStarts[wave]) continue;
@@ -717,7 +723,26 @@ bool TickWitness(Act3Runtime& state, const GameplayIntent& intent) noexcept {
             (static_cast<std::int64_t>(target.position.x/kQ8One-12)
                 *witness.sweeperTick)/90);
         for (SlotHandle handle:witness.sweeperSegments) {
-            if (CoverHandleValid(state.combat,handle)) state.combat.covers[handle.index].bounds.x=x;
+            if (!CoverHandleValid(state.combat,handle)) continue;
+            CoverSlot& segment=state.combat.covers[handle.index];
+            segment.bounds.x=x;
+            for (NeutralSlot& neutral:state.combat.neutrals) {
+                if (neutral.active==0 || neutral.playerMissMass!=0
+                    || neutral.opponentMissMass!=0 || neutral.protocolTagMass!=0
+                    || neutral.patchFeedMass!=0 || neutral.adapterEscrowMass!=0
+                    || neutral.structureMass!=0 || neutral.unscoredMass!=0) continue;
+                const std::int32_t neutralX=neutral.position.x/kQ8One;
+                const std::int32_t neutralY=neutral.position.y/kQ8One;
+                if (neutralX>=segment.bounds.x-2
+                    && neutralX<=segment.bounds.x+segment.bounds.width+2
+                    && neutralY>=segment.bounds.y-2
+                    && neutralY<=segment.bounds.y+segment.bounds.height+2) {
+                    neutral.position.x=(segment.bounds.x+segment.bounds.width+2)*kQ8One;
+                    const std::int32_t speed=static_cast<std::int32_t>(
+                        (target.position.x/kQ8One-12)*kQ8One/90);
+                    if (neutral.velocity.x<speed) neutral.velocity.x=speed;
+                }
+            }
         }
     }
     std::uint8_t nearest=0xFFu;
@@ -992,6 +1017,32 @@ Vec2Q8 RotateCurrentDirection(Vec2Q8 directionQ15, std::int8_t degrees) noexcept
     });
 }
 
+const char* Act3ResponseText(
+    std::uint8_t encounterIndex,
+    ChoiceId choice,
+    std::uint8_t line) noexcept {
+    constexpr const char* copy[3][3][2]={
+        {
+            {"WHAT I COULD COUNT","BECAME YOUR VALUE"},
+            {"THE ZERO REMAINS","UNPROVEN"},
+            {"YOU CHANGED THE TEST","NOT THE SCORES"},
+        },
+        {
+            {"THE LOSS KEEPS","ITS NAME"},
+            {"THE LOSS REMAINS","ITS OWNER DOES NOT"},
+            {"THE RUN CONTINUES","WITHOUT A WITNESS"},
+        },
+        {
+            {"YOU STOPPED THE FLOW","TO NAME IT YOURS"},
+            {"THE CYCLE CONTINUES","WITHOUT YOUR NAME"},
+            {"NO ONE KEEPS IT","EVERYONE DEPENDS ON IT"},
+        },
+    };
+    const std::uint8_t choiceIndex=static_cast<std::uint8_t>(choice);
+    return encounterIndex<3 && choiceIndex<3 && line<2
+        ?copy[encounterIndex][choiceIndex][line]:"";
+}
+
 bool PopulateAct3Encounter(Act3Runtime& state) noexcept {
     const Act3EncounterDef& definition=GetAct3EncounterDef(state.encounterIndex);
     if (!ValidateAct3EncounterDef(definition)) return false;
@@ -1019,7 +1070,10 @@ bool PopulateAct3Encounter(Act3Runtime& state) noexcept {
         const Act3NeutralDef& neutral=definition.neutral[i];
         if (!AddNeutral(state.combat,Vec2Q8{neutral.x*kQ8One,neutral.y*kQ8One},
                 neutral.mass,0,0,state.neutrals[i])) return false;
-        if (neutral.tag==Act3NeutralTag::Unscored) state.index.unscored[unscored++]=state.neutrals[i];
+        if (neutral.tag==Act3NeutralTag::Unscored) {
+            state.index.unscored[unscored++]=state.neutrals[i];
+            state.combat.neutrals[state.neutrals[i].index].unscoredMass=neutral.mass;
+        }
     }
     if (definition.id==EncounterId::Witness) {
         constexpr std::int16_t positions[3][2]={{132,78},{160,92},{188,106}};
@@ -1161,6 +1215,9 @@ bool TickAct3Runtime(Act3Runtime& state,const InputFrame& input) noexcept {
     if (input.focused==0 || Pressed(input,PlatformAction::Pause)) {
         state.movement.paused=1; ClearInterruptedActions(state); return true;
     }
+    // Authority 32.9 step 04: pre-existing process Transit arrives before
+    // HUD maturity and this tick's input arbitration.
+    if (state.encounterIndex==1 && !TickWitnessEscrowReturn(state)) return false;
     InputFrame effective=input;
     if (state.movement.dashTicksRemaining>0) {
         ClearAction(effective,PlatformAction::HudReallocate);
@@ -1223,6 +1280,10 @@ bool TickAct3Runtime(Act3Runtime& state,const InputFrame& input) noexcept {
         state.movement.dashTicksRemaining=0;
         state.movement.dashInvulnerableRemaining=0;
     }
+    if (state.encounterIndex==2) MoveCurrentActor(state);
+    state.movement.playerPosition=state.combat.actors[0].position;
+    state.movement.playerVelocity=state.combat.actors[0].velocity;
+    SeparateCombatActorsByMass(state.combat,ledger,kPlayInterior);
     state.movement.playerPosition=state.combat.actors[0].position;
     state.movement.playerVelocity=state.combat.actors[0].velocity;
     if (!StepCombatProjectiles(state.combat,ledger,state.claimLedger)) return false;
@@ -1285,9 +1346,10 @@ void RenderAct3Runtime(PixelBuffer buffer,const Act3Runtime& state) noexcept {
         else DrawCentered(buffer,80,"HOLD   RETURN   CIRCULATE",PaletteColor::Neutral);
         break;
     case Act3Scene::EntityResponse:
-        DrawCentered(buffer,84,state.committedChoice==ChoiceId::First?"THE FIRST CLAIM STANDS":
-            (state.committedChoice==ChoiceId::Second?"THE RECORD REMAINS":"THE RULE CHANGES"),
-            PaletteColor::Warning); break;
+        DrawCentered(buffer,78,Act3ResponseText(
+            state.encounterIndex,state.committedChoice,0),PaletteColor::Warning);
+        DrawCentered(buffer,92,Act3ResponseText(
+            state.encounterIndex,state.committedChoice,1),PaletteColor::Warning); break;
     case Act3Scene::LedgerReturn:
         DrawCentered(buffer,84,"RETURN TO LEDGER",PaletteColor::Neutral); break;
     case Act3Scene::Complete:
@@ -1331,7 +1393,8 @@ std::uint32_t Act3RuntimeHash(const Act3Runtime& state) noexcept {
         add(neutral.generation); add(neutral.mass); add(neutral.reclaimLockTicks);
         add(neutral.immunityTicks); add(neutral.playerMissMass); add(neutral.opponentMissMass);
         add(neutral.protocolTagMass); add(neutral.patchFeedMass); add(neutral.adapterEscrowMass);
-        add(neutral.structureMass); add(neutral.inertiaTicks); add(neutral.active);
+        add(neutral.structureMass); add(neutral.unscoredMass);
+        add(neutral.inertiaTicks); add(neutral.active);
     }
     for (const CoverSlot& cover:state.combat.covers) {
         addRect(cover.bounds); add(cover.stableId); add(cover.generation); add(cover.mass);
@@ -1383,7 +1446,7 @@ std::uint32_t Act3RuntimeHash(const Act3Runtime& state) noexcept {
     add(static_cast<std::uint32_t>(state.current.action)); addVec(state.current.forecloseAim);
     add(state.current.actionTicks); add(state.current.returnAccumulator);
     add(state.current.initialProjectileFirstStableId); add(state.current.cycleIndex);
-    add(state.current.orbitShots);
+    add(state.current.orbitShots); add(state.current.movePending);
     add(static_cast<std::uint32_t>(state.scene));
     add(static_cast<std::uint32_t>(state.focusedChoice));
     add(static_cast<std::uint32_t>(state.committedChoice));

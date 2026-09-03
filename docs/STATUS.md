@@ -4,7 +4,7 @@
 - Current controller state: `T08B_REVIEWING`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: T08B Act 3 rule encounters
-- Contest dist: `224,256B` (T08B delta `+17,920B`, internal cap PASS)
+- Contest dist: `227,840B` (T08B delta `+21,504B`, internal cap PASS)
 
 | Ticket | State | Evidence |
 |---|---|---|

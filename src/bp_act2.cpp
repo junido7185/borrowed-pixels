@@ -1509,7 +1509,7 @@ std::uint32_t Act2RuntimeHash(const Act2Runtime& state) noexcept {
         add(neutral.reclaimLockTicks); add(neutral.immunityTicks);
         add(neutral.playerMissMass); add(neutral.opponentMissMass);
         add(neutral.protocolTagMass); add(neutral.patchFeedMass);
-        add(neutral.adapterEscrowMass); add(neutral.structureMass);
+        add(neutral.adapterEscrowMass); add(neutral.structureMass); add(neutral.unscoredMass);
         add(neutral.inertiaTicks); add(neutral.active);
     }
     for (const CoverSlot& cover : state.combat.covers) {

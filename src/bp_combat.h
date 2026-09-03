@@ -88,6 +88,7 @@ struct NeutralSlot {
     std::uint16_t patchFeedMass;
     std::uint16_t adapterEscrowMass;
     std::uint16_t structureMass;
+    std::uint16_t unscoredMass;
     std::uint8_t inertiaTicks;
     std::uint8_t active;
 };
@@ -224,5 +225,12 @@ bool StepCombatProjectiles(
     PhysicalLedger& ledger,
     const ClaimLedger& claimLedger) noexcept;
 void TickCombatCountdowns(CombatState& state) noexcept;
+
+// CROSS_TICKET_GLUE: encounter routers invoke the common authority step-10
+// mass-weighted actor separation after both actors have moved.
+void SeparateCombatActorsByMass(
+    CombatState& state,
+    const PhysicalLedger& ledger,
+    const RectPixels& interior) noexcept;
 
 }  // namespace bp

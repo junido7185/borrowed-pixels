@@ -1,0 +1,14 @@
+REVIEWED_SHA=282c97fb7ae91133a7a6eef84e35e7339c79b58d
+P0=0
+P1=7
+P2=0
+ELIGIBLE=NO
+
+P1 findings repaired in the subsequent executable candidate:
+1. CURRENT movement/body separation step ordering.
+2. WITNESS unregistered Neutral push.
+3. INDEX UNSCORED mass provenance through merge/reclaim.
+4. CHECKSUM exact 30-tick retarget boundary.
+5. Cancelled CURRENT FORECLOSE softlock.
+6. Nine frozen Act 3 two-line response copies.
+7. WITNESS ProtocolEscrow return at step 04.
