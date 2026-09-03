@@ -308,7 +308,8 @@ std::uint16_t FindReclaimTargetInternal(
     const CombatState& state,
     CombatSide side,
     Vec2Q8 aimDirectionQ15,
-    bool structureOnly) noexcept {
+    bool structureOnly,
+    bool playerMissPriority) noexcept {
     const std::uint8_t sideIndex = SideIndex(side);
     if (sideIndex >= 2) return kInvalidSlotIndex;
     const Vec2Q8 actorPosition = state.actors[sideIndex].position;
@@ -331,8 +332,9 @@ std::uint16_t FindReclaimTargetInternal(
         if (distanceSquared > rangeSquared || !InsideReclaimCone(delta, aimDirectionQ15)
             || CoverBlocksLine(state, actorPosition, neutral.position)) continue;
         const std::uint32_t distancePixels = IntegerSqrt(distanceSquared) / kQ8One;
-        const std::uint32_t score = static_cast<std::uint32_t>(neutral.mass) * 256u
+        std::uint32_t score = static_cast<std::uint32_t>(neutral.mass) * 256u
             / (distancePixels + 16u);
+        if (playerMissPriority && neutral.playerMissMass != 0) score += 128u;
         if (best == kInvalidSlotIndex || score > bestScore
             || (score == bestScore && neutral.stableId < bestStableId)) {
             best = index;
@@ -347,7 +349,7 @@ std::uint16_t FindReclaimTarget(
     const CombatState& state,
     CombatSide side,
     Vec2Q8 aimDirectionQ15) noexcept {
-    return FindReclaimTargetInternal(state, side, aimDirectionQ15, false);
+    return FindReclaimTargetInternal(state, side, aimDirectionQ15, false, false);
 }
 
 bool TickReclaim(
@@ -357,7 +359,8 @@ bool TickReclaim(
     bool playerActive,
     bool opponentActive,
     ReclaimTickResult& result,
-    bool opponentStructurePriority) noexcept {
+    bool opponentStructurePriority,
+    bool opponentPlayerMissPriority) noexcept {
     result = ReclaimTickResult{
         0, 0, 0, 0, 0, 0, kInvalidSlotIndex, kInvalidSlotIndex};
     if (!CombatStateValid(state, ledger)) return false;
@@ -375,11 +378,13 @@ bool TickReclaim(
             candidate,
             side,
             candidate.actors[sideIndex].aimDirectionQ15,
-            side == CombatSide::Opponent && opponentStructurePriority);
+            side == CombatSide::Opponent && opponentStructurePriority,
+            side == CombatSide::Opponent && opponentPlayerMissPriority);
         if (targets[sideIndex] == kInvalidSlotIndex
             && side == CombatSide::Opponent && opponentStructurePriority) {
             targets[sideIndex] = FindReclaimTargetInternal(
-                candidate, side, candidate.actors[sideIndex].aimDirectionQ15, false);
+                candidate, side, candidate.actors[sideIndex].aimDirectionQ15,
+                false, opponentPlayerMissPriority);
         }
         reclaimCandidate.targetIndex[sideIndex] = targets[sideIndex];
         if (targets[sideIndex] == kInvalidSlotIndex) continue;

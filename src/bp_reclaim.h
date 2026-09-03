@@ -46,6 +46,7 @@ bool TickReclaim(
     bool playerActive,
     bool opponentActive,
     ReclaimTickResult& result,
-    bool opponentStructurePriority = false) noexcept;
+    bool opponentStructurePriority = false,
+    bool opponentPlayerMissPriority = false) noexcept;
 
 }  // namespace bp
