@@ -1,11 +1,10 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
-- Latest integrated candidate SHA: `70a2ae0b44d4b80a2beeba2d391ffe5d5633d207`
-- Current controller state: `T07_BYTE_BUDGET_GATE`
+- Latest integrated candidate SHA: `c04cab5551660446742a9a114f52d413fa6a3eb7`
+- Current controller state: `T08A_IMPLEMENTATION`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
-- Current ticket: T07 encounter framework and Act 1 vertical slice
-- Contest dist: `183,808B` (`+54,784B` from T06; absolute caps PASS,
-  explicit >=25KB byte-budget reapproval required before integration)
+- Current ticket: T08A Act 2 process encounters
+- Contest dist: `183,808B` (T07 delta `+54,784B`, Human Director byte-budget reapproved)
 
 | Ticket | State | Evidence |
 |---|---|---|
@@ -16,7 +15,7 @@
 | T04 | LOCALLY_INTEGRATED | Candidate `b8739064...`; post-integration full regression PASS; independent review P0/P1/P2=0 |
 | T05 | LOCALLY_INTEGRATED | Candidate `f8f1c042...`; post-integration full regression PASS; independent review P0/P1=0, P2=1 test-only fault-injection debt |
 | T06 | LOCALLY_INTEGRATED | Candidate `70a2ae0b...`; post-integration full regression PASS; final independent review P0/P1/P2=0 |
-| T07 | BYTE_BUDGET_APPROVAL_REQUIRED | Automated regression/live capture PASS; independent review P0/P1/P2=0; explicit byte-budget reapproval pending |
+| T07 | LOCALLY_INTEGRATED | Candidate `c04cab55...`; Human Director byte-budget reapproval; post-integration full regression PASS |
 | T08-T14 | PENDING | Sequential controller execution |
 
 ## Gate status

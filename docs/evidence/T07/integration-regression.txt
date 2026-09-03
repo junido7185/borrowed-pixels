@@ -1,0 +1,16 @@
+T07 POST-INTEGRATION REGRESSION
+
+INTEGRATED_CANDIDATE=c04cab5551660446742a9a114f52d413fa6a3eb7
+BASE=c4fef9de1663be43054b0cabad39b0c79813ff94
+FF_ONLY=PASS
+BYTE_BUDGET_REAPPROVED=YES (+54784 bytes)
+
+cmake --preset windows-msvc: EXIT 0
+cmake --build --preset test --clean-first: EXIT 0
+bp_test.exe: EXIT 0; T07=2066 T05=4081 T04=333093 T06=6512 T03=5035224 T02=2365194
+ctest --preset all --output-on-failure: EXIT 0; 1/1 PASS
+cmake --build --preset debug --clean-first: EXIT 0
+bp_debug.exe --smoke-test: EXIT 0
+cmake --build --preset contest --clean-first: EXIT 0
+dist/contest: 1 file, 183808 bytes, internal/hard caps PASS
+BorrowedPixels.exe SHA256=59916441c7e2547d9a18bac2412241e67693e96ff051b2f318cec038c98d6492

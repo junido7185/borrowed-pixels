@@ -34,4 +34,16 @@ GATES:
 - Byte delta from T06: +54,784 bytes. Runbook section 12 requires explicit
   Human byte-budget reapproval before integration because the increase is >=25KB.
 
-STATUS: BYTE_BUDGET_APPROVAL_REQUIRED; not ACCEPTED and not integrated.
+STATUS AT CANDIDATE: BYTE_BUDGET_APPROVAL_REQUIRED; not yet integrated at that point.
+
+LOCAL INTEGRATION:
+
+- Human Director explicitly reapproved the `+54,784` byte T07 increase under
+  runbook section 12 and approved candidate `c04cab5551660446742a9a114f52d413fa6a3eb7`.
+- `integration/rc-2026-09-03` fast-forwarded from
+  `c4fef9de1663be43054b0cabad39b0c79813ff94` to that exact candidate.
+- Post-integration configure, Test, direct suite, CTest, Debug, smoke, Contest,
+  exact dist, and SHA checks all reproduced the recorded PASS results.
+- No push, tag, publication, or submission was performed.
+
+INTEGRATION STATUS: LOCALLY_INTEGRATED; not externally accepted or released.
