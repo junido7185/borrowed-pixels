@@ -25,21 +25,20 @@ IMPLEMENTED:
 
 AUTOMATED RESULTS:
 
-- T08A 72,434 checks PASS, including 49 ADAPTER ranges and 1,024 FRAME
+- T08A 72,445 checks PASS, including 49 ADAPTER ranges and 1,024 FRAME
   observations across all nonempty availability masks.
 - All T02-T07 regressions PASS, including 11,172 Hangul syllables and the
   recorded 61,646,592 replay hash.
 - Windows x64 MSVC configure, clean Test, direct suite, CTest, clean Debug,
   debug smoke, clean Contest, live contest launch, and MAP reachability PASS.
 - dist/contest: one file, 206,336 bytes; internal and hard caps PASS.
-- Contest SHA-256: `0b8071ba9621dc00952e4d5ac5c730f1b273ebcbfdacc94994b65a9e5e317b3a`.
+- Contest SHA-256: `ce910ed6afda19a285de275511a5c70f3e54cb2747bfa85c5ddd07b18a33e831`.
 
 GATES:
 
 - Gate 3/4 subjective findings remain HUMAN_REVIEW_DEFERRED.
-- Independent reviews reported P0=0/P1=6/P2=1 and then P0=0/P1=3/P2=0;
-  every finding was repaired and regression-tested. Final exact-SHA review
-  remains pending.
+- Independent reviews reported P1 counts 6, 3, then 1; every finding was
+  repaired and regression-tested. Final exact-SHA review remains pending.
 - No push, tag, publication, submission, or merge was performed on the ticket branch.
 
 STATUS: candidate preparation; not externally accepted or released.

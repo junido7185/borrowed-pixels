@@ -25,3 +25,12 @@ Second-review repairs:
   allocation-only Preview and automatic CommitTransit.
 
 Final exact-candidate review: PENDING.
+
+Third review of b894edb01925719a2a4a12e2e0cfcfc0b5c1d315:
+FAIL P0=0 P1=1 P2=0. Damaged-panel action availability did not share
+execution's mass eligibility.
+
+Third-review repair:
+- SHIFT now considers only authoritative mass32 panels;
+- TOLL availability and execution share the nearest mass>=16 selector;
+- mass8-nearest-panel and SHIFT target regressions directly cover the case.

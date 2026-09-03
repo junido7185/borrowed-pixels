@@ -223,6 +223,33 @@ void TestFrameActions() noexcept {
     const bp::FrameObservation lowShell = bp::ObserveFrameForTest(observed);
     Check(initial.playerLowShell == 0 && lowShell.playerLowShell == 1,
         "FRAME observations derive player shell from physical state");
+
+    bp::Act2Runtime damaged = FrameWorld();
+    const bp::SlotHandle damagedPanel = damaged.frame.panels[0];
+    damaged.combat.covers[damagedPanel.index].mass = 8;
+    bp::SlotHandle damageNeutral{};
+    Check(bp::AddNeutral(damaged.combat, bp::Vec2Q8{300*bp::kQ8One,150*bp::kQ8One},
+            24, 0, 0, damageNeutral)
+        && bp::PhysicalTransfer(damaged.movement.physicalLedger,
+            bp::PhysicalAccount::Cover, bp::PhysicalAccount::Neutral, 24),
+        "FRAME damaged mass8 panel world conserves detached mass");
+    damaged.movement.playerPosition = damaged.combat.actors[0].position =
+        bp::Vec2Q8{96*bp::kQ8One,48*bp::kQ8One};
+    damaged.encounterTick = 29;
+    Check(bp::TickAct2Runtime(damaged, Input()),
+        "FRAME decision excludes unavailable TOLL on nearest mass8 panel");
+    Check(damaged.frame.action != bp::FrameAction::Toll,
+        "FRAME availability and execution share mass-eligible panel selector");
+    bp::Act2Runtime shiftDamaged = FrameWorld();
+    shiftDamaged.combat.covers[shiftDamaged.frame.panels[0].index].mass = 8;
+    Check(bp::PhysicalTransfer(shiftDamaged.movement.physicalLedger,
+            bp::PhysicalAccount::Cover, bp::PhysicalAccount::Neutral, 24)
+        && bp::AddNeutral(shiftDamaged.combat,
+            bp::Vec2Q8{300*bp::kQ8One,150*bp::kQ8One},24,0,0,damageNeutral),
+        "FRAME SHIFT damaged-panel world conserves mass");
+    Check(bp::ForceFrameActionForTest(shiftDamaged, bp::FrameAction::Shift)
+        && shiftDamaged.combat.covers[shiftDamaged.frame.shiftPanel.index].mass == 32,
+        "FRAME SHIFT targets only authoritative mass32 panels");
 }
 
 void TestFrameScoresExhaustive() noexcept {

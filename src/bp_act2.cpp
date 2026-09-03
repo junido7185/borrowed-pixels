@@ -360,6 +360,7 @@ std::uint16_t ClosestShiftPanel(const Act2Runtime& state) noexcept {
     for (SlotHandle handle : state.frame.panels) {
         if (!CoverHandleValid(state.combat, handle)) continue;
         const CoverSlot& panel = state.combat.covers[handle.index];
+        if (panel.mass != 32) continue;
         const Vec2Q8 center{(panel.bounds.x + panel.bounds.width / 2) * kQ8One,
             (panel.bounds.y + panel.bounds.height / 2) * kQ8One};
         const std::uint64_t distance = PointSegmentDistanceSquared(center, player, exit);
@@ -512,7 +513,8 @@ bool BeginFrameActionMutable(Act2Runtime& state, FrameAction action) noexcept {
     PhysicalLedger& ledger = state.movement.physicalLedger;
     const std::uint16_t panelIndex = action == FrameAction::Shift
         ? ClosestShiftPanel(state) : (action == FrameAction::Evict
-            ? ClosestPanelAtLeastMass(state, 32) : ClosestPanel(state));
+            ? ClosestPanelAtLeastMass(state, 32) : (action == FrameAction::Toll
+                ? ClosestPanelAtLeastMass(state, 16) : ClosestPanel(state)));
     state.frame.action = action;
     state.frame.actionTicks = 0;
     if (action == FrameAction::Shift) {
@@ -669,9 +671,9 @@ bool DecideFrameAction(Act2Runtime& state) noexcept {
         || state.frame.actionCooldown != 0) return true;
     const FrameObservation observation = ObserveFrame(state);
     std::uint8_t available = 1u << static_cast<std::uint8_t>(FrameAction::Move);
-    const std::uint16_t closestPanel = ClosestPanel(state);
-    if (closestPanel != kInvalidSlotIndex && state.frame.structureControlMass >= 16
-        && PlayerNearPanel(state, closestPanel, 18)) {
+    const std::uint16_t tollPanel = ClosestPanelAtLeastMass(state, 16);
+    if (tollPanel != kInvalidSlotIndex && state.frame.structureControlMass >= 16
+        && PlayerNearPanel(state, tollPanel, 18)) {
         available = static_cast<std::uint8_t>(available
             | (1u << static_cast<std::uint8_t>(FrameAction::Toll)));
     }
