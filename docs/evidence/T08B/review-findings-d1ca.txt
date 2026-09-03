@@ -1,0 +1,21 @@
+T08B INDEPENDENT REVIEW OF d1ca966228644bb837b401c9e0c13a438c22d1f2
+
+RESULT: P0=0 P1=1 P2=2; NOT_ELIGIBLE
+
+P1 repair applied after review:
+
+1. Every CURRENT attack now reserves one common Projectile slot for the
+   player's later step08 BeginCharge or ReleaseCharge. Full-runtime tests cover
+   ORBIT and WAVE same-tick BeginCharge and FORECLOSE same-tick ReleaseCharge.
+
+P2 repairs applied after review:
+
+2. A BP_TEST-only step04 observation records ProtocolActive immediately after
+   process arrival and before HUD/input/step07. The ordering test now asserts
+   that observation, so moving return back into TickWitness would fail it.
+3. WAVE atomicity now has direct fault injection: stable-id exhaustion occurs
+   midway through the four-shot candidate burst, and the test proves zero
+   projectile, ledger, or stable-id partial commit to the live runtime.
+
+This superseded review does not claim eligibility. The repaired executable
+requires a fresh independent final review.

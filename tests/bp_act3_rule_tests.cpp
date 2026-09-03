@@ -272,6 +272,67 @@ void TestPopulationAndPhysicalMass() noexcept {
         && bp::PhysicalLedgerTotal(orbitFull.movement.physicalLedger)==bp::kLedgerTotal,
         "CURRENT saturated ORBIT skips remaining shots without fatal state");
 
+    bp::InputFrame fire=Input();
+    fire.actions[static_cast<std::uint8_t>(bp::PlatformAction::Fire)].pressed=1;
+    fire.actions[static_cast<std::uint8_t>(bp::PlatformAction::Fire)].held=1;
+    bp::Act3Runtime orbitReserved=World(2);
+    Check(bp::PhysicalTransfer(orbitReserved.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::PlayerShell,120)
+        && bp::PhysicalTransfer(orbitReserved.movement.physicalLedger,
+            bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,57),
+        "CURRENT ORBIT reserves player Charge fixture mass");
+    for (std::uint8_t i=0;i<15;++i)
+        Check(bp::SpawnScriptedProjectile(orbitReserved.combat,
+            orbitReserved.movement.physicalLedger,bp::CombatSide::Player,8,
+            bp::Vec2Q8{40*bp::kQ8One,40*bp::kQ8One},
+            bp::Vec2Q8{bp::kInputUnit,0},1),
+            "CURRENT ORBIT reserves player Charge fixture slot");
+    Check(bp::TickAct3Runtime(orbitReserved,fire)
+        && orbitReserved.current.action==bp::CurrentAction::ReturnA
+        && orbitReserved.combat.charges[0].active!=0
+        && orbitReserved.combat.phase==bp::CombatPhase::Active,
+        "CURRENT ORBIT leaves last slot for same-tick player BeginCharge");
+
+    bp::Act3Runtime waveReserved=World(2);
+    Check(bp::PhysicalTransfer(waveReserved.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::PlayerShell,96)
+        && bp::PhysicalTransfer(waveReserved.movement.physicalLedger,
+            bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,57),
+        "CURRENT WAVE reserves player Charge fixture mass");
+    for (std::uint8_t i=0;i<12;++i)
+        Check(bp::SpawnScriptedProjectile(waveReserved.combat,
+            waveReserved.movement.physicalLedger,bp::CombatSide::Player,8,
+            bp::Vec2Q8{40*bp::kQ8One,40*bp::kQ8One},
+            bp::Vec2Q8{bp::kInputUnit,0},1),
+            "CURRENT WAVE reserves player Charge fixture slot");
+    waveReserved.current.action=bp::CurrentAction::Wave;
+    Check(bp::TickAct3Runtime(waveReserved,fire)
+        && waveReserved.current.action==bp::CurrentAction::ReturnA
+        && waveReserved.combat.charges[0].active!=0
+        && waveReserved.combat.phase==bp::CombatPhase::Active,
+        "CURRENT WAVE leaves last slot for same-tick player BeginCharge");
+
+    bp::Act3Runtime waveAtomic=World(2);
+    waveAtomic.current.action=bp::CurrentAction::Wave;
+    Check(bp::PhysicalTransfer(waveAtomic.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,57),
+        "CURRENT WAVE atomic fixture funds shell41 reserve");
+    waveAtomic.combat.nextStableId=0xFFFFFFFDu;
+    const bp::PhysicalLedger waveLedgerBefore=waveAtomic.movement.physicalLedger;
+    std::uint8_t waveProjectilesBefore=0;
+    for (const bp::ProjectileSlot& shot:waveAtomic.combat.projectiles)
+        if (shot.active!=0) ++waveProjectilesBefore;
+    Check(!bp::TickCurrentScriptForTest(waveAtomic),
+        "CURRENT WAVE injected mid-burst stable-id failure is reported");
+    std::uint8_t waveProjectilesAfter=0;
+    for (const bp::ProjectileSlot& shot:waveAtomic.combat.projectiles)
+        if (shot.active!=0) ++waveProjectilesAfter;
+    Check(waveProjectilesAfter==waveProjectilesBefore
+        && waveAtomic.combat.nextStableId==0xFFFFFFFDu
+        && std::memcmp(&waveAtomic.movement.physicalLedger,&waveLedgerBefore,
+            sizeof(waveLedgerBefore))==0,
+        "CURRENT WAVE four-shot burst has no partial commit on failure");
+
     bp::Act3Runtime foreclose=World(2);
     Check(bp::PhysicalTransfer(foreclose.movement.physicalLedger,
         bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,41),
@@ -345,6 +406,36 @@ void TestPopulationAndPhysicalMass() noexcept {
         && bp::PhysicalLedgerTotal(damaged.movement.physicalLedger)==bp::kLedgerTotal
         && bp::CombatStateValid(damaged.combat,damaged.movement.physicalLedger),
         "CURRENT damaged FORECLOSE cancels when mass48 plus shell41 is unaffordable");
+
+    bp::Act3Runtime forecloseReserved=World(2);
+    Check(bp::PhysicalTransfer(forecloseReserved.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,41),
+        "CURRENT FORECLOSE reserves player release fixture opponent mass");
+    forecloseReserved.current.action=bp::CurrentAction::Foreclose;
+    bool releaseReady=true;
+    for (std::uint8_t tick=0;tick<74;++tick)
+        releaseReady=releaseReady && bp::TickCurrentScriptForTest(forecloseReserved);
+    Check(bp::PhysicalTransfer(forecloseReserved.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::PlayerShell,128),
+        "CURRENT FORECLOSE reserves player release fixture player mass");
+    for (std::uint8_t i=0;i<15;++i)
+        Check(bp::SpawnScriptedProjectile(forecloseReserved.combat,
+            forecloseReserved.movement.physicalLedger,bp::CombatSide::Player,8,
+            bp::Vec2Q8{40*bp::kQ8One,40*bp::kQ8One},
+            bp::Vec2Q8{bp::kInputUnit,0},1),
+            "CURRENT FORECLOSE reserves player release fixture slot");
+    Check(bp::BeginCharge(forecloseReserved.combat,
+        forecloseReserved.movement.physicalLedger,bp::CombatSide::Player,
+        bp::Vec2Q8{bp::kInputUnit,0}),
+        "CURRENT FORECLOSE fixture starts existing player Charge");
+    bp::InputFrame release=Input();
+    release.actions[static_cast<std::uint8_t>(bp::PlatformAction::Fire)].released=1;
+    Check(releaseReady && bp::TickAct3Runtime(forecloseReserved,release)
+        && forecloseReserved.current.action==bp::CurrentAction::ReturnB
+        && forecloseReserved.combat.charges[0].active==0
+        && forecloseReserved.combat.charges[1].active==0
+        && forecloseReserved.combat.phase==bp::CombatPhase::Active,
+        "CURRENT FORECLOSE leaves last slot for same-tick player ReleaseCharge");
 
     bp::Act3Runtime ordered=World(2);
     Check(bp::PhysicalTransfer(ordered.movement.physicalLedger,
@@ -506,6 +597,7 @@ void TestChecksumAndWitnessProcesses() noexcept {
     orderedReturn.witness.sweeperReturning=1;
     orderedReturn.encounterTick=1200;
     Check(bp::TickAct3Runtime(orderedReturn,Input())
+        && bp::Act3Step04ProtocolMassForTest()==32
         && orderedReturn.witness.sweeperReturning==0
         && orderedReturn.witness.sweeperActive!=0
         && orderedReturn.witness.sweeperTick==1
@@ -513,7 +605,7 @@ void TestChecksumAndWitnessProcesses() noexcept {
             Account(bp::PhysicalAccount::ProtocolActive)]==32
         && orderedReturn.movement.physicalLedger.mass[
             Account(bp::PhysicalAccount::Transit)]==0,
-        "WITNESS step04 escrow arrival enables same-tick step07 wave start");
+        "WITNESS observer proves escrow arrival before step07 wave start");
 
     bp::Act3Runtime immune=World(1);
     const std::uint16_t witnessShell=immune.movement.physicalLedger.mass[

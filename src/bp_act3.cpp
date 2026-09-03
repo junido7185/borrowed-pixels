@@ -9,6 +9,10 @@
 namespace bp {
 namespace {
 
+#if defined(BP_TEST)
+std::uint16_t gStep04ProtocolMassForTest=0xFFFFu;
+#endif
+
 constexpr std::uint8_t AccountIndex(PhysicalAccount value) noexcept {
     return static_cast<std::uint8_t>(value);
 }
@@ -401,7 +405,9 @@ void AdvanceCurrentAction(CurrentRuntime& current, CurrentAction next) noexcept 
 }
 
 bool SpawnCurrentShot(Act3Runtime& state, std::uint16_t mass, Vec2Q8 direction) noexcept {
-    return CurrentProjectileCount(state) < kProjectileCapacity
+    // Opponent decisions run before player Charge handling. Always leave one
+    // shared projectile slot for a same-tick player Begin/ReleaseCharge.
+    return CurrentProjectileCount(state) < kProjectileCapacity-1u
         && SpawnScriptedProjectile(state.combat, state.movement.physicalLedger,
             CombatSide::Opponent, mass, state.combat.actors[1].position,
             direction, ProjectileSpeedQ8(mass));
@@ -452,13 +458,13 @@ bool TickCurrent(Act3Runtime& state) noexcept {
     switch (current.action) {
     case CurrentAction::Orbit:
         if (current.actionTicks == 1
-            && (shell < 105 || CurrentProjectileCount(state) > 24)) {
+            && (shell < 105 || CurrentProjectileCount(state) > 23)) {
             AdvanceCurrentAction(current, CurrentAction::ReturnA);
             return true;
         }
         if ((current.actionTicks-1u)%6u == 0 && current.orbitShots < 8) {
             if (ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]<49
-                || CurrentProjectileCount(state)>=kProjectileCapacity) {
+                || CurrentProjectileCount(state)>=kProjectileCapacity-1u) {
                 AdvanceCurrentAction(current,CurrentAction::ReturnA);
                 return true;
             }
@@ -488,7 +494,7 @@ bool TickCurrent(Act3Runtime& state) noexcept {
     }
     case CurrentAction::Wave:
         if (current.actionTicks == 1) {
-            if (shell < 105 || CurrentProjectileCount(state) > 28) {
+            if (shell < 105 || CurrentProjectileCount(state) > 27) {
                 AdvanceCurrentAction(current, CurrentAction::ReturnA);
                 return true;
             }
@@ -526,7 +532,8 @@ bool TickCurrent(Act3Runtime& state) noexcept {
         break;
     case CurrentAction::Foreclose:
         if (current.actionTicks == 1) {
-            if (shell < 89 || CurrentProjectileCount(state) >= kProjectileCapacity) {
+            if (shell < 89
+                || CurrentProjectileCount(state)>=kProjectileCapacity-1u) {
                 AdvanceCurrentAction(current, CurrentAction::ReturnB);
                 return true;
             }
@@ -547,7 +554,8 @@ bool TickCurrent(Act3Runtime& state) noexcept {
             const std::uint16_t available=static_cast<std::uint16_t>(
                 ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]
                 +foreclose.mass);
-            if (available<89 || CurrentProjectileCount(state)>=kProjectileCapacity) {
+            if (available<89
+                || CurrentProjectileCount(state)>=kProjectileCapacity-1u) {
                 if (!RollbackCharge(state.combat,ledger,CombatSide::Opponent)) return false;
                 AdvanceCurrentAction(current,CurrentAction::ReturnB);
                 return true;
@@ -1239,7 +1247,14 @@ bool TickAct3Runtime(Act3Runtime& state,const InputFrame& input) noexcept {
     }
     // Authority 32.9 step 04: pre-existing process Transit arrives before
     // HUD maturity and this tick's input arbitration.
+#if defined(BP_TEST)
+    gStep04ProtocolMassForTest=0xFFFFu;
+#endif
     if (state.encounterIndex==1 && !TickWitnessEscrowReturn(state)) return false;
+#if defined(BP_TEST)
+    if (state.encounterIndex==1) gStep04ProtocolMassForTest=ledger.mass[
+        AccountIndex(PhysicalAccount::ProtocolActive)];
+#endif
     InputFrame effective=input;
     if (state.movement.dashTicksRemaining>0) {
         ClearAction(effective,PlatformAction::HudReallocate);
@@ -1493,6 +1508,10 @@ bool ForceAct3EncounterSuccessForTest(Act3Runtime& state) noexcept {
 
 bool TickCurrentScriptForTest(Act3Runtime& state) noexcept {
     return TickCurrent(state);
+}
+
+std::uint16_t Act3Step04ProtocolMassForTest() noexcept {
+    return gStep04ProtocolMassForTest;
 }
 #endif
 

@@ -184,6 +184,7 @@ std::uint32_t Act3RuntimeHash(const Act3Runtime& state) noexcept;
 #if defined(BP_TEST)
 bool ForceAct3EncounterSuccessForTest(Act3Runtime& state) noexcept;
 bool TickCurrentScriptForTest(Act3Runtime& state) noexcept;
+std::uint16_t Act3Step04ProtocolMassForTest() noexcept;
 #endif
 
 }  // namespace bp

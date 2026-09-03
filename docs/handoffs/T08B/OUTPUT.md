@@ -24,6 +24,8 @@ IMPLEMENTED:
 - Exact 30-tick CHECKSUM retarget boundary and merge-safe UNSCORED provenance;
   WITNESS unregistered-Neutral push and step-04 escrow arrival; CURRENT
   cancellation recovery, step-10 movement, and common actor-body separation.
+- CURRENT multi-tick affordability and shared-slot reservation across ORBIT,
+  WAVE, and FORECLOSE, including same-tick player Charge and atomic WAVE burst.
 - Frozen two-line response copy for all nine Act 3 outcomes.
 - Battlefield validation, common pause/HUD/hit-freeze/settlement flow,
   padding-independent runtime hashing, palette rendering, and minimal tested
@@ -31,11 +33,11 @@ IMPLEMENTED:
 
 AUTOMATED RESULTS:
 
-- T08B 839 focused exhaustive checks PASS; all T02-T08A regressions PASS.
+- T08B 900 focused exhaustive checks PASS; all T02-T08A regressions PASS.
 - Windows x64 MSVC configure, clean Test, direct suite, CTest, clean Debug,
   debug smoke, clean Contest, live contest launch, and MAP reachability PASS.
 - dist/contest: one file, 227,840 bytes; internal and hard caps PASS.
-- Contest SHA-256: `051445738b6504de3ed9b6d94841cef2a227aefdd07811e6d08fb70e8e2ee0d5`.
+- Contest SHA-256: `1990cacfac26442cd5cb53cb175d8eb8aa5f5a10557be7a68b01c892bf2c9b1b`.
 
 GATES:
 
