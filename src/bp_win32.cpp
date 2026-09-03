@@ -9,6 +9,8 @@
 #include "bp_narrative.h"
 #include "bp_save.h"
 #include "bp_font.h"
+#include "bp_audio.h"
+#include "bp_options.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -72,10 +74,17 @@ struct PlatformState {
     bp::NarrativeRuntime narrativeFlow;
     bp::SaveBoundaryObserver saveObserver;
     bp::SaveData persistentSave;
+    bp::AudioState audio;
+    bp::OptionsRuntime optionsRuntime;
+    HWAVEOUT waveOut;
+    WAVEHDR audioHeaders[bp::kAudioBufferCount];
+    std::int16_t audioSamples[bp::kAudioBufferCount]
+        [bp::kAudioBufferFrames*bp::kAudioChannels];
     bool act2Active;
     bool act3Active;
     bool precedentActive;
     bool narrativeActive;
+    bool optionsActive;
     bool savePathReady;
     wchar_t saveDirectory[MAX_PATH];
     wchar_t savePath[MAX_PATH];
@@ -211,13 +220,15 @@ void PresentBackbuffer(PlatformState& state, HDC destination, const RECT& client
             bp::kCanvasHeight,
             bp::kCanvasWidth,
         };
-    if (state.narrativeActive) bp::RenderNarrativeRuntime(buffer,state.narrativeFlow);
+    if (state.optionsActive) bp::RenderOptionsRuntime(buffer,state.optionsRuntime);
+    else if (state.narrativeActive) bp::RenderNarrativeRuntime(buffer,state.narrativeFlow);
     else if (state.precedentActive) bp::RenderPrecedentRuntime(buffer, state.precedent);
     else if (state.act3Active) bp::RenderAct3Runtime(buffer, state.act3);
     else if (state.act2Active) bp::RenderAct2Runtime(buffer, state.act2);
     else bp::RenderAct1Runtime(buffer, state.act1);
     if (state.saveWarningTicks!=0)
         (void)bp::DrawLatin(buffer,210,168,"SAVE NOT WRITTEN",bp::PaletteColor::Warning);
+    bp::ApplyAccessibilityPostprocess(buffer,state.options);
     const std::int32_t clientWidth = client.right - client.left;
     const std::int32_t clientHeight = client.bottom - client.top;
     const bp::Viewport viewport = bp::ComputeViewport(clientWidth, clientHeight);
@@ -419,7 +430,7 @@ bool InitializeDpiAwareness() noexcept {
     return SetProcessDPIAware() != FALSE;
 }
 
-bool ProbeWaveOut() noexcept {
+bool InitializeWaveOut(PlatformState& state) noexcept {
     WAVEFORMATEX format{};
     format.wFormatTag = WAVE_FORMAT_PCM;
     format.nChannels = 2;
@@ -428,14 +439,59 @@ bool ProbeWaveOut() noexcept {
     format.nBlockAlign = static_cast<WORD>((format.nChannels * format.wBitsPerSample) / 8);
     format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
 
-    HWAVEOUT waveOut = nullptr;
-    const MMRESULT result = waveOutOpen(&waveOut, WAVE_MAPPER, &format, 0, 0, CALLBACK_NULL);
-    if (result != MMSYSERR_NOERROR) {
-        return false;
+    if (waveOutOpen(&state.waveOut,WAVE_MAPPER,&format,0,0,CALLBACK_NULL)
+        !=MMSYSERR_NOERROR) return false;
+    bp::InitializeAudio(state.audio,true);
+    for (std::uint8_t index=0;index<bp::kAudioBufferCount;++index) {
+        WAVEHDR& header=state.audioHeaders[index];
+        ZeroMemory(&header,sizeof(header));
+        header.lpData=reinterpret_cast<LPSTR>(state.audioSamples[index]);
+        header.dwBufferLength=sizeof(state.audioSamples[index]);
+        bp::RenderAudioFrames(state.audio,state.audioSamples[index],bp::kAudioBufferFrames);
+        if (waveOutPrepareHeader(state.waveOut,&header,sizeof(header))!=MMSYSERR_NOERROR
+            || waveOutWrite(state.waveOut,&header,sizeof(header))!=MMSYSERR_NOERROR) {
+            waveOutReset(state.waveOut);
+            for (std::uint8_t prepared=0;prepared<=index;++prepared)
+                if ((state.audioHeaders[prepared].dwFlags&WHDR_PREPARED)!=0)
+                    waveOutUnprepareHeader(state.waveOut,&state.audioHeaders[prepared],
+                        sizeof(WAVEHDR));
+            waveOutClose(state.waveOut);
+            state.waveOut=nullptr;
+            bp::InitializeAudio(state.audio,false);
+            return false;
+        }
     }
-    waveOutReset(waveOut);
-    waveOutClose(waveOut);
     return true;
+}
+
+bp::AudioEnding CurrentAudioEnding(const PlatformState& state) noexcept {
+    if (!state.narrativeActive||state.narrativeFlow.scene!=bp::NarrativeScene::Ending)
+        return bp::AudioEnding::None;
+    switch (state.narrativeFlow.ending) {
+    case bp::EndingId::Enough: return bp::AudioEnding::Enough;
+    case bp::EndingId::Rule: return bp::AudioEnding::Rule;
+    case bp::EndingId::Hand: return bp::AudioEnding::Hand;
+    case bp::EndingId::OpenLedger: return bp::AudioEnding::Open;
+    case bp::EndingId::One: return bp::AudioEnding::One;
+    }
+    return bp::AudioEnding::None;
+}
+
+void ServiceWaveOut(PlatformState& state) noexcept {
+    bp::SetAudioMixState(state.audio,bp::MasterVolume(state.options),
+        state.optionsActive,state.focused,CurrentAudioEnding(state));
+    if (!state.waveOut) return;
+    for (std::uint8_t index=0;index<bp::kAudioBufferCount;++index) {
+        WAVEHDR& header=state.audioHeaders[index];
+        if ((header.dwFlags&WHDR_DONE)==0) continue;
+        bp::RenderAudioFrames(state.audio,state.audioSamples[index],bp::kAudioBufferFrames);
+        header.dwFlags&=~WHDR_DONE;
+        if (waveOutWrite(state.waveOut,&header,sizeof(header))!=MMSYSERR_NOERROR) {
+            state.audioAvailable=false;
+            bp::InitializeAudio(state.audio,false);
+            return;
+        }
+    }
 }
 
 void InitializeXInput(PlatformState& state) noexcept {
@@ -919,6 +975,14 @@ void MaybeWriteBoundarySave(PlatformState& state) noexcept {
 }
 
 void ShutdownPlatform(PlatformState& state) noexcept {
+    if (state.waveOut) {
+        waveOutReset(state.waveOut);
+        for (std::uint8_t index=0;index<bp::kAudioBufferCount;++index)
+            if ((state.audioHeaders[index].dwFlags&WHDR_PREPARED)!=0)
+                waveOutUnprepareHeader(state.waveOut,&state.audioHeaders[index],sizeof(WAVEHDR));
+        waveOutClose(state.waveOut);
+        state.waveOut=nullptr;
+    }
     if (state.xinputModule) {
         FreeLibrary(state.xinputModule);
         state.xinputModule = nullptr;
@@ -951,6 +1015,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
     gPlatform = &state;
     state.running = true;
     state.focused = true;
+    state.options=10u;
     state.input.lastDevice = bp::InputDevice::KeyboardMouse;
     if (!bp::InitializeAct1Runtime(state.act1)) {
         return 2;
@@ -958,7 +1023,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
     LoadPersistentSave(state);
     state.windowedPlacement.length = sizeof(state.windowedPlacement);
     state.dpiAware = InitializeDpiAwareness();
-    state.audioAvailable = ProbeWaveOut();
+    state.audioAvailable = InitializeWaveOut(state);
+    if (!state.audioAvailable) bp::InitializeAudio(state.audio,false);
     InitializeXInput(state);
 
 #if defined(BP_DEBUG)
@@ -1034,7 +1100,24 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
             while (state.accumulator60 >= state.qpcFrequency.QuadPart && ticks < bp::kMaxCatchUpTicks) {
                 BuildInputFrame(state);
                 bool tickOk = true;
-                if (state.narrativeActive) {
+                if (!state.optionsActive && state.narrativeActive
+                    && state.narrativeFlow.scene==bp::NarrativeScene::Title
+                    && state.lastInputFrame.actions[ActionIndex(bp::PlatformAction::Pause)].pressed!=0) {
+                    bp::InitializeOptionsRuntime(state.optionsRuntime,state.options);
+                    state.optionsActive=true;
+                }
+                if (state.optionsActive) {
+                    tickOk=bp::TickOptionsRuntime(state.optionsRuntime,state.lastInputFrame);
+                    if (tickOk&&state.optionsRuntime.changed!=0) {
+                        const bool wasBorderless=bp::BorderlessEnabled(state.options);
+                        state.options=state.optionsRuntime.value;
+                        if (state.window&&wasBorderless!=bp::BorderlessEnabled(state.options))
+                            ToggleBorderlessFullscreen(state);
+                        WriteCurrentSave(state);
+                        (void)bp::QueueAudioEvent(state.audio,bp::AudioEvent::MenuMove);
+                    }
+                    if (state.optionsRuntime.closeRequested!=0) state.optionsActive=false;
+                } else if (state.narrativeActive) {
                     tickOk=bp::TickNarrativeRuntime(state.narrativeFlow,state.lastInputFrame);
                     if (tickOk && state.narrativeFlow.routeRequest
                             ==bp::NarrativeRouteRequest::NewRun) {
@@ -1102,6 +1185,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
         }
 
         PresentWindow(state);
+        ServiceWaveOut(state);
         ++state.renderFrame;
 
 #if defined(BP_DEBUG)
