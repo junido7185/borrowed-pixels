@@ -1,6 +1,6 @@
 T08A TEST RESULTS
 
-T08A_PASS checks=72094 adapter_ranges=49 frame_observations=1024
+T08A_PASS checks=72165 adapter_ranges=49 frame_observations=1024
 T07_PASS checks=2066 encounters=3 act1_ledgers=1440
 T05_PASS checks=4116 projectiles=32 neutrals=64
 T04_PASS checks=333093 replay_ticks=4096 replay=61646592
@@ -15,4 +15,5 @@ T08A coverage includes exact KEEPER/ADAPTER/FRAME definitions, all ADAPTER
 reclaim values 0..48 and exact settlements, all 1,024 FRAME boolean
 observations under all 63 nonempty availability masks, SWEEPER and COMPACTOR
 phase boundaries, process collision conservation, FRAME action mechanics,
-Act 2 scene reachability, palette pixels, and deterministic state hashing.
+tagged reclaim priority, Act 2 scene reachability, palette pixels, and
+deterministic state hashing.

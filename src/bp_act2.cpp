@@ -482,8 +482,25 @@ bool TickSweeperWave(CombatState& combat, PhysicalLedger& ledger,
         ++sweeper.waveTick;
         for (SlotHandle handle : sweeper.segments) {
             if (!CoverHandleValid(combat, handle)) continue;
-            combat.covers[handle.index].bounds.x = 12
+            CoverSlot& segment = combat.covers[handle.index];
+            segment.bounds.x = 12
                 + static_cast<std::int32_t>(296u * sweeper.waveTick / 90u);
+            for (NeutralSlot& neutral : combat.neutrals) {
+                if (neutral.active == 0
+                    || neutral.playerMissMass != 0 || neutral.opponentMissMass != 0
+                    || neutral.protocolTagMass != 0 || neutral.patchFeedMass != 0
+                    || neutral.adapterEscrowMass != 0 || neutral.structureMass != 0) continue;
+                const std::int32_t x = neutral.position.x / kQ8One;
+                const std::int32_t y = neutral.position.y / kQ8One;
+                if (x >= segment.bounds.x - 2
+                    && x <= segment.bounds.x + segment.bounds.width + 2
+                    && y >= segment.bounds.y - 2
+                    && y <= segment.bounds.y + segment.bounds.height + 2) {
+                    neutral.position.x = (segment.bounds.x + segment.bounds.width + 2) * kQ8One;
+                    const std::int32_t sweepVelocity = static_cast<std::int32_t>(296 * kQ8One / 90);
+                    if (neutral.velocity.x < sweepVelocity) neutral.velocity.x = sweepVelocity;
+                }
+            }
         }
         if (sweeper.waveTick >= 90) {
             for (SlotHandle handle : sweeper.segments) RemoveCoverHandle(combat, handle);
@@ -745,8 +762,19 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
         const std::int32_t speed = PixelsPerSecondToQ8PerTick(
             AdapterMaximumSpeedPixelsPerSecond(state.adapter.playerEscrow));
         if (state.combat.actors[1].position.x > 34 * kQ8One) {
-            state.combat.actors[1].position.x -= speed;
-            if (state.combat.actors[1].position.x <= 34 * kQ8One) state.adapter.adapterArrived = 1;
+            CombatActor& adapter = state.combat.actors[1];
+            constexpr std::int32_t acceleration = PixelsPerSecondSquaredToQ8PerTickSquared(500);
+            adapter.velocity.x -= acceleration;
+            adapter.velocity.y = TruncMultiplyDivide(adapter.velocity.y, 86, 100);
+            ClampVectorLength(adapter.velocity, speed);
+            adapter.position.x += adapter.velocity.x;
+            adapter.position.y += adapter.velocity.y;
+            const CollisionResolution boundary = ClampCircleToRect(adapter.position,
+                ActorRadiusPixels(ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]),
+                kPlayInterior);
+            if (boundary.shiftXQ8 != 0) adapter.velocity.x = 0;
+            if (boundary.shiftYQ8 != 0) adapter.velocity.y = 0;
+            if (adapter.position.x <= 34 * kQ8One) state.adapter.adapterArrived = 1;
         }
     } else if (state.encounterTick % kFrameDecisionTicks == 0
         && state.frame.actionCooldown == 0) {

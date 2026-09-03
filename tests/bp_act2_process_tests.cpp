@@ -230,6 +230,8 @@ void TestProcessesAndPopulation() noexcept {
         "KEEPER shell includes 80 structure and 16 body");
     Check(bp::StartSweeperWave(state.combat, state.movement.physicalLedger, state.keeper.sweeper),
         "SWEEPER eight-segment wave starts");
+    state.combat.neutrals[state.neutrals[0].index].position =
+        bp::Vec2Q8{15 * bp::kQ8One, 34 * bp::kQ8One};
     for (std::uint8_t index = 0; index < bp::kSweeperSegmentCount; ++index) {
         const bp::CoverSlot& segment = state.combat.covers[state.keeper.sweeper.segments[index].index];
         Check(segment.mass == 4 && segment.bounds.width == 4 && segment.bounds.height == 8,
@@ -239,6 +241,8 @@ void TestProcessesAndPopulation() noexcept {
         Check(bp::TickSweeperWave(state.combat, state.movement.physicalLedger, state.keeper.sweeper),
             "SWEEPER advances each crossing tick");
     }
+    Check(state.combat.neutrals[state.neutrals[0].index].position.x > 15 * bp::kQ8One,
+        "SWEEPER pushes unregistered Neutral into interior escrow");
     Check(state.keeper.sweeper.returning == 1, "SWEEPER enters 36-tick return phase");
     for (std::uint16_t tick = 0; tick < 36; ++tick) {
         Check(bp::TickSweeperWave(state.combat, state.movement.physicalLedger, state.keeper.sweeper),
@@ -271,12 +275,54 @@ void TestProcessesAndPopulation() noexcept {
     }
     Check(state.adapter.compactor.active == 0, "COMPACTOR completes at 300 ticks");
 
+    const std::uint16_t escrowIndex = state.neutrals[0].index;
+    state.combat.actors[0].position = state.combat.neutrals[escrowIndex].position;
+    state.combat.actors[0].aimDirectionQ15 = bp::Vec2Q8{bp::kInputUnit, 0};
+    bp::ReclaimTickResult escrowResult{};
+    Check(bp::TickReclaim(state.combat, state.movement.physicalLedger, state.reclaim,
+        true, false, escrowResult), "ADAPTER escrow reclaim accumulator tick one");
+    Check(bp::TickReclaim(state.combat, state.movement.physicalLedger, state.reclaim,
+        true, false, escrowResult), "ADAPTER escrow reclaim accumulator tick two");
+    Check(escrowResult.playerMass == 1 && escrowResult.playerAdapterEscrowMass == 1,
+        "ADAPTER reclaim reports escrow provenance exactly");
+
+    bp::Act2Runtime adapterMotion{};
+    Check(bp::InitializeAct2Runtime(adapterMotion, claims, narrative), "ADAPTER motion world initializes");
+    adapterMotion.encounterIndex = 1;
+    adapterMotion.scene = bp::Act2Scene::Playing;
+    Check(bp::PopulateAct2Encounter(adapterMotion), "ADAPTER motion world populates");
+    const bp::InputFrame idle = Input();
+    for (std::uint8_t tick = 0; tick < 60; ++tick) {
+        Check(bp::TickAct2Runtime(adapterMotion, idle), "ADAPTER shared acceleration movement advances");
+    }
+    Check(adapterMotion.combat.actors[1].position.x < 274 * bp::kQ8One,
+        "ADAPTER accelerates toward its opposite exit");
+    const std::int32_t adapterSpeed = bp::IntegerSqrt(
+        static_cast<std::uint64_t>(static_cast<std::int64_t>(adapterMotion.combat.actors[1].velocity.x)
+            * adapterMotion.combat.actors[1].velocity.x)
+        + static_cast<std::uint64_t>(static_cast<std::int64_t>(adapterMotion.combat.actors[1].velocity.y)
+            * adapterMotion.combat.actors[1].velocity.y));
+    Check(adapterSpeed <= bp::PixelsPerSecondToQ8PerTick(88),
+        "ADAPTER movement clamps to authoritative 88px/s maximum");
+
     state.encounterIndex = 2;
     state.keeper.destroyedStructures = 2;
     Check(bp::PopulateAct2Encounter(state), "FRAME population succeeds");
     Check(state.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Cover)] == 320
         && state.movement.physicalLedger.mass[AccountIndex(bp::PhysicalAccount::Neutral)] == 160,
         "two destroyed KEEPER structures open two FRAME panels without mass loss");
+    const std::uint16_t structureIndex = state.neutrals[0].index;
+    state.combat.neutrals[structureIndex].structureMass = 8;
+    state.combat.actors[1].position = state.combat.neutrals[structureIndex].position;
+    state.combat.actors[1].aimDirectionQ15 = bp::Vec2Q8{bp::kInputUnit, 0};
+    bp::ReclaimTickResult structureResult{};
+    Check(bp::TickReclaim(state.combat, state.movement.physicalLedger, state.reclaim,
+        false, true, structureResult, true), "FRAME structure-priority reclaim tick one");
+    Check(bp::TickReclaim(state.combat, state.movement.physicalLedger, state.reclaim,
+        false, true, structureResult, true), "FRAME structure-priority reclaim tick two");
+    Check(structureResult.opponentTarget == structureIndex
+        && structureResult.opponentStructureMass == 1,
+        "FRAME RECLAIM chooses own structure provenance before nearest general Neutral");
 }
 
 void TestRuntimeReachabilityAndPixels() noexcept {
