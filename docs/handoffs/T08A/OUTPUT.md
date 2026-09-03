@@ -38,7 +38,9 @@ GATES:
 
 - Gate 3/4 subjective findings remain HUMAN_REVIEW_DEFERRED.
 - Independent reviews reported P1 counts 6, 3, then 1; every finding was
-  repaired and regression-tested. Final exact-SHA review remains pending.
+  repaired and regression-tested. Final code SHA `62fde282...` review:
+  P0=0/P1=0/P2=0 PASS.
 - No push, tag, publication, submission, or merge was performed on the ticket branch.
 
-STATUS: candidate preparation; not externally accepted or released.
+STATUS: ready for approved local fast-forward integration; not externally
+accepted or released.

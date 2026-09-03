@@ -24,7 +24,10 @@ Second-review repairs:
 - removed ADAPTER menu input and FRAME choice copy; behavior goes through an
   allocation-only Preview and automatic CommitTransit.
 
-Final exact-candidate review: PENDING.
+Final code-candidate review of 62fde282f60de5439eea42a9715cb6f15c6419ff:
+PASS P0=0 P1=0 P2=0. Direct T08A and full regression PASS; CTest 1/1;
+dist 206336 bytes; contest SHA-256
+ce910ed6afda19a285de275511a5c70f3e54cb2747bfa85c5ddd07b18a33e831.
 
 Third review of b894edb01925719a2a4a12e2e0cfcfc0b5c1d315:
 FAIL P0=0 P1=1 P2=0. Damaged-panel action availability did not share
