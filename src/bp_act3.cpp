@@ -457,6 +457,11 @@ bool TickCurrent(Act3Runtime& state) noexcept {
             return true;
         }
         if ((current.actionTicks-1u)%6u == 0 && current.orbitShots < 8) {
+            if (ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]<49
+                || CurrentProjectileCount(state)>=kProjectileCapacity) {
+                AdvanceCurrentAction(current,CurrentAction::ReturnA);
+                return true;
+            }
             const std::uint8_t phase = static_cast<std::uint8_t>(
                 (current.cycleIndex + current.orbitShots*2u)&15u);
             if (!SpawnCurrentShot(state, 8, kOrbitDirections[phase])) return false;
@@ -491,10 +496,13 @@ bool TickCurrent(Act3Runtime& state) noexcept {
                 state.combat.actors[0].position.x-state.combat.actors[1].position.x,
                 state.combat.actors[0].position.y-state.combat.actors[1].position.y});
             constexpr std::int8_t angles[4] = {-24,-8,8,24};
+            Act3Runtime candidate=state;
             for (std::int8_t angle : angles) {
-                if (!SpawnCurrentShot(state, 16, RotateCurrentDirection(toward,angle))) return false;
+                if (!SpawnCurrentShot(candidate,16,
+                        RotateCurrentDirection(toward,angle))) return false;
             }
-            AdvanceCurrentAction(current, CurrentAction::ReturnA);
+            AdvanceCurrentAction(candidate.current,CurrentAction::ReturnA);
+            state=candidate;
         }
         break;
     case CurrentAction::ReturnA:
@@ -530,6 +538,20 @@ bool TickCurrent(Act3Runtime& state) noexcept {
                     current.forecloseAim)) return false;
         }
         if (state.combat.charges[1].active!=0) {
+            // The affordability rule applies through release, not only when the
+            // 75-tick channel begins.  Charge damage or later Shell damage can
+            // otherwise leave CURRENT unable to fund mass48 while retaining
+            // Shell41.  Cancel atomically into RETURN instead of underfunding or
+            // turning the encounter fatal.
+            const ChargeSlot& foreclose=state.combat.charges[1];
+            const std::uint16_t available=static_cast<std::uint16_t>(
+                ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]
+                +foreclose.mass);
+            if (available<89 || CurrentProjectileCount(state)>=kProjectileCapacity) {
+                if (!RollbackCharge(state.combat,ledger,CombatSide::Opponent)) return false;
+                AdvanceCurrentAction(current,CurrentAction::ReturnB);
+                return true;
+            }
             state.combat.actors[1].aimDirectionQ15 = current.forecloseAim;
             if (!AdvanceCharge(state.combat, ledger, CombatSide::Opponent)) return false;
             if (current.actionTicks>=75) {

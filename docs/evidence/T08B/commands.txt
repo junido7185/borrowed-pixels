@@ -23,5 +23,15 @@ T08B FINAL VERIFICATION COMMANDS
 11. dumpbin.exe /dependents dist/contest/BorrowedPixels.exe
     EXIT 0
 
+REPAIR NOTES
+
+- An initial focused invocation used the obsolete path
+  `build/test/bp_test.exe` and exited 1 after the build itself succeeded.
+  The generated executable was then run from the configured preset path
+  `build/windows-msvc/bin/TEST/bp_test.exe` and passed.
+- An initial dependency invocation used unqualified `dumpbin.exe` and exited 1
+  because that shell did not inherit the VS developer PATH. The identical
+  inspection was rerun with the discovered MSVC 14.39 absolute path and passed.
+
 FINAL EXE: 227840 bytes
-FINAL SHA-256: 09e30a22d63e513b16ff51430e0e8c3a48c93ffc4edc01314b4168ab4f6dd1ba
+FINAL SHA-256: 051445738b6504de3ed9b6d94841cef2a227aefdd07811e6d08fb70e8e2ee0d5

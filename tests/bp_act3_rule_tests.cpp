@@ -233,6 +233,45 @@ void TestPopulationAndPhysicalMass() noexcept {
         && saturated.current.action==bp::CurrentAction::ReturnA,
         "CURRENT skips ORBIT when eight projectile slots are unavailable");
 
+    bp::Act3Runtime orbitDamaged=World(2);
+    Check(bp::PhysicalTransfer(orbitDamaged.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,57)
+        && bp::TickCurrentScriptForTest(orbitDamaged)
+        && orbitDamaged.current.orbitShots==1,
+        "CURRENT ORBIT begins with exact mass64 plus shell41 budget");
+    Check(bp::PhysicalTransfer(orbitDamaged.movement.physicalLedger,
+        bp::PhysicalAccount::OpponentShell,bp::PhysicalAccount::LockedBands,56),
+        "CURRENT ORBIT damage fixture reduces shell to reserve");
+    bool orbitAdvanced=true;
+    for (std::uint8_t tick=0;tick<6;++tick)
+        orbitAdvanced=orbitAdvanced && bp::TickCurrentScriptForTest(orbitDamaged);
+    Check(orbitAdvanced && orbitDamaged.current.action==bp::CurrentAction::ReturnA
+        && orbitDamaged.current.orbitShots==0
+        && orbitDamaged.movement.physicalLedger.mass[
+            Account(bp::PhysicalAccount::OpponentShell)]==41,
+        "CURRENT damaged ORBIT skips remaining shots while preserving shell41");
+
+    bp::Act3Runtime orbitFull=World(2);
+    Check(bp::PhysicalTransfer(orbitFull.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,57)
+        && bp::PhysicalTransfer(orbitFull.movement.physicalLedger,
+            bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::PlayerShell,120)
+        && bp::TickCurrentScriptForTest(orbitFull),
+        "CURRENT ORBIT slot saturation fixture begins");
+    for (std::uint8_t i=0;i<15;++i)
+        Check(bp::SpawnScriptedProjectile(orbitFull.combat,
+            orbitFull.movement.physicalLedger,bp::CombatSide::Player,8,
+            bp::Vec2Q8{40*bp::kQ8One,40*bp::kQ8One},
+            bp::Vec2Q8{bp::kInputUnit,0},1),
+            "CURRENT ORBIT fills a remaining shared projectile slot");
+    bool fullAdvanced=true;
+    for (std::uint8_t tick=0;tick<6;++tick)
+        fullAdvanced=fullAdvanced && bp::TickCurrentScriptForTest(orbitFull);
+    Check(fullAdvanced && orbitFull.current.action==bp::CurrentAction::ReturnA
+        && orbitFull.current.orbitShots==0
+        && bp::PhysicalLedgerTotal(orbitFull.movement.physicalLedger)==bp::kLedgerTotal,
+        "CURRENT saturated ORBIT skips remaining shots without fatal state");
+
     bp::Act3Runtime foreclose=World(2);
     Check(bp::PhysicalTransfer(foreclose.movement.physicalLedger,
         bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,41),
@@ -276,6 +315,36 @@ void TestPopulationAndPhysicalMass() noexcept {
     Check(bp::TickCurrentScriptForTest(cancelled)
         && cancelled.current.action==bp::CurrentAction::ReturnB,
         "CURRENT cancelled FORECLOSE advances to RETURN without softlock");
+
+    bp::Act3Runtime damaged=World(2);
+    Check(bp::PhysicalTransfer(damaged.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,41),
+        "CURRENT damaged FORECLOSE fixture funds shell41 reserve");
+    damaged.current.action=bp::CurrentAction::Foreclose;
+    bool charged=true;
+    for (std::uint8_t tick=0;tick<48;++tick)
+        charged=charged && bp::TickCurrentScriptForTest(damaged);
+    Check(charged && damaged.combat.charges[1].mass==32
+        && damaged.movement.physicalLedger.mass[
+            Account(bp::PhysicalAccount::OpponentShell)]==57,
+        "CURRENT damaged FORECLOSE reaches mass32 with shell57");
+    damaged.combat.actors[1].projectileImmune=1;
+    Check(bp::SpawnScriptedProjectile(damaged.combat,
+        damaged.movement.physicalLedger,bp::CombatSide::Player,8,
+        damaged.combat.charges[1].position,bp::Vec2Q8{bp::kInputUnit,0},1)
+        && bp::StepCombatProjectiles(damaged.combat,
+            damaged.movement.physicalLedger,damaged.claimLedger)
+        && damaged.combat.charges[1].active!=0
+        && damaged.combat.charges[1].mass==24,
+        "CURRENT FORECLOSE charge accepts partial damage");
+    Check(bp::TickCurrentScriptForTest(damaged)
+        && damaged.current.action==bp::CurrentAction::ReturnB
+        && damaged.combat.charges[1].active==0
+        && damaged.movement.physicalLedger.mass[
+            Account(bp::PhysicalAccount::OpponentShell)]==81
+        && bp::PhysicalLedgerTotal(damaged.movement.physicalLedger)==bp::kLedgerTotal
+        && bp::CombatStateValid(damaged.combat,damaged.movement.physicalLedger),
+        "CURRENT damaged FORECLOSE cancels when mass48 plus shell41 is unaffordable");
 
     bp::Act3Runtime ordered=World(2);
     Check(bp::PhysicalTransfer(ordered.movement.physicalLedger,
@@ -427,6 +496,24 @@ void TestChecksumAndWitnessProcesses() noexcept {
         && defended.movement.physicalLedger.mass[Account(bp::PhysicalAccount::ProtocolActive)]==32
         && defended.witness.sweeperReturning==0,
         "WITNESS ProtocolEscrow returns over exact 36 ticks");
+
+    bp::Act3Runtime orderedReturn=World(1);
+    Check(bp::PhysicalTransfer(orderedReturn.movement.physicalLedger,
+        bp::PhysicalAccount::ProtocolActive,bp::PhysicalAccount::Transit,4),
+        "WITNESS step04 ordering fixture escrows protocol4");
+    orderedReturn.witness.protocolEscrowMass=4;
+    orderedReturn.witness.sweeperReturnTick=35;
+    orderedReturn.witness.sweeperReturning=1;
+    orderedReturn.encounterTick=1200;
+    Check(bp::TickAct3Runtime(orderedReturn,Input())
+        && orderedReturn.witness.sweeperReturning==0
+        && orderedReturn.witness.sweeperActive!=0
+        && orderedReturn.witness.sweeperTick==1
+        && orderedReturn.movement.physicalLedger.mass[
+            Account(bp::PhysicalAccount::ProtocolActive)]==32
+        && orderedReturn.movement.physicalLedger.mass[
+            Account(bp::PhysicalAccount::Transit)]==0,
+        "WITNESS step04 escrow arrival enables same-tick step07 wave start");
 
     bp::Act3Runtime immune=World(1);
     const std::uint16_t witnessShell=immune.movement.physicalLedger.mass[

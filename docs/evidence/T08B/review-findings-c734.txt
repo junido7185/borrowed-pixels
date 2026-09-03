@@ -1,0 +1,22 @@
+T08B INDEPENDENT REVIEW OF c734d8bcd0a89600c32dcf99a9ac55d10d9ac661
+
+RESULT: P0=0 P1=2 P2=1; NOT_ELIGIBLE
+
+P1 repairs applied after review:
+
+1. CURRENT FORECLOSE now rechecks combined charge plus OpponentShell mass on
+   every channel tick. If mass48 plus Shell41 cannot be retained, it atomically
+   rolls charge back and enters RETURN instead of underfunding or failing.
+2. CURRENT ORBIT now rechecks Shell49 and a free shared projectile slot at each
+   scheduled shot. A later damage/capacity change skips remaining fire into
+   RETURN. WAVE four-shot creation is staged on a candidate runtime so failure
+   cannot partially commit the burst.
+
+P2 repair applied after review:
+
+3. The WITNESS escrow-order test now creates a 35/36 return at encounter tick
+   1200 and proves step04 completion enables the same-tick step07 wave start.
+   This distinguishes the required ordering from the former step07 placement.
+
+The repaired executable requires a fresh independent final review. This file
+records the superseded review only and does not claim eligibility.

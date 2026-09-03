@@ -31,11 +31,11 @@ IMPLEMENTED:
 
 AUTOMATED RESULTS:
 
-- T08B 805 focused exhaustive checks PASS; all T02-T08A regressions PASS.
+- T08B 839 focused exhaustive checks PASS; all T02-T08A regressions PASS.
 - Windows x64 MSVC configure, clean Test, direct suite, CTest, clean Debug,
   debug smoke, clean Contest, live contest launch, and MAP reachability PASS.
 - dist/contest: one file, 227,840 bytes; internal and hard caps PASS.
-- Contest SHA-256: `09e30a22d63e513b16ff51430e0e8c3a48c93ffc4edc01314b4168ab4f6dd1ba`.
+- Contest SHA-256: `051445738b6504de3ed9b6d94841cef2a227aefdd07811e6d08fb70e8e2ee0d5`.
 
 GATES:
 
