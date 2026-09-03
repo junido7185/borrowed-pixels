@@ -86,8 +86,17 @@ struct NeutralSlot {
     std::uint16_t opponentMissMass;
     std::uint16_t protocolTagMass;
     std::uint16_t patchFeedMass;
+    std::uint16_t adapterEscrowMass;
+    std::uint16_t structureMass;
     std::uint8_t inertiaTicks;
     std::uint8_t active;
+};
+
+enum class CoverBehavior : std::uint8_t {
+    Standard = 0,
+    OwnedStructure,
+    Compactor,
+    Sweeper,
 };
 
 struct CoverSlot {
@@ -95,6 +104,8 @@ struct CoverSlot {
     std::uint32_t stableId;
     std::uint16_t generation;
     std::uint16_t mass;
+    PhysicalAccount backingAccount;
+    CoverBehavior behavior;
     std::uint8_t active;
 };
 
@@ -172,6 +183,15 @@ bool AddCover(
     CombatState& state,
     const RectPixels& bounds,
     std::uint16_t mass,
+    SlotHandle& handle) noexcept;
+// CROSS_TICKET_GLUE: Act 2 processes and owned structures participate in the
+// deterministic collision sweep while retaining their authoritative account.
+bool AddBackedCover(
+    CombatState& state,
+    const RectPixels& bounds,
+    std::uint16_t mass,
+    PhysicalAccount backingAccount,
+    CoverBehavior behavior,
     SlotHandle& handle) noexcept;
 bool AddNeutral(
     CombatState& state,

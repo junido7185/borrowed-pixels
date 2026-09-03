@@ -1,0 +1,10 @@
+T08A CONTEST DEPENDENCIES
+
+dumpbin /dependents dist/contest/BorrowedPixels.exe:
+
+- KERNEL32.dll
+- USER32.dll
+- GDI32.dll
+- WINMM.dll
+
+No third-party runtime or external library was added.

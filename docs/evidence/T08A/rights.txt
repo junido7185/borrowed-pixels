@@ -1,0 +1,5 @@
+T08A RIGHTS / PROVENANCE
+
+- No downloaded asset, external library, generated media, or third-party runtime was added.
+- New visuals are code-rendered from the existing palette and repository font.
+- The contest package contains only the locally compiled BorrowedPixels.exe.

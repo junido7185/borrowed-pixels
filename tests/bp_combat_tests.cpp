@@ -763,6 +763,61 @@ void TestExplicitShellHitEvent() noexcept {
         "actual player Shell hit records exact stripped mass");
 }
 
+void TestAct2BackedCoverProcesses() noexcept {
+    bp::SlotHandle handle{};
+
+    World structure = MakeWorld(240, 112, 0, 0);
+    Check(bp::AddBackedCover(structure.combat, bp::RectPixels{100, 86, 16, 8}, 16,
+        bp::PhysicalAccount::OpponentShell, bp::CoverBehavior::OwnedStructure, handle),
+        "owned structure enters shared collision sweep");
+    const std::uint16_t structureShot = SeedProjectile(structure, bp::CombatSide::Player, 8,
+        bp::Vec2Q8{90 * bp::kQ8One, 90 * bp::kQ8One}, bp::Vec2Q8{20 * bp::kQ8One, 0});
+    Check(bp::StepCombatProjectiles(structure.combat, structure.ledger, structure.claims),
+        "owned structure impact resolves");
+    const std::uint16_t structureNeutral = FindNeutral(structure);
+    Check(structureNeutral != bp::kInvalidSlotIndex
+        && structure.combat.neutrals[structureNeutral].structureMass == 8,
+        "owned structure damage retains exact provenance");
+    Check(structure.ledger.mass[AccountIndex(bp::PhysicalAccount::OpponentShell)] == 88
+        && structure.ledger.mass[AccountIndex(bp::PhysicalAccount::Cover)] == 0,
+        "owned structure debits opponent shell rather than field cover");
+    Check(structureShot != bp::kInvalidSlotIndex, "owned structure projectile seeded");
+    CheckWorld(structure, "owned structure collision conserves mass");
+
+    World compactor = MakeWorld();
+    Check(bp::AddBackedCover(compactor.combat, bp::RectPixels{100, 86, 16, 8}, 32,
+        bp::PhysicalAccount::ProtocolActive, bp::CoverBehavior::Compactor, handle),
+        "compactor backed cover accepted");
+    SeedProjectile(compactor, bp::CombatSide::Player, 8,
+        bp::Vec2Q8{90 * bp::kQ8One, 90 * bp::kQ8One}, bp::Vec2Q8{20 * bp::kQ8One, 0});
+    Check(bp::StepCombatProjectiles(compactor.combat, compactor.ledger, compactor.claims),
+        "compactor impact resolves");
+    Check(compactor.combat.covers[handle.index].mass == 32
+        && compactor.ledger.mass[AccountIndex(bp::PhysicalAccount::ProtocolActive)] == 32,
+        "compactor process mass is indestructible");
+    Check(compactor.ledger.mass[AccountIndex(bp::PhysicalAccount::Neutral)] == 8,
+        "compactor turns projectile into ordinary neutral");
+    CheckWorld(compactor, "compactor collision conserves mass");
+
+    World sweeper = MakeWorld();
+    Check(bp::AddBackedCover(sweeper.combat, bp::RectPixels{100, 86, 4, 8}, 4,
+        bp::PhysicalAccount::ProtocolActive, bp::CoverBehavior::Sweeper, handle),
+        "sweeper segment backed cover accepted");
+    SeedProjectile(sweeper, bp::CombatSide::Player, 8,
+        bp::Vec2Q8{90 * bp::kQ8One, 90 * bp::kQ8One}, bp::Vec2Q8{20 * bp::kQ8One, 0});
+    Check(bp::StepCombatProjectiles(sweeper.combat, sweeper.ledger, sweeper.claims),
+        "sweeper cancellation resolves");
+    Check(!bp::CoverHandleValid(sweeper.combat, handle)
+        && sweeper.ledger.mass[AccountIndex(bp::PhysicalAccount::Transit)] == 4,
+        "cancelled protocol segment enters transit escrow");
+    const std::uint16_t remaining = FindProjectile(sweeper, bp::CombatSide::Player);
+    Check(remaining != bp::kInvalidSlotIndex && sweeper.combat.projectiles[remaining].mass == 4,
+        "remaining player projectile continues after equal cancellation");
+    Check(sweeper.ledger.mass[AccountIndex(bp::PhysicalAccount::Neutral)] == 4,
+        "cancelled player mass becomes ordinary neutral");
+    CheckWorld(sweeper, "sweeper collision conserves mass");
+}
+
 void TestNeutralSaturationRecoveryAndInvariantFailure() noexcept {
     World full = MakeWorld(240, 64, 0, 64);
     for (std::uint16_t index = 0; index < bp::kNeutralCapacity; ++index) {
@@ -842,6 +897,7 @@ struct T05TestRunner {
         TestSweptCoverGridAndStress();
         TestRectangularProjectileSweep();
         TestExplicitShellHitEvent();
+        TestAct2BackedCoverProcesses();
         TestNeutralSaturationRecoveryAndInvariantFailure();
         if (gT05Failures != 0) {
             std::printf("T05_FAIL\tchecks=%u\tfailures=%u\n", gT05Checks, gT05Failures);

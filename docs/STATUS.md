@@ -1,10 +1,10 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
 - Latest integrated candidate SHA: `c04cab5551660446742a9a114f52d413fa6a3eb7`
-- Current controller state: `T08A_IMPLEMENTATION`
+- Current controller state: `T08A_CANDIDATE_PREPARATION`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: T08A Act 2 process encounters
-- Contest dist: `183,808B` (T07 delta `+54,784B`, Human Director byte-budget reapproved)
+- Contest dist: `198,144B` (T08A delta `+14,336B`, internal cap PASS)
 
 | Ticket | State | Evidence |
 |---|---|---|
@@ -16,7 +16,8 @@
 | T05 | LOCALLY_INTEGRATED | Candidate `f8f1c042...`; post-integration full regression PASS; independent review P0/P1=0, P2=1 test-only fault-injection debt |
 | T06 | LOCALLY_INTEGRATED | Candidate `70a2ae0b...`; post-integration full regression PASS; final independent review P0/P1/P2=0 |
 | T07 | LOCALLY_INTEGRATED | Candidate `c04cab55...`; Human Director byte-budget reapproval; post-integration full regression PASS |
-| T08-T14 | PENDING | Sequential controller execution |
+| T08A | CANDIDATE_PREPARATION | 72,094 checks; full regression and dist PASS; independent review pending |
+| T08B-T14 | PENDING | Sequential controller execution |
 
 ## Gate status
 

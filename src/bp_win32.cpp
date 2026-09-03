@@ -3,6 +3,7 @@
 #include "bp_platform.h"
 #include "bp_render.h"
 #include "bp_encounter.h"
+#include "bp_act2.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -60,6 +61,8 @@ struct PlatformState {
     PendingInput input;
     bp::InputFrame lastInputFrame;
     bp::Act1Runtime act1;
+    bp::Act2Runtime act2;
+    bool act2Active;
     std::uint32_t globalTick;
     std::uint32_t renderFrame;
     bool running;
@@ -179,14 +182,14 @@ void UpdateMousePosition(PlatformState& state, std::int32_t clientX, std::int32_
 }
 
 void PresentBackbuffer(PlatformState& state, HDC destination, const RECT& client) noexcept {
-    bp::RenderAct1Runtime(
-        bp::PixelBuffer{
+    const bp::PixelBuffer buffer{
             state.backbuffer.pixels,
             bp::kCanvasWidth,
             bp::kCanvasHeight,
             bp::kCanvasWidth,
-        },
-        state.act1);
+        };
+    if (state.act2Active) bp::RenderAct2Runtime(buffer, state.act2);
+    else bp::RenderAct1Runtime(buffer, state.act1);
     const std::int32_t clientWidth = client.right - client.left;
     const std::int32_t clientHeight = client.bottom - client.top;
     const bp::Viewport viewport = bp::ComputeViewport(clientWidth, clientHeight);
@@ -828,7 +831,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
             std::uint32_t ticks = 0;
             while (state.accumulator60 >= state.qpcFrequency.QuadPart && ticks < bp::kMaxCatchUpTicks) {
                 BuildInputFrame(state);
-                if (!bp::TickAct1Runtime(state.act1, state.lastInputFrame)) {
+                bool tickOk = true;
+                if (!state.act2Active) {
+                    tickOk = bp::TickAct1Runtime(state.act1, state.lastInputFrame);
+                    if (tickOk && state.act1.scene == bp::Act1Scene::ContinueReady) {
+                        tickOk = bp::InitializeAct2Runtime(
+                            state.act2, state.act1.claimLedger, state.act1.narrative);
+                        state.act2Active = tickOk;
+                    }
+                } else {
+                    tickOk = bp::TickAct2Runtime(state.act2, state.lastInputFrame);
+                }
+                if (!tickOk) {
                     state.running = false;
                     break;
                 }

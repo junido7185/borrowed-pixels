@@ -124,7 +124,8 @@ void ConsumeProvenance(NeutralSlot& neutral, CombatSide side) noexcept {
         : neutral.playerMissMass;
     const std::uint16_t general = static_cast<std::uint16_t>(
         neutral.mass - neutral.playerMissMass - neutral.opponentMissMass
-        - neutral.protocolTagMass - neutral.patchFeedMass);
+        - neutral.protocolTagMass - neutral.patchFeedMass
+        - neutral.adapterEscrowMass - neutral.structureMass);
     if (ownMiss > 0) --ownMiss;
     else if (general == 0 && otherMiss > 0) --otherMiss;
 }
@@ -136,6 +137,8 @@ bool AbsorbOne(CombatState& state, PhysicalLedger& ledger, ReclaimState& reclaim
     if (!PhysicalTransfer(ledger, PhysicalAccount::Neutral, ShellAccount(side), 1)) return false;
     if (neutral.protocolTagMass > 0) --neutral.protocolTagMass;
     else if (neutral.patchFeedMass > 0) --neutral.patchFeedMass;
+    else if (neutral.adapterEscrowMass > 0) --neutral.adapterEscrowMass;
+    else if (neutral.structureMass > 0) --neutral.structureMass;
     else ConsumeProvenance(neutral, side);
     --neutral.mass;
     reclaim.accumulator[SideIndex(side)] = static_cast<std::uint16_t>(
@@ -145,6 +148,8 @@ bool AbsorbOne(CombatState& state, PhysicalLedger& ledger, ReclaimState& reclaim
         neutral.opponentMissMass = 0;
         neutral.protocolTagMass = 0;
         neutral.patchFeedMass = 0;
+        neutral.adapterEscrowMass = 0;
+        neutral.structureMass = 0;
         neutral.reclaimLockTicks = 0;
         neutral.immunityTicks = 0;
         neutral.inertiaTicks = 0;
@@ -163,6 +168,10 @@ void MergePair(NeutralSlot& survivor, NeutralSlot& released) noexcept {
         survivor.protocolTagMass + released.protocolTagMass);
     survivor.patchFeedMass = static_cast<std::uint16_t>(
         survivor.patchFeedMass + released.patchFeedMass);
+    survivor.adapterEscrowMass = static_cast<std::uint16_t>(
+        survivor.adapterEscrowMass + released.adapterEscrowMass);
+    survivor.structureMass = static_cast<std::uint16_t>(
+        survivor.structureMass + released.structureMass);
     if (released.reclaimLockTicks > survivor.reclaimLockTicks) {
         survivor.reclaimLockTicks = released.reclaimLockTicks;
     }
@@ -177,6 +186,8 @@ void MergePair(NeutralSlot& survivor, NeutralSlot& released) noexcept {
     released.opponentMissMass = 0;
     released.protocolTagMass = 0;
     released.patchFeedMass = 0;
+    released.adapterEscrowMass = 0;
+    released.structureMass = 0;
     released.reclaimLockTicks = 0;
     released.immunityTicks = 0;
     released.inertiaTicks = 0;
@@ -287,10 +298,11 @@ bool MergeNeutralClusters(CombatState& state, const PhysicalLedger& ledger) noex
     return true;
 }
 
-std::uint16_t FindReclaimTarget(
+std::uint16_t FindReclaimTargetInternal(
     const CombatState& state,
     CombatSide side,
-    Vec2Q8 aimDirectionQ15) noexcept {
+    Vec2Q8 aimDirectionQ15,
+    bool structureOnly) noexcept {
     const std::uint8_t sideIndex = SideIndex(side);
     if (sideIndex >= 2) return kInvalidSlotIndex;
     const Vec2Q8 actorPosition = state.actors[sideIndex].position;
@@ -304,6 +316,7 @@ std::uint16_t FindReclaimTarget(
     for (std::uint16_t index = 0; index < kNeutralCapacity; ++index) {
         const NeutralSlot& neutral = state.neutrals[index];
         if (neutral.active == 0 || neutral.reclaimLockTicks != 0) continue;
+        if (structureOnly && neutral.structureMass == 0) continue;
         const Vec2Q8 delta{
             neutral.position.x - actorPosition.x,
             neutral.position.y - actorPosition.y,
@@ -324,14 +337,23 @@ std::uint16_t FindReclaimTarget(
     return best;
 }
 
+std::uint16_t FindReclaimTarget(
+    const CombatState& state,
+    CombatSide side,
+    Vec2Q8 aimDirectionQ15) noexcept {
+    return FindReclaimTargetInternal(state, side, aimDirectionQ15, false);
+}
+
 bool TickReclaim(
     CombatState& state,
     PhysicalLedger& ledger,
     ReclaimState& reclaim,
     bool playerActive,
     bool opponentActive,
-    ReclaimTickResult& result) noexcept {
-    result = ReclaimTickResult{0, 0, kInvalidSlotIndex, kInvalidSlotIndex};
+    ReclaimTickResult& result,
+    bool opponentStructurePriority) noexcept {
+    result = ReclaimTickResult{
+        0, 0, 0, 0, 0, 0, kInvalidSlotIndex, kInvalidSlotIndex};
     if (!CombatStateValid(state, ledger)) return false;
     CombatState candidate = state;
     PhysicalLedger ledgerCandidate = ledger;
@@ -343,8 +365,16 @@ bool TickReclaim(
         reclaimCandidate.targetIndex[sideIndex] = kInvalidSlotIndex;
         if (!active[sideIndex]) continue;
         const CombatSide side = static_cast<CombatSide>(sideIndex);
-        targets[sideIndex] = FindReclaimTarget(
-            candidate, side, candidate.actors[sideIndex].aimDirectionQ15);
+        targets[sideIndex] = FindReclaimTargetInternal(
+            candidate,
+            side,
+            candidate.actors[sideIndex].aimDirectionQ15,
+            side == CombatSide::Opponent && opponentStructurePriority);
+        if (targets[sideIndex] == kInvalidSlotIndex
+            && side == CombatSide::Opponent && opponentStructurePriority) {
+            targets[sideIndex] = FindReclaimTargetInternal(
+                candidate, side, candidate.actors[sideIndex].aimDirectionQ15, false);
+        }
         reclaimCandidate.targetIndex[sideIndex] = targets[sideIndex];
         if (targets[sideIndex] == kInvalidSlotIndex) continue;
         NeutralSlot& neutral = candidate.neutrals[targets[sideIndex]];
@@ -372,13 +402,23 @@ bool TickReclaim(
     for (std::uint8_t sideIndex = 0; sideIndex < 2; ++sideIndex) {
         if (!wantsTile[sideIndex]) continue;
         const CombatSide side = static_cast<CombatSide>(sideIndex);
+        const NeutralSlot& selected = candidate.neutrals[targets[sideIndex]];
+        const bool escrow = selected.adapterEscrowMass > 0;
+        const bool structure = selected.structureMass > 0;
         if (!AbsorbOne(candidate, ledgerCandidate, reclaimCandidate, side, targets[sideIndex])) {
             state.phase = CombatPhase::Fatal;
             state.error = CombatError::LedgerTransactionFailed;
             return false;
         }
-        if (side == CombatSide::Player) result.playerMass = 1;
-        else result.opponentMass = 1;
+        if (side == CombatSide::Player) {
+            result.playerMass = 1;
+            result.playerAdapterEscrowMass = escrow ? 1 : 0;
+            result.playerStructureMass = structure ? 1 : 0;
+        } else {
+            result.opponentMass = 1;
+            result.opponentAdapterEscrowMass = escrow ? 1 : 0;
+            result.opponentStructureMass = structure ? 1 : 0;
+        }
     }
     result.playerTarget = targets[0];
     result.opponentTarget = targets[1];

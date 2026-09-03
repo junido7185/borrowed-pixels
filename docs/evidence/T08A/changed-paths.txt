@@ -1,0 +1,22 @@
+PRIMARY T08A
+- src/bp_act2.cpp
+- src/bp_act2.h
+- tests/bp_act2_process_tests.cpp
+
+CROSS_TICKET_GLUE
+- src/bp_combat.cpp
+- src/bp_combat.h
+- src/bp_encounter.cpp
+- src/bp_reclaim.cpp
+- src/bp_reclaim.h
+- src/bp_win32.cpp
+- tests/bp_combat_tests.cpp
+
+EVIDENCE / HANDOFF
+- docs/STATUS.md
+- docs/evidence/T08A/**
+- docs/handoffs/T08A/OUTPUT.md
+
+The glue adds only account-aware process collisions, provenance reporting,
+complete-state hashing, and the Act 1-to-Act 2 entry-point transition. It
+changes no authority constant, rule, copy, coordinate, timing, or save layout.

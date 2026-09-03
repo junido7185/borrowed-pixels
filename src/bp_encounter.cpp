@@ -1516,6 +1516,7 @@ std::uint32_t Act1RuntimeHash(const Act1Runtime& state) noexcept {
         add(neutral.reclaimLockTicks); add(neutral.immunityTicks);
         add(neutral.playerMissMass); add(neutral.opponentMissMass);
         add(neutral.protocolTagMass); add(neutral.patchFeedMass);
+        add(neutral.adapterEscrowMass); add(neutral.structureMass);
         add(neutral.inertiaTicks); add(neutral.active);
     }
     for (const CoverSlot& cover : state.combat.covers) {
@@ -1523,7 +1524,9 @@ std::uint32_t Act1RuntimeHash(const Act1Runtime& state) noexcept {
         add(static_cast<std::uint32_t>(cover.bounds.y));
         add(static_cast<std::uint32_t>(cover.bounds.width));
         add(static_cast<std::uint32_t>(cover.bounds.height));
-        add(cover.stableId); add(cover.generation); add(cover.mass); add(cover.active);
+        add(cover.stableId); add(cover.generation); add(cover.mass);
+        add(static_cast<std::uint32_t>(cover.backingAccount));
+        add(static_cast<std::uint32_t>(cover.behavior)); add(cover.active);
     }
     for (const CombatActor& actor : state.combat.actors) {
         addVec(actor.position); addVec(actor.velocity); addVec(actor.aimDirectionQ15);

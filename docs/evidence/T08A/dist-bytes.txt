@@ -1,0 +1,15 @@
+T08A CONTEST DIST
+
+FILE=BorrowedPixels.exe BYTES=198144
+DIST_FILES=1
+DIST_BYTES=198144
+INTERNAL_CAP=1350000 PASS
+HARD_CAP=1474560 PASS
+SHA256=06135f20bcf867a854006c510e09d4fc2a4d144442c63291fb94c7c7ff298b2b
+
+T07 baseline: 183808 bytes
+T08A delta: +14336 bytes
+
+The increase is below 25 KB and is attributed by the final MAP to reachable
+Act 2 encounter, process, settlement, rendering, and Win32 transition code.
+dist/contest contains only the contest EXE.

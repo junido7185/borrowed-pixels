@@ -22,6 +22,10 @@ struct ReclaimState {
 struct ReclaimTickResult {
     std::uint16_t playerMass;
     std::uint16_t opponentMass;
+    std::uint16_t playerAdapterEscrowMass;
+    std::uint16_t opponentAdapterEscrowMass;
+    std::uint16_t playerStructureMass;
+    std::uint16_t opponentStructureMass;
     std::uint16_t playerTarget;
     std::uint16_t opponentTarget;
 };
@@ -41,6 +45,7 @@ bool TickReclaim(
     ReclaimState& reclaim,
     bool playerActive,
     bool opponentActive,
-    ReclaimTickResult& result) noexcept;
+    ReclaimTickResult& result,
+    bool opponentStructurePriority = false) noexcept;
 
 }  // namespace bp

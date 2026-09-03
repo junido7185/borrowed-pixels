@@ -111,6 +111,10 @@ bool RecoverNeutralSlot(CombatState& state) noexcept {
         survivor.protocolTagMass + released.protocolTagMass);
     survivor.patchFeedMass = static_cast<std::uint16_t>(
         survivor.patchFeedMass + released.patchFeedMass);
+    survivor.adapterEscrowMass = static_cast<std::uint16_t>(
+        survivor.adapterEscrowMass + released.adapterEscrowMass);
+    survivor.structureMass = static_cast<std::uint16_t>(
+        survivor.structureMass + released.structureMass);
     if (released.reclaimLockTicks > survivor.reclaimLockTicks) {
         survivor.reclaimLockTicks = released.reclaimLockTicks;
     }
@@ -125,6 +129,8 @@ bool RecoverNeutralSlot(CombatState& state) noexcept {
     released.opponentMissMass = 0;
     released.protocolTagMass = 0;
     released.patchFeedMass = 0;
+    released.adapterEscrowMass = 0;
+    released.structureMass = 0;
     released.reclaimLockTicks = 0;
     released.immunityTicks = 0;
     released.inertiaTicks = 0;
@@ -246,6 +252,8 @@ bool AllocateNeutralSlot(
     slot.opponentMissMass = opponentMissMass;
     slot.protocolTagMass = 0;
     slot.patchFeedMass = 0;
+    slot.adapterEscrowMass = 0;
+    slot.structureMass = 0;
     slot.inertiaTicks = 15;
     slot.active = 1;
     indexOut = index;
@@ -677,6 +685,65 @@ bool ProcessImpact(
         }
     } else if (impact.kind == ImpactKind::Cover) {
         CoverSlot& cover = candidate.covers[impact.targetIndex];
+        if (cover.behavior == CoverBehavior::Compactor) {
+            if (!AllocateNeutralSlot(
+                    candidate,
+                    impact.point,
+                    DeflectionVelocity(shot, 75, 20),
+                    shot.mass,
+                    0,
+                    0,
+                    shot.stableId,
+                    neutralIndex)
+                || !PhysicalTransfer(
+                    ledgerCandidate,
+                    PhysicalAccount::Projectile,
+                    PhysicalAccount::Neutral,
+                    shot.mass)) {
+                state.phase = CombatPhase::Fatal;
+                state.error = candidate.error != CombatError::None
+                    ? candidate.error
+                    : CombatError::LedgerTransactionFailed;
+                return false;
+            }
+            shot.active = 0;
+            shot.mass = 0;
+        } else if (cover.behavior == CoverBehavior::Sweeper) {
+            const std::uint16_t common = shot.mass < cover.mass ? shot.mass : cover.mass;
+            if (!AllocateNeutralSlot(
+                    candidate,
+                    impact.point,
+                    DeflectionVelocity(shot, 75, 20),
+                    common,
+                    0,
+                    0,
+                    shot.mass == common ? shot.stableId : 0,
+                    neutralIndex)
+                || !PhysicalTransfer(
+                    ledgerCandidate,
+                    PhysicalAccount::Projectile,
+                    PhysicalAccount::Neutral,
+                    common)
+                || !PhysicalTransfer(
+                    ledgerCandidate,
+                    PhysicalAccount::ProtocolActive,
+                    PhysicalAccount::Transit,
+                    common)) {
+                state.phase = CombatPhase::Fatal;
+                state.error = candidate.error != CombatError::None
+                    ? candidate.error
+                    : CombatError::LedgerTransactionFailed;
+                return false;
+            }
+            shot.mass = static_cast<std::uint16_t>(shot.mass - common);
+            cover.mass = static_cast<std::uint16_t>(cover.mass - common);
+            if (shot.mass == 0) shot.active = 0;
+            else {
+                shot.velocity.x = TruncMultiplyDivide(shot.velocity.x, 85, 100);
+                shot.velocity.y = TruncMultiplyDivide(shot.velocity.y, 85, 100);
+            }
+            if (cover.mass == 0) cover.active = 0;
+        } else {
         const std::uint16_t damage = ProjectileCoverDamage(shot.mass) < cover.mass
             ? ProjectileCoverDamage(shot.mass)
             : cover.mass;
@@ -691,17 +758,22 @@ bool ProcessImpact(
                 shot.stableId,
                 neutralIndex)
             || !PhysicalTransfer(ledgerCandidate, PhysicalAccount::Projectile, PhysicalAccount::Neutral, shot.mass)
-            || !PhysicalTransfer(ledgerCandidate, PhysicalAccount::Cover, PhysicalAccount::Neutral, damage)) {
+            || !PhysicalTransfer(
+                ledgerCandidate, cover.backingAccount, PhysicalAccount::Neutral, damage)) {
             state.phase = CombatPhase::Fatal;
             state.error = candidate.error != CombatError::None
                 ? candidate.error
                 : CombatError::LedgerTransactionFailed;
             return false;
         }
+        if (cover.behavior == CoverBehavior::OwnedStructure) {
+            candidate.neutrals[neutralIndex].structureMass = damage;
+        }
         cover.mass = static_cast<std::uint16_t>(cover.mass - damage);
         if (cover.mass == 0) cover.active = 0;
         shot.active = 0;
         shot.mass = 0;
+        }
     } else if (impact.kind == ImpactKind::Boundary) {
         Vec2Q8 neutralPosition = impact.point;
         const std::int32_t inset = 2 * kQ8One;
@@ -869,6 +941,8 @@ bool CombatStateValid(const CombatState& state, const PhysicalLedger& ledger) no
     std::uint32_t projectileMass = 0;
     std::uint32_t neutralMass = 0;
     std::uint32_t coverMass = 0;
+    std::uint32_t opponentStructureMass = 0;
+    std::uint32_t protocolCoverMass = 0;
     for (std::uint8_t side = 0; side < 2; ++side) {
         const ChargeSlot& slot = state.charges[side];
         if (slot.active != 0) {
@@ -892,7 +966,8 @@ bool CombatStateValid(const CombatState& state, const PhysicalLedger& ledger) no
             if (slot.mass == 0 || slot.mass > 256 || slot.stableId == 0 || slot.generation == 0
                 || static_cast<std::uint32_t>(slot.playerMissMass)
                     + slot.opponentMissMass + slot.protocolTagMass
-                    + slot.patchFeedMass > slot.mass) return false;
+                    + slot.patchFeedMass + slot.adapterEscrowMass
+                    + slot.structureMass > slot.mass) return false;
             neutralMass += slot.mass;
         } else if (slot.mass != 0) return false;
     }
@@ -900,13 +975,26 @@ bool CombatStateValid(const CombatState& state, const PhysicalLedger& ledger) no
         if (slot.active != 0) {
             if (slot.mass == 0 || slot.stableId == 0 || slot.generation == 0
                 || slot.bounds.width <= 0 || slot.bounds.height <= 0) return false;
-            coverMass += slot.mass;
+            const std::uint8_t account = AccountIndex(slot.backingAccount);
+            if (account >= kPhysicalAccountCount) return false;
+            if (slot.behavior == CoverBehavior::Standard
+                && slot.backingAccount != PhysicalAccount::Cover) return false;
+            if (slot.behavior == CoverBehavior::OwnedStructure
+                && slot.backingAccount != PhysicalAccount::Cover
+                && slot.backingAccount != PhysicalAccount::OpponentShell) return false;
+            if ((slot.behavior == CoverBehavior::Compactor || slot.behavior == CoverBehavior::Sweeper)
+                && slot.backingAccount != PhysicalAccount::ProtocolActive) return false;
+            if (slot.backingAccount == PhysicalAccount::Cover) coverMass += slot.mass;
+            else if (slot.backingAccount == PhysicalAccount::OpponentShell) opponentStructureMass += slot.mass;
+            else if (slot.backingAccount == PhysicalAccount::ProtocolActive) protocolCoverMass += slot.mass;
         } else if (slot.mass != 0) return false;
     }
     return chargeMass == ledger.mass[AccountIndex(PhysicalAccount::Charge)]
         && projectileMass == ledger.mass[AccountIndex(PhysicalAccount::Projectile)]
         && neutralMass == ledger.mass[AccountIndex(PhysicalAccount::Neutral)]
         && coverMass == ledger.mass[AccountIndex(PhysicalAccount::Cover)]
+        && opponentStructureMass <= ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)]
+        && protocolCoverMass <= ledger.mass[AccountIndex(PhysicalAccount::ProtocolActive)]
         && StableIdsUnique(state);
 }
 
@@ -1081,8 +1169,26 @@ bool AddCover(
     const RectPixels& bounds,
     std::uint16_t mass,
     SlotHandle& handle) noexcept {
+    return AddBackedCover(
+        state, bounds, mass, PhysicalAccount::Cover, CoverBehavior::Standard, handle);
+}
+
+bool AddBackedCover(
+    CombatState& state,
+    const RectPixels& bounds,
+    std::uint16_t mass,
+    PhysicalAccount backingAccount,
+    CoverBehavior behavior,
+    SlotHandle& handle) noexcept {
     const std::uint16_t index = FindFreeCover(state);
     if (index == kInvalidSlotIndex || mass == 0 || bounds.width <= 0 || bounds.height <= 0) return false;
+    if (AccountIndex(backingAccount) >= kPhysicalAccountCount
+        || (behavior == CoverBehavior::Standard && backingAccount != PhysicalAccount::Cover)
+        || (behavior == CoverBehavior::OwnedStructure
+            && backingAccount != PhysicalAccount::Cover
+            && backingAccount != PhysicalAccount::OpponentShell)
+        || ((behavior == CoverBehavior::Compactor || behavior == CoverBehavior::Sweeper)
+            && backingAccount != PhysicalAccount::ProtocolActive)) return false;
     CoverSlot& slot = state.covers[index];
     std::uint32_t stableId = 0;
     if (!TakeStableId(state, stableId)) return false;
@@ -1090,6 +1196,8 @@ bool AddCover(
     slot.stableId = stableId;
     slot.generation = NextGeneration(slot.generation);
     slot.mass = mass;
+    slot.backingAccount = backingAccount;
+    slot.behavior = behavior;
     slot.active = 1;
     handle = SlotHandle{index, slot.generation};
     return true;

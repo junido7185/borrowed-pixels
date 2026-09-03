@@ -1,0 +1,15 @@
+T08A /OPT:REF REACHABILITY
+
+MAP: docs/evidence/T08A/t08a-final.map
+
+Retained contest symbols include:
+- InitializeAct2Runtime
+- TickAct2Runtime
+- RenderAct2Runtime
+- PopulateAct2Encounter
+- StartSweeperWave / TickSweeperWave
+- StartCompactor / TickCompactor
+- ChooseFrameAction
+
+The Win32 entry point transitions from Act1Scene::ContinueReady into this
+runtime. The final linked EXE launched a live window and exited cleanly.
