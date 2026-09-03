@@ -25,14 +25,14 @@ IMPLEMENTED:
 
 AUTOMATED RESULTS:
 
-- T08A 72,327 checks PASS, including 49 ADAPTER ranges and 1,024 FRAME
+- T08A 72,334 checks PASS, including 49 ADAPTER ranges and 1,024 FRAME
   observations across all nonempty availability masks.
 - All T02-T07 regressions PASS, including 11,172 Hangul syllables and the
   recorded 61,646,592 replay hash.
 - Windows x64 MSVC configure, clean Test, direct suite, CTest, clean Debug,
   debug smoke, clean Contest, live contest launch, and MAP reachability PASS.
 - dist/contest: one file, 205,312 bytes; internal and hard caps PASS.
-- Contest SHA-256: `ced662bfb9cc64add281de95abce4f8b90c4140c3391392483d5b4e36a3d52dc`.
+- Contest SHA-256: `4bdf9e56b7d0778ca93134bbff774841d59d52961bc198d23bc8e148875dbcb8`.
 
 GATES:
 

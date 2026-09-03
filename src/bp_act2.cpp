@@ -372,13 +372,15 @@ std::uint16_t ClosestShiftPanel(const Act2Runtime& state) noexcept {
     return best;
 }
 
-std::uint16_t ClosestPanel(const Act2Runtime& state) noexcept {
+std::uint16_t ClosestPanelAtLeastMass(const Act2Runtime& state,
+    std::uint16_t minimumMass) noexcept {
     std::uint16_t best = kInvalidSlotIndex;
     std::uint64_t bestDistance = UINT64_MAX;
     const Vec2Q8 player = state.combat.actors[0].position;
     for (std::uint8_t index = 0; index < kAct2MaximumFieldCount; ++index) {
         const SlotHandle handle = state.frame.panels[index];
-        if (!CoverHandleValid(state.combat, handle)) continue;
+        if (!CoverHandleValid(state.combat, handle)
+            || state.combat.covers[handle.index].mass < minimumMass) continue;
         const CoverSlot& panel = state.combat.covers[handle.index];
         const std::int64_t x = (panel.bounds.x + panel.bounds.width / 2) * kQ8One - player.x;
         const std::int64_t y = (panel.bounds.y + panel.bounds.height / 2) * kQ8One - player.y;
@@ -390,6 +392,20 @@ std::uint16_t ClosestPanel(const Act2Runtime& state) noexcept {
         }
     }
     return best;
+}
+
+std::uint16_t ClosestPanel(const Act2Runtime& state) noexcept {
+    return ClosestPanelAtLeastMass(state, 1);
+}
+
+bool PanelHasShiftRoute(const Act2Runtime& state, std::uint16_t panelIndex) noexcept {
+    if (panelIndex == kInvalidSlotIndex) return false;
+    constexpr std::int8_t routeX[4] = {-20, 20, 0, 0};
+    constexpr std::int8_t routeY[4] = {0, 0, -20, 20};
+    for (std::uint8_t route = 0; route < 4; ++route) {
+        if (ShiftRouteClear(state.combat, panelIndex, routeX[route], routeY[route])) return true;
+    }
+    return false;
 }
 
 bool PlayerNearPanel(const Act2Runtime& state, std::uint16_t panelIndex,
@@ -484,7 +500,8 @@ bool BeginOpponentMaterialCharge(Act2Runtime& state, PhysicalAccount sourceAccou
 bool BeginFrameActionMutable(Act2Runtime& state, FrameAction action) noexcept {
     PhysicalLedger& ledger = state.movement.physicalLedger;
     const std::uint16_t panelIndex = action == FrameAction::Shift
-        ? ClosestShiftPanel(state) : ClosestPanel(state);
+        ? ClosestShiftPanel(state) : (action == FrameAction::Evict
+            ? ClosestPanelAtLeastMass(state, 32) : ClosestPanel(state));
     state.frame.action = action;
     state.frame.actionTicks = 0;
     if (action == FrameAction::Shift) {
@@ -1036,7 +1053,8 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
     if (state.scene == Act2Scene::Fatal || state.scene == Act2Scene::Complete) {
         return state.scene != Act2Scene::Fatal;
     }
-    ++state.globalTick;
+    const bool playingAtEntry = state.scene == Act2Scene::Playing;
+    if (!playingAtEntry) ++state.globalTick;
     if (state.scene == Act2Scene::EncounterIntro) {
         ++state.sceneTicks;
         const std::uint16_t minimum = state.introRevisit != 0
@@ -1260,12 +1278,19 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
         const std::uint16_t closestPanel = ClosestPanel(state);
         if (closestPanel != kInvalidSlotIndex) {
             available = static_cast<std::uint8_t>(available
-                | (1u << static_cast<std::uint8_t>(FrameAction::Shift))
                 | (state.frame.structureControlMass >= 16
                     && PlayerNearPanel(state, closestPanel, 18)
-                    ? (1u << static_cast<std::uint8_t>(FrameAction::Toll)) : 0)
-                | (state.frame.structureControlMass >= 32
-                    ? (1u << static_cast<std::uint8_t>(FrameAction::Evict)) : 0));
+                    ? (1u << static_cast<std::uint8_t>(FrameAction::Toll)) : 0));
+        }
+        const std::uint16_t shiftPanel = ClosestShiftPanel(state);
+        if (PanelHasShiftRoute(state, shiftPanel)) {
+            available = static_cast<std::uint8_t>(available
+                | (1u << static_cast<std::uint8_t>(FrameAction::Shift)));
+        }
+        if (state.frame.structureControlMass >= 32
+            && ClosestPanelAtLeastMass(state, 32) != kInvalidSlotIndex) {
+            available = static_cast<std::uint8_t>(available
+                | (1u << static_cast<std::uint8_t>(FrameAction::Evict)));
         }
         if (ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)] >= 32) {
             available = static_cast<std::uint8_t>(available
@@ -1308,10 +1333,13 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
     if (state.combat.actors[0].coreHit != 0) {
         ++state.failure;
         ++state.movement.globalTick;
+        ++state.globalTick;
         BeginRetry(state);
         return true;
     }
     if (state.combat.actors[1].coreHit != 0 && state.encounterIndex == 2) {
+        ++state.movement.globalTick;
+        ++state.globalTick;
         BeginSuccess(state);
         return state.scene != Act2Scene::Fatal;
     }
@@ -1351,6 +1379,7 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
             || state.encounterTick >= kAdapterDurationTicks) BeginSuccess(state);
     }
     ++state.movement.globalTick;
+    ++state.globalTick;
     return PhysicalLedgerValid(ledger) && ClaimLedgerValid(state.claimLedger)
         && CombatStateValid(state.combat, ledger)
         && HudLoanSystemValid(state.hudLoan, ledger);

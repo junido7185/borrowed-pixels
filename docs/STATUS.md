@@ -16,7 +16,7 @@
 | T05 | LOCALLY_INTEGRATED | Candidate `f8f1c042...`; post-integration full regression PASS; independent review P0/P1=0, P2=1 test-only fault-injection debt |
 | T06 | LOCALLY_INTEGRATED | Candidate `70a2ae0b...`; post-integration full regression PASS; final independent review P0/P1/P2=0 |
 | T07 | LOCALLY_INTEGRATED | Candidate `c04cab55...`; Human Director byte-budget reapproval; post-integration full regression PASS |
-| T08A | CANDIDATE_PREPARATION | 72,327 checks; first review P0=0/P1=6/P2=1 repaired; final review pending |
+| T08A | CANDIDATE_PREPARATION | 72,334 checks; first review P0=0/P1=6/P2=1 repaired; final review pending |
 | T08B-T14 | PENDING | Sequential controller execution |
 
 ## Gate status

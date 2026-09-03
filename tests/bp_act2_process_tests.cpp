@@ -307,6 +307,15 @@ void TestProcessesAndPopulation() noexcept {
     Check(state.combat.covers[state.adapter.compactor.walls[0].index].bounds.width == 16
         && state.combat.covers[state.adapter.compactor.walls[0].index].bounds.height == 2,
         "COMPACTOR exact 16 by 2 shape");
+    bp::CombatState cornerCombat = state.combat;
+    bp::CompactorRuntime cornerCompactor = state.adapter.compactor;
+    cornerCombat.actors[0].position = bp::Vec2Q8{148*bp::kQ8One, 29*bp::kQ8One};
+    const bp::Vec2Q8 cornerBefore = cornerCombat.actors[0].position;
+    Check(bp::TickCompactor(cornerCombat, state.movement.physicalLedger, cornerCompactor),
+        "COMPACTOR corner circle collision resolves");
+    Check(cornerCombat.actors[0].position.x != cornerBefore.x
+            || cornerCombat.actors[0].position.y != cornerBefore.y,
+        "COMPACTOR uses circle-AABB overlap rather than actor-center inclusion");
     for (std::uint16_t tick = 0; tick < 180; ++tick) {
         Check(bp::TickCompactor(state.combat, state.movement.physicalLedger, state.adapter.compactor),
             "COMPACTOR close phase advances");
@@ -367,6 +376,22 @@ void TestProcessesAndPopulation() noexcept {
     Check(slowDoor.adapter.playerDoorProgress == 1
         && fastDoor.adapter.playerDoorProgress == 7,
         "ADAPTER recovered escrow accelerates own door in exact eight-tile groups");
+    bp::Act2Runtime collisionWorld{};
+    Check(bp::InitializeAct2Runtime(collisionWorld, claims, narrative),
+        "ADAPTER actor collision world initializes");
+    collisionWorld.encounterIndex = 1;
+    collisionWorld.scene = bp::Act2Scene::Playing;
+    Check(bp::PopulateAct2Encounter(collisionWorld), "ADAPTER actor collision world populates");
+    collisionWorld.movement.playerPosition = collisionWorld.combat.actors[0].position =
+        bp::Vec2Q8{104*bp::kQ8One, 50*bp::kQ8One};
+    collisionWorld.combat.actors[1].position = bp::Vec2Q8{216*bp::kQ8One, 50*bp::kQ8One};
+    Check(bp::TickAct2Runtime(collisionWorld, idle), "ADAPTER both actor cover collision tick resolves");
+    Check(collisionWorld.combat.actors[0].position.x != 104*bp::kQ8One
+            || collisionWorld.combat.actors[0].position.y != 50*bp::kQ8One,
+        "ADAPTER PLAYER circle is displaced from field AABB");
+    Check(collisionWorld.combat.actors[1].position.x != 216*bp::kQ8One
+            || collisionWorld.combat.actors[1].position.y != 50*bp::kQ8One,
+        "ADAPTER opponent circle is displaced from field AABB");
 
     state.encounterIndex = 2;
     state.keeper.destroyedStructures = 2;
@@ -400,10 +425,12 @@ void TestRuntimeReachabilityAndPixels() noexcept {
     Check(state.scene == bp::Act2Scene::Playing, "KEEPER becomes playable");
     input.focused = 0;
     const std::uint32_t pausedEncounterTick = state.encounterTick;
+    const std::uint32_t pausedGlobalTick = state.globalTick;
     Check(bp::TickAct2Runtime(state, input) && state.movement.paused != 0,
         "Act 2 focus loss enters pause gate");
-    Check(bp::TickAct2Runtime(state, input) && state.encounterTick == pausedEncounterTick,
-        "Act 2 pause freezes encounter progression");
+    Check(bp::TickAct2Runtime(state, input) && state.encounterTick == pausedEncounterTick
+        && state.globalTick == pausedGlobalTick,
+        "Act 2 pause freezes encounter and global progression");
     input = Input();
     input.actions[static_cast<std::uint8_t>(bp::PlatformAction::Pause)].pressed = 1;
     Check(bp::TickAct2Runtime(state, input) && state.movement.paused == 0,
