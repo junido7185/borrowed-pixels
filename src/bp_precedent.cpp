@@ -296,7 +296,10 @@ PrecedentAction VoteAction(const PrecedentRuntime& state) noexcept {
             const Vec2Q8 center{
                 (cover.bounds.x+cover.bounds.width/2)*kQ8One,
                 (cover.bounds.y+cover.bounds.height/2)*kQ8One};
-            if (DistancePixels(center,node)<=radius) mass[0]+=cover.mass;
+            if (DistancePixels(center,node)>radius) continue;
+            const std::uint8_t owner=cover.backingAccount==PhysicalAccount::PlayerShell?1u:
+                cover.backingAccount==PhysicalAccount::OpponentShell?2u:0u;
+            mass[owner]+=cover.mass;
         }
         std::uint8_t winner=0;
         if (mass[1]>mass[winner]) winner=1;
@@ -324,7 +327,8 @@ bool ApplyDistribution(PrecedentRuntime& state) noexcept {
         if (amount==0) return true;
         const PhysicalAccount from=player>opponent?PhysicalAccount::PlayerShell:
             PhysicalAccount::OpponentShell;
-        return SpawnNeutralFrom(state,from,amount,Vec2Q8{160*kQ8One,90*kQ8One});
+        if (!SpawnNeutralFrom(state,from,amount,Vec2Q8{160*kQ8One,90*kQ8One}))
+            return true;
     }
     if (policy==DistributionPolicy::Need && state.encounterTick%600u==0) {
         const std::uint16_t player=ledger.mass[Account(PhysicalAccount::PlayerShell)];
@@ -336,10 +340,10 @@ bool ApplyDistribution(PrecedentRuntime& state) noexcept {
             PhysicalAccount::PlayerShell;
         const PhysicalAccount to=lower==CombatSide::Player?PhysicalAccount::PlayerShell:
             PhysicalAccount::OpponentShell;
-        if (candidate.movement.physicalLedger.mass[Account(from)]<16
-            || !PhysicalTransfer(candidate.movement.physicalLedger,from,to,16)
-            || !CombatStateValid(candidate.combat,candidate.movement.physicalLedger)) return false;
-        state=candidate;
+        if (candidate.movement.physicalLedger.mass[Account(from)]>=16
+            && PhysicalTransfer(candidate.movement.physicalLedger,from,to,16)
+            && CombatStateValid(candidate.combat,candidate.movement.physicalLedger))
+            state=candidate;
     }
     if (policy==DistributionPolicy::Utility && state.encounterTick%480u==0) {
         const std::uint32_t player=state.outputDamage[0]+state.outputReclaim[0]
@@ -352,9 +356,9 @@ bool ApplyDistribution(PrecedentRuntime& state) noexcept {
         } else {
             const PhysicalAccount from=lower==CombatSide::Player?PhysicalAccount::PlayerShell:
                 PhysicalAccount::OpponentShell;
-            if (!SpawnNeutralFrom(state,from,16,
-                    lower==CombatSide::Player?state.combat.actors[0].position:
-                    state.combat.actors[1].position)) return false;
+            (void)SpawnNeutralFrom(state,from,16,
+                lower==CombatSide::Player?state.combat.actors[0].position:
+                state.combat.actors[1].position);
         }
         std::memset(state.outputDamage,0,sizeof(state.outputDamage));
         std::memset(state.outputReclaim,0,sizeof(state.outputReclaim));
@@ -409,7 +413,7 @@ void UpdateGovernance(PrecedentRuntime& state) noexcept {
     const GovernancePolicy policy=static_cast<GovernancePolicy>(state.policy.profile.governance);
     if (policy==GovernancePolicy::Rule) {
         const std::uint16_t duration=state.action==PrecedentAction::Foreclose?75u:60u;
-        if (state.phaseTicks>=duration) {
+        if (state.action!=PrecedentAction::Foreclose && state.phaseTicks>=duration) {
             const std::uint8_t next=static_cast<std::uint8_t>(
                 (PolicyIndex(state.action)+1u)%PolicyIndex(PrecedentAction::Count));
             SetAction(state,static_cast<PrecedentAction>(next));
@@ -421,20 +425,27 @@ void UpdateGovernance(PrecedentRuntime& state) noexcept {
     }
 }
 
-bool AttackAffordable(const PrecedentRuntime& state,std::uint16_t mass) noexcept {
-    const std::uint16_t shell=state.movement.physicalLedger.mass[
-        Account(PhysicalAccount::OpponentShell)];
+std::uint16_t OpponentBackedCoverMass(const PrecedentRuntime& state) noexcept {
     std::uint16_t backedCoverMass=0;
     for (const CoverSlot& cover:state.combat.covers)
         if (cover.active!=0 && cover.backingAccount==PhysicalAccount::OpponentShell)
             backedCoverMass=static_cast<std::uint16_t>(backedCoverMass+cover.mass);
-    const bool predictedCoreHit=state.movement.physicalLedger.mass[
+    return backedCoverMass;
+}
+
+bool PredictedPlayerCoreHit(const PrecedentRuntime& state) noexcept {
+    return state.movement.physicalLedger.mass[
         Account(PhysicalAccount::PlayerShell)]<=40
         && !CoverBlocksMidpoint(state,state.combat.actors[0].position,
             state.combat.actors[1].position);
+}
+
+bool AttackAffordable(const PrecedentRuntime& state,std::uint16_t mass) noexcept {
+    const std::uint16_t shell=state.movement.physicalLedger.mass[
+        Account(PhysicalAccount::OpponentShell)];
     return ProjectileCount(state.combat)<kProjectileCapacity-1u
-        && shell>=static_cast<std::uint16_t>(mass+backedCoverMass)
-        && (shell>=mass+41u || predictedCoreHit);
+        && shell>=static_cast<std::uint16_t>(mass+OpponentBackedCoverMass(state))
+        && (shell>=mass+41u || PredictedPlayerCoreHit(state));
 }
 
 bool SpawnOpponentAttack(PrecedentRuntime& state,std::uint16_t mass) noexcept {
@@ -462,10 +473,14 @@ bool ExecuteAction(PrecedentRuntime& state) noexcept {
             const std::uint16_t available=static_cast<std::uint16_t>(
                 state.movement.physicalLedger.mass[Account(PhysicalAccount::OpponentShell)]
                 +state.combat.charges[1].mass);
-            if (available<89 || ProjectileCount(state.combat)>=kProjectileCapacity-1u) {
+            if (available<static_cast<std::uint16_t>(48u+OpponentBackedCoverMass(state))
+                || (available<89 && !PredictedPlayerCoreHit(state))
+                || ProjectileCount(state.combat)>=kProjectileCapacity-1u) {
                 if (!RollbackCharge(state.combat,state.movement.physicalLedger,
                         CombatSide::Opponent)) return false;
-                SetAction(state,PrecedentAction::Move);
+                SetAction(state,state.phase==2 && state.policy.profile.governance
+                    ==static_cast<std::uint8_t>(GovernancePolicy::Rule)
+                    ?PrecedentAction::Evade:PrecedentAction::Move);
                 return true;
             }
             if (!AdvanceCharge(state.combat,state.movement.physicalLedger,
@@ -474,7 +489,9 @@ bool ExecuteAction(PrecedentRuntime& state) noexcept {
                 if (state.combat.charges[1].mass!=48
                     || !ReleaseCharge(state.combat,state.movement.physicalLedger,
                         CombatSide::Opponent)) return false;
-                SetAction(state,PrecedentAction::Move);
+                SetAction(state,state.phase==2 && state.policy.profile.governance
+                    ==static_cast<std::uint8_t>(GovernancePolicy::Rule)
+                    ?PrecedentAction::Evade:PrecedentAction::Move);
             }
         }
         return true;
@@ -486,8 +503,10 @@ bool ExecuteAction(PrecedentRuntime& state) noexcept {
     case PrecedentAction::Foreclose:
         if (!AttackAffordable(state,48)) { SetAction(state,PrecedentAction::Move); return true; }
         opponent.aimDirectionQ15=DirectionTo(opponent.position,state.combat.actors[0].position);
-        return BeginCharge(state.combat,state.movement.physicalLedger,
-            CombatSide::Opponent,opponent.aimDirectionQ15);
+        if (!BeginCharge(state.combat,state.movement.physicalLedger,
+                CombatSide::Opponent,opponent.aimDirectionQ15)) return false;
+        return AdvanceCharge(state.combat,state.movement.physicalLedger,
+            CombatSide::Opponent);
     default: return true;
     }
 }
@@ -512,6 +531,18 @@ void RenderBattle(PixelBuffer buffer,const PrecedentRuntime& state) noexcept {
     for (const CoverSlot& cover:state.combat.covers)
         if (cover.active!=0) FillRect(buffer,RectI{cover.bounds.x,cover.bounds.y,
             cover.bounds.width,cover.bounds.height},PaletteColor::Cover);
+    constexpr EncounterId tetherCases[3]={EncounterId::Patch,EncounterId::Pair,
+        EncounterId::Keeper};
+    for (std::uint8_t tether=0;tether<3;++tether) {
+        const SlotHandle handle=state.tetherNodes[tether];
+        if (!CoverHandleValid(state.combat,handle)) continue;
+        const CoverSlot& cover=state.combat.covers[handle.index];
+        const std::uint8_t marks=static_cast<std::uint8_t>(
+            ChoiceForEncounter(state.narrative,tetherCases[tether]))+1u;
+        for (std::uint8_t mark=0;mark<marks;++mark)
+            PutPixel(buffer,cover.bounds.x+1+mark*2,
+                cover.bounds.y+cover.bounds.height/2,PaletteColor::Warning);
+    }
     for (const NeutralSlot& neutral:state.combat.neutrals)
         if (neutral.active!=0) FillRect(buffer,RectI{neutral.position.x/kQ8One-1,
             neutral.position.y/kQ8One-1,3,3},PaletteColor::Neutral);
@@ -537,8 +568,15 @@ void RenderBattle(PixelBuffer buffer,const PrecedentRuntime& state) noexcept {
     DrawLatin(buffer,14,6,"PRECEDENT",PaletteColor::Warning);
     constexpr const char* phaseName[3]={"IDENTITY","DISTRIBUTION","GOVERNANCE / MEMORY"};
     DrawLatin(buffer,86,6,phaseName[state.phase],PaletteColor::Neutral);
-    if (state.phase==1 && state.phaseDisplayTicks>0)
-        DrawLatin(buffer,84,158,kRules[1][state.policy.profile.distribution],PaletteColor::Warning);
+    if (state.phase==1 && state.phaseDisplayTicks>0) {
+        const std::uint8_t encounter=static_cast<std::uint8_t>(
+            state.policy.decisiveEncounter[1]);
+        const std::uint8_t choice=static_cast<std::uint8_t>(state.policy.decisiveChoice[1]);
+        DrawLatin(buffer,14,148,kSubjects[encounter],PaletteColor::UiInactive);
+        DrawLatin(buffer,14,158,kChoices[encounter][choice],PaletteColor::Neutral);
+        DrawLatin(buffer,76,153,">",PaletteColor::Warning);
+        DrawLatin(buffer,88,153,kRules[1][state.policy.profile.distribution],PaletteColor::Warning);
+    }
     if (state.echoTicks>0) {
         constexpr const char* actTotals[3]={"ACT 1 TOTAL","ACT 2 TOTAL","ACT 3 TOTAL"};
         const char* echo=state.policy.profile.memory==static_cast<std::uint8_t>(MemoryPolicy::Full)

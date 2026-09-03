@@ -331,6 +331,45 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
         && priorityResult.opponentTarget==originPriority.neutrals[0].index,
         "ORIGIN_LOCK gives player projectile residue exact +128 reclaim priority");
 
+    bp::PrecedentRuntime fixedCycle=world(0);
+    DamageOpponentTo(fixedCycle,80);
+    Check(bp::PhysicalTransfer(fixedCycle.movement.physicalLedger,
+        bp::PhysicalAccount::PlayerShell,bp::PhysicalAccount::Neutral,16),
+        "FIXED_CYCLE core-hit prediction fixture transfers player shell");
+    bp::NeutralSlot& fixedNeutral=fixedCycle.combat.neutrals[fixedCycle.neutrals[0].index];
+    fixedNeutral.mass=static_cast<std::uint16_t>(fixedNeutral.mass+16);
+    fixedCycle.action=bp::PrecedentAction::Foreclose;
+    fixedCycle.phaseTicks=0;
+    bool forecloseOk=true;
+    for (std::uint8_t tick=0;tick<75;++tick)
+        forecloseOk=forecloseOk && bp::TickPrecedentRuntime(fixedCycle,Idle());
+    std::uint8_t fixedShots=0;
+    for (const bp::ProjectileSlot& shot:fixedCycle.combat.projectiles)
+        if (shot.active!=0 && shot.owner==bp::CombatSide::Opponent && shot.mass==48)
+            ++fixedShots;
+    if (!forecloseOk || fixedShots!=1 || fixedCycle.action!=bp::PrecedentAction::Evade)
+        std::printf("T09_FORECLOSE_FAIL\tok=%u\ttick=%u\tphaseTicks=%u\taction=%u"
+            "\tcharge=%u\tshots=%u\tos=%u\n",forecloseOk?1u:0u,
+            fixedCycle.encounterTick,fixedCycle.phaseTicks,
+            static_cast<unsigned>(fixedCycle.action),fixedCycle.combat.charges[1].mass,
+            fixedShots,fixedCycle.movement.physicalLedger.mass[
+                Account(bp::PhysicalAccount::OpponentShell)]);
+    Check(forecloseOk && fixedShots==1
+        && fixedCycle.action==bp::PrecedentAction::Evade,
+        "FIXED_CYCLE completes exact tick75 FORECLOSE before enum wrap");
+
+    bp::PrecedentRuntime failedDistribution=world(0);
+    DamageOpponentTo(failedDistribution,160);
+    failedDistribution.combat.nextStableId=0xFFFFFFFFu;
+    failedDistribution.action=bp::PrecedentAction::Move;
+    failedDistribution.encounterTick=599;
+    const bp::PhysicalLedger distributionBefore=failedDistribution.movement.physicalLedger;
+    Check(bp::TickPrecedentRuntime(failedDistribution,Idle())
+        && std::memcmp(&distributionBefore,&failedDistribution.movement.physicalLedger,
+            sizeof(distributionBefore))==0
+        && failedDistribution.combat.phase==bp::CombatPhase::Active,
+        "failed scheduled distribution allocation skips exact-or-zero");
+
     bp::PrecedentRuntime folded=world(0);
     const std::uint16_t lockedBefore=folded.movement.physicalLedger.mass[
         Account(bp::PhysicalAccount::LockedBands)];
