@@ -4,7 +4,7 @@ TICKET: T08B
 
 BASE SHA: `98f298636195ecbce50c72a9592d93bcf5ff808f`
 
-CANDIDATE SHA: recorded by the controller after this evidence commit.
+REVIEWED CANDIDATE SHA: `1de3369408c3a6fc477313bb3c0924bf7644ac22`
 
 IMPLEMENTED:
 
@@ -42,7 +42,7 @@ AUTOMATED RESULTS:
 GATES:
 
 - Gate 3/4 subjective findings remain HUMAN_REVIEW_DEFERRED.
-- Independent final candidate review is the next controller action.
+- Independent final review: P0=0, P1=0, P2=0; integration eligible.
 - No push, tag, publication, submission, or external release was performed.
 
-STATUS: CANDIDATE_PREPARED; not yet locally integrated or externally accepted.
+STATUS: READY_FOR_INTEGRATION; not externally accepted.

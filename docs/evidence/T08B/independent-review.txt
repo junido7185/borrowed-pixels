@@ -1,0 +1,20 @@
+T08B FINAL INDEPENDENT REVIEW
+
+REVIEWED_CANDIDATE_SHA=1de3369408c3a6fc477313bb3c0924bf7644ac22
+BASE_SHA=98f298636195ecbce50c72a9592d93bcf5ff808f
+SOURCE_TREE=f32ba365dd0327dbe25cf174c3fd2d5217605da9
+AUTHORITY_TREE=6b07cf6e60fcd8dc78b76307c93db9d8f1ab1fb9
+CONTEST_SHA256=1990cacfac26442cd5cb53cb175d8eb8aa5f5a10557be7a68b01c892bf2c9b1b
+DIST_FILES=1
+DIST_BYTES=227840
+P0=0
+P1=0
+P2=0
+INTEGRATION_ELIGIBLE=YES
+
+The reviewer verified all prior P1/P2 repairs, including dynamic Shell41
+affordability, player Charge slot reservation in ORBIT/WAVE/FORECLOSE, atomic
+WAVE failure, step04 escrow observation, and the discriminating scheduled
+ORBIT tick7 capacity race. Authority/config remained unchanged and the recorded
+Windows builds, complete regression, live window, dependencies, and exact dist
+evidence match this source tree.
