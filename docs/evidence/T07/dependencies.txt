@@ -1,0 +1,18 @@
+T07 CONTEST DEPENDENCIES AND PE FLAGS
+
+dumpbin /dependents dist/contest/BorrowedPixels.exe
+- KERNEL32.dll
+- USER32.dll
+- GDI32.dll
+- WINMM.dll
+
+dumpbin /headers confirms:
+- machine x64
+- Windows GUI subsystem
+- Dynamic base
+- NX compatible
+- Control Flow Guard
+
+No engine, third-party runtime/library, downloaded/runtime asset, runtime JSON
+parser, network, browser, runtime AI, heap simulation container, filesystem, or
+iostream dependency was added. dist/contest contains one EXE only.

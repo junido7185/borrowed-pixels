@@ -1,0 +1,24 @@
+T07 CHANGED-PATH CLASSIFICATION
+
+PRIMARY T07
+- src/bp_act1.h
+- src/bp_act1.cpp
+- src/bp_encounter.h
+- src/bp_encounter.cpp
+- tests/bp_act1_encounter_tests.cpp
+
+CROSS_TICKET_GLUE (standing Human Director approval)
+- src/bp_game.h
+- src/bp_game.cpp
+- src/bp_combat.h
+- src/bp_combat.cpp
+- src/bp_reclaim.cpp
+- src/bp_win32.cpp
+- tests/bp_combat_tests.cpp
+
+STATUS / EVIDENCE / HANDOFF
+- docs/STATUS.md
+- docs/evidence/T07/**
+- docs/handoffs/T07/OUTPUT.md
+
+No authority file is modified.

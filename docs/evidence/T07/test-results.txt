@@ -1,0 +1,20 @@
+T07 FINAL PRE-CANDIDATE TEST RESULTS
+
+T07_PASS checks=2066 encounters=3 act1_ledgers=1440
+T05_PASS checks=4081 projectiles=32 neutrals=64
+T04_PASS checks=333093 replay_ticks=4096 replay=61646592
+T06_PASS checks=6512 hud_states=21 neutral_capacity=64
+T03_PASS checks=5035224 latin_glyphs=59 hangul_syllables=11172 captures=6
+T03 policy_profiles=81 language_modes=1 overlap_pixels=0
+T02_PASS checks=2365194 combinations=19683 save_bytes=96
+CTest: 1/1 PASS
+Debug smoke: EXIT 0
+Contest live run: EXIT 0
+
+Focused T07 coverage includes exact encounter data, scene timing, PATCH feeds,
+PAIR swept probe contact/PROTOCOL_TAG/120-tick rebuild/2700-tick result,
+VESSEL PRESS/BRACE/STAMP/RECLAIM policy mechanics, 24x10 swept AABB contact,
+player-core retry freeze and 18-tick revisit intro, settlement claims, palette
+rendering, telegraph/ring pixels, pause-entry step ordering, constrained actor
+separation including the zero-Shell boundary case, complete-state hash
+sensitivity, and replay determinism with both ledger totals fixed at 1440.

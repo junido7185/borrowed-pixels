@@ -1,0 +1,9 @@
+T07 RIGHTS AND PROVENANCE
+
+- All T07 source, tests, and evidence were produced for this repository from the
+  checked-in v2.1 authority and approved T03 amendment.
+- No external library, engine, downloaded asset, font, audio, image, or code was
+  introduced.
+- Capture PNGs are direct screenshots of this repository's locally built contest
+  executable and contain only project-rendered pixels plus the Windows frame.
+- Existing repository provenance and rights logs remain applicable.

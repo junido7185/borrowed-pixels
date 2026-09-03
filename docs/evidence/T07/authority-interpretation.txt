@@ -1,0 +1,26 @@
+T07 AUTHORITY INTERPRETATIONS AND CROSS-TICKET GLUE
+
+AUTHORITY_INTERPRETATION
+- A destroyed CHECKSUM probe contributes exactly 16 PROTOCOL_TAG mass inside a
+  reclaimable Neutral cluster. Merge/reclaim preserves or consumes that tag.
+  At the exact 120-tick boundary, a probe rebuilds only when at least 16 tagged
+  Neutral mass remains; mass already incorporated into Shell is not removed.
+- A player core contact snapshots combat, performs the five-tick hit freeze,
+  enters an explicit EncounterRetry state, rebuilds the same encounter once,
+  then uses the authoritative 18-tick revisit-intro confirm threshold.
+- Runtime hash means all deterministic Act1 state that can alter future behavior,
+  including inactive-slot generations and tagged/provenance mass, is included.
+
+CROSS_TICKET_GLUE
+- src/bp_game.h/.cpp exposes AdvanceGameIntent so T07 can resolve authority step
+  06 separately and reuse frozen T04 acceleration/dash/movement at steps 09-10.
+- src/bp_combat.h/.cpp adds scripted projectile dimensions and tagged Neutral
+  bookkeeping using existing fixed-capacity slots/ledger transactions.
+- src/bp_reclaim.cpp propagates and consumes PROTOCOL_TAG mass through existing
+  merge/reclaim operations.
+- src/bp_win32.cpp replaces the T03 default UI model with the T07 runtime call
+  and renders Act1 into the same private backbuffer once per presented frame.
+
+No rule, constant, copy, coordinate, timing, ledger total, save layout, or
+presentation decision was invented by the glue. Focused tests cover every glue
+surface and the full regression remains green.

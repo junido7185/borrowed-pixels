@@ -1,0 +1,31 @@
+T07 INDEPENDENT REVIEW
+
+Status: READY_FOR_HUMAN_GATE
+
+REVIEWER: review_t00 (read-only; no reviewer file edits)
+
+INITIAL RESULT: P0=0, P1=6, P2=1, CHANGES_REQUIRED
+- Repairs covered protocol tagging/timing, swept threat/contact,
+  BRACE/PRESS/STAMP details, dash/cover/body collision behavior, explicit Shell
+  damage events, PATCH partial-feed merging, pause freezing, and hash coverage.
+
+FIRST FOLLOW-UP: P0=0, P1=2, P2=1, CHANGES_REQUIRED
+- New pause entry now executes authority 32.9 step 02 before step 03, while an
+  already-paused runtime remains fully frozen.
+- Boundary/Cover constrained body separation gained a dedicated regression.
+
+SECOND FOLLOW-UP: P0=0, P1=1, P2=1, CHANGES_REQUIRED
+- Extreme mass ratios exposed geometric-only convergence. Cancelled weighted
+  displacement is now immediately reassigned to a movable actor.
+- A zero-Shell, boundary-pinned VESSEL regression verifies full separation.
+
+FINAL CODE RESULT: P0=0, P1=0, P2=1, READY_FOR_HUMAN_GATE
+- The only remaining P2 was stale evidence text (T07 1979/T05 4071).
+- This evidence update records the reproduced final T07 2066/T05 4081 counts.
+- No code-blocking finding remains. Subjective Gate 3/4 stays
+  HUMAN_REVIEW_DEFERRED and the byte-budget gate remains open.
+
+FINAL EVIDENCE RESULT: P0=0, P1=0, P2=0, READY_FOR_HUMAN_GATE
+- The reviewer confirmed test counts, exact dist bytes/hash/delta, MAP symbols,
+  OUTPUT, STATUS, and evidence are mutually consistent.
+- Human byte-budget reapproval is expressly not inferred from this review.

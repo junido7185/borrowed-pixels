@@ -233,6 +233,57 @@ void TestChargeLifecycle() noexcept {
     }
 }
 
+void TestScriptedProjectileConnector() noexcept {
+    World world = MakeWorld(240, 128);
+    const std::uint16_t shellBefore =
+        world.ledger.mass[AccountIndex(bp::PhysicalAccount::OpponentShell)];
+    Check(bp::SpawnScriptedProjectile(
+              world.combat,
+              world.ledger,
+              bp::CombatSide::Opponent,
+              32,
+              bp::Vec2Q8{240 * bp::kQ8One, 90 * bp::kQ8One},
+              bp::Vec2Q8{-bp::kInputUnit, 0},
+              bp::PixelsPerSecondToQ8PerTick(90)),
+        "scripted projectile connector spawns exact mass");
+    Check(world.ledger.mass[AccountIndex(bp::PhysicalAccount::OpponentShell)]
+              == shellBefore - 32,
+        "scripted projectile connector debits source shell");
+    Check(world.ledger.mass[AccountIndex(bp::PhysicalAccount::Projectile)] == 32,
+        "scripted projectile connector credits projectile ledger");
+    Check(world.combat.projectiles[0].active != 0
+              && world.combat.projectiles[0].mass == 32
+              && world.combat.projectiles[0].velocity.x
+                  == -bp::PixelsPerSecondToQ8PerTick(90),
+        "scripted projectile connector preserves frozen values");
+    Check(bp::SpawnScriptedProjectile(
+              world.combat,
+              world.ledger,
+              bp::CombatSide::Opponent,
+              32,
+              bp::Vec2Q8{240 * bp::kQ8One, 100 * bp::kQ8One},
+              bp::Vec2Q8{-bp::kInputUnit, 0},
+              bp::PixelsPerSecondToQ8PerTick(90),
+              24,
+              10),
+        "scripted projectile connector accepts rectangular slab");
+    Check(world.combat.projectiles[1].widthPixels == 24
+              && world.combat.projectiles[1].heightPixels == 10,
+        "scripted projectile connector preserves slab dimensions");
+    const World beforeInvalid = world;
+    Check(!bp::SpawnScriptedProjectile(
+              world.combat,
+              world.ledger,
+              bp::CombatSide::Opponent,
+              12,
+              bp::Vec2Q8{240 * bp::kQ8One, 90 * bp::kQ8One},
+              bp::Vec2Q8{-bp::kInputUnit, 0},
+              bp::PixelsPerSecondToQ8PerTick(90)),
+        "scripted projectile connector rejects non-contract mass");
+    Check(std::memcmp(&world, &beforeInvalid, sizeof(world)) == 0,
+        "scripted projectile connector invalid request rolls back byte-identical");
+}
+
 void TestSlotCapacityAndHandles() noexcept {
     World world = MakeWorld();
     for (std::uint16_t index = 0; index < 31; ++index) {
@@ -662,6 +713,56 @@ void TestSweptCoverGridAndStress() noexcept {
         "stress preserves all fired mass as neutral");
 }
 
+void TestRectangularProjectileSweep() noexcept {
+    World miss = MakeWorld(240, 64, 1);
+    bp::SlotHandle cover{};
+    Check(bp::AddCover(miss.combat, bp::RectPixels{100, 90, 1, 1}, 1, cover),
+        "rectangle sweep test cover");
+    const std::uint16_t missShot = SeedProjectile(
+        miss, bp::CombatSide::Player, 32,
+        bp::Vec2Q8{50 * bp::kQ8One, 97 * bp::kQ8One},
+        bp::Vec2Q8{60 * bp::kQ8One, 0});
+    miss.combat.projectiles[missShot].widthPixels = 24;
+    miss.combat.projectiles[missShot].heightPixels = 10;
+    Check(bp::FindEarliestImpact(miss.combat, miss.ledger, missShot).kind == bp::ImpactKind::None,
+        "24x10 sweep uses height rather than maximum dimension");
+
+    World hit = MakeWorld(240, 64, 1);
+    Check(bp::AddCover(hit.combat, bp::RectPixels{100, 90, 1, 1}, 1, cover),
+        "rectangle hit test cover");
+    const std::uint16_t hitShot = SeedProjectile(
+        hit, bp::CombatSide::Player, 32,
+        bp::Vec2Q8{50 * bp::kQ8One, 96 * bp::kQ8One},
+        bp::Vec2Q8{60 * bp::kQ8One, 0});
+    hit.combat.projectiles[hitShot].widthPixels = 24;
+    hit.combat.projectiles[hitShot].heightPixels = 10;
+    const bp::ImpactCandidate impact = bp::FindEarliestImpact(hit.combat, hit.ledger, hitShot);
+    Check(impact.kind == bp::ImpactKind::Cover && impact.timeQ16 < 65535,
+        "24x10 rectangle performs swept AABB cover contact");
+}
+
+void TestExplicitShellHitEvent() noexcept {
+    World selfSpend = MakeWorld();
+    Check(bp::BeginCharge(selfSpend.combat, selfSpend.ledger,
+        bp::CombatSide::Player, bp::Vec2Q8{bp::kInputUnit, 0}),
+        "shell-hit event begins self-funded charge");
+    Check(bp::StepCombatProjectiles(selfSpend.combat, selfSpend.ledger, selfSpend.claims),
+        "shell-hit event advances empty projectile phase");
+    Check(selfSpend.combat.shellDamageThisTick[0] == 0,
+        "Shell to Charge reservation is not a player Shell hit");
+
+    World hit = MakeWorld();
+    const std::uint16_t shot = SeedProjectile(
+        hit, bp::CombatSide::Opponent, 8,
+        bp::Vec2Q8{20 * bp::kQ8One, 90 * bp::kQ8One},
+        bp::Vec2Q8{40 * bp::kQ8One, 0});
+    Check(shot != bp::kInvalidSlotIndex, "shell-hit event seeds opponent shot");
+    Check(bp::StepCombatProjectiles(hit.combat, hit.ledger, hit.claims),
+        "shell-hit event processes opponent contact");
+    Check(hit.combat.shellDamageThisTick[0] == 12,
+        "actual player Shell hit records exact stripped mass");
+}
+
 void TestNeutralSaturationRecoveryAndInvariantFailure() noexcept {
     World full = MakeWorld(240, 64, 0, 64);
     for (std::uint16_t index = 0; index < bp::kNeutralCapacity; ++index) {
@@ -732,12 +833,15 @@ struct T05TestRunner {
     T05TestRunner() noexcept {
         TestFormulaContract();
         TestChargeLifecycle();
+        TestScriptedProjectileConnector();
         TestSlotCapacityAndHandles();
         TestSweptShellAndCore();
         TestCoverAndBoundaryTransactions();
         TestProjectileAndChargeInterception();
         TestDeterministicCombatReplay();
         TestSweptCoverGridAndStress();
+        TestRectangularProjectileSweep();
+        TestExplicitShellHitEvent();
         TestNeutralSaturationRecoveryAndInvariantFailure();
         if (gT05Failures != 0) {
             std::printf("T05_FAIL\tchecks=%u\tfailures=%u\n", gT05Checks, gT05Failures);

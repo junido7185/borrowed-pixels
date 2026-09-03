@@ -42,8 +42,13 @@ bool InitializeGameState(
     std::uint32_t choiceBits = 0) noexcept;
 
 bool TickGame(GameState& state, const InputFrame& input) noexcept;
+// CROSS_TICKET_GLUE: encounter orchestration resolves input at authority step
+// 06 and advances actor motion at steps 09-10 without duplicating T04 rules.
+bool AdvanceGameIntent(GameState& state, const GameplayIntent& intent) noexcept;
 std::uint32_t GameStateHash(const GameState& state) noexcept;
 std::int32_t PlayerMaximumSpeedQ8(std::uint16_t shellMass) noexcept;
+// CROSS_TICKET_GLUE: T07 large opponents use the frozen section 32.3 curve.
+std::int32_t LargeOpponentMaximumSpeedQ8(std::uint16_t shellMass) noexcept;
 bool DashIgnoresProjectiles(const GameState& state) noexcept;
 
 }  // namespace bp

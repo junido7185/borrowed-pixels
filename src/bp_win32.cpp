@@ -2,6 +2,7 @@
 
 #include "bp_platform.h"
 #include "bp_render.h"
+#include "bp_encounter.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -58,6 +59,7 @@ struct PlatformState {
     Backbuffer backbuffer;
     PendingInput input;
     bp::InputFrame lastInputFrame;
+    bp::Act1Runtime act1;
     std::uint32_t globalTick;
     std::uint32_t renderFrame;
     bool running;
@@ -177,14 +179,14 @@ void UpdateMousePosition(PlatformState& state, std::int32_t clientX, std::int32_
 }
 
 void PresentBackbuffer(PlatformState& state, HDC destination, const RECT& client) noexcept {
-    bp::RenderUiReference(
+    bp::RenderAct1Runtime(
         bp::PixelBuffer{
             state.backbuffer.pixels,
             bp::kCanvasWidth,
             bp::kCanvasHeight,
             bp::kCanvasWidth,
         },
-        bp::UiReferenceScreen::Title);
+        state.act1);
     const std::int32_t clientWidth = client.right - client.left;
     const std::int32_t clientHeight = client.bottom - client.top;
     const bp::Viewport viewport = bp::ComputeViewport(clientWidth, clientHeight);
@@ -746,6 +748,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
     state.running = true;
     state.focused = true;
     state.input.lastDevice = bp::InputDevice::KeyboardMouse;
+    if (!bp::InitializeAct1Runtime(state.act1)) {
+        return 2;
+    }
     state.windowedPlacement.length = sizeof(state.windowedPlacement);
     state.dpiAware = InitializeDpiAwareness();
     state.audioAvailable = ProbeWaveOut();
@@ -823,6 +828,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
             std::uint32_t ticks = 0;
             while (state.accumulator60 >= state.qpcFrequency.QuadPart && ticks < bp::kMaxCatchUpTicks) {
                 BuildInputFrame(state);
+                if (!bp::TickAct1Runtime(state.act1, state.lastInputFrame)) {
+                    state.running = false;
+                    break;
+                }
                 state.accumulator60 -= state.qpcFrequency.QuadPart;
                 ++ticks;
             }

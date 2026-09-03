@@ -170,6 +170,37 @@ bool InitializeGameState(
     return true;
 }
 
+std::int32_t LargeOpponentMaximumSpeedQ8(std::uint16_t shellMass) noexcept {
+    const std::uint16_t clampedShell = shellMass > 384 ? 384 : shellMass;
+    return PixelsPerSecondToQ8PerTick(
+        98 - static_cast<std::int32_t>(clampedShell) * 38 / 384);
+}
+
+bool AdvanceGameIntent(GameState& state, const GameplayIntent& intent) noexcept {
+    if (!ClaimLedgerValid(state.claimLedger)
+        || !PhysicalLedgerValid(state.physicalLedger)
+        || state.paused != 0
+        || intent.focusLost) {
+        return false;
+    }
+    GameState next = state;
+    const bool activeDash = next.dashTicksRemaining > 0;
+    next.currentAction = activeDash ? GameplayAction::Dash : intent.action;
+    next.chargeActive = intent.action == GameplayAction::Fire ? 1u : 0u;
+    next.reclaimActive = intent.action == GameplayAction::Reclaim ? 1u : 0u;
+    next.hudChannelActive = intent.action == GameplayAction::HudReallocate ? 1u : 0u;
+    if (intent.action == GameplayAction::Dash && CanStartDash(next)) {
+        BeginDash(next, intent);
+    }
+    if (next.dashTicksRemaining > 0) MoveDash(next);
+    else MoveNormally(next, intent);
+    if (!ClaimLedgerValid(next.claimLedger) || !PhysicalLedgerValid(next.physicalLedger)) {
+        return false;
+    }
+    state = next;
+    return true;
+}
+
 bool TickGame(GameState& state, const InputFrame& input) noexcept {
     if (input.tick != state.globalTick
         || !ClaimLedgerValid(state.claimLedger)
@@ -220,18 +251,7 @@ bool TickGame(GameState& state, const InputFrame& input) noexcept {
         next.currentAction = GameplayAction::Dash;
     }
 
-    next.chargeActive = intent.action == GameplayAction::Fire ? 1u : 0u;
-    next.reclaimActive = intent.action == GameplayAction::Reclaim ? 1u : 0u;
-    next.hudChannelActive = intent.action == GameplayAction::HudReallocate ? 1u : 0u;
-    if (intent.action == GameplayAction::Dash && CanStartDash(next)) {
-        BeginDash(next, intent);
-    }
-    if (next.dashTicksRemaining > 0) {
-        MoveDash(next);
-    } else {
-        MoveNormally(next, intent);
-    }
-    if (!ClaimLedgerValid(next.claimLedger) || !PhysicalLedgerValid(next.physicalLedger)) {
+    if (!AdvanceGameIntent(next, intent)) {
         return false;
     }
     ++next.globalTick;

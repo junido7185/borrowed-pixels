@@ -68,6 +68,8 @@ struct ProjectileSlot {
     std::uint32_t stableId;
     std::uint16_t generation;
     std::uint16_t mass;
+    std::uint8_t widthPixels;
+    std::uint8_t heightPixels;
     CombatSide owner;
     std::uint8_t active;
 };
@@ -82,6 +84,8 @@ struct NeutralSlot {
     std::uint16_t immunityTicks;
     std::uint16_t playerMissMass;
     std::uint16_t opponentMissMass;
+    std::uint16_t protocolTagMass;
+    std::uint16_t patchFeedMass;
     std::uint8_t inertiaTicks;
     std::uint8_t active;
 };
@@ -127,6 +131,7 @@ struct CombatState {
     CoverSlot covers[kCoverCapacity];
     CombatActor actors[2];
     SettlementSnapshot settlement;
+    std::uint16_t shellDamageThisTick[2];
     std::uint32_t nextStableId;
     std::uint32_t globalTick;
     CombatPhase phase;
@@ -148,6 +153,20 @@ bool BeginCharge(
 bool AdvanceCharge(CombatState& state, PhysicalLedger& ledger, CombatSide side) noexcept;
 bool ReleaseCharge(CombatState& state, PhysicalLedger& ledger, CombatSide side) noexcept;
 bool RollbackCharge(CombatState& state, PhysicalLedger& ledger, CombatSide side) noexcept;
+
+// CROSS_TICKET_GLUE: scripted encounters use the same projectile slots and
+// ledger transaction as a released player charge, but supply their frozen
+// mass, origin, direction, and speed directly.
+bool SpawnScriptedProjectile(
+    CombatState& state,
+    PhysicalLedger& ledger,
+    CombatSide side,
+    std::uint16_t mass,
+    Vec2Q8 position,
+    Vec2Q8 directionQ15,
+    std::int32_t speedQ8,
+    std::uint8_t widthPixels = 0,
+    std::uint8_t heightPixels = 0) noexcept;
 
 bool AddCover(
     CombatState& state,

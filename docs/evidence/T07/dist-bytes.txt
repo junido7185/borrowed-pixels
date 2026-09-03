@@ -1,0 +1,24 @@
+T07 CONTEST DIST MEASUREMENT
+
+FILE=BorrowedPixels.exe BYTES=183808
+DIST_FILES=1
+DIST_BYTES=183808
+INTERNAL_CAP=1350000 PASS
+HARD_CAP=1474560 PASS
+SHA256=59916441c7e2547d9a18bac2412241e67693e96ff051b2f318cec038c98d6492
+
+PREVIOUS ACCEPTED T06 DIST=129024
+DELTA=+54784 bytes
+
+EXPLANATION
+T07 is the first ticket that makes the Act 1 encounter framework, all three
+encounter data sets/state machines, settlement flow, render path, and prior
+combat/HUD modules reachable from the contest Win32 entry point. The test
+translation units are excluded from bp_contest. The final /OPT:REF map retains
+the live entry points listed in map-reachability.txt.
+
+GATE
+The absolute internal and hard caps pass. Because +54784 is at least 25KB,
+runbook section 12 still requires explicit Human byte-budget reapproval before
+local integration. Standing per-ticket integration approval did not expressly
+supersede this byte-budget gate.

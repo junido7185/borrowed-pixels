@@ -107,6 +107,10 @@ bool RecoverNeutralSlot(CombatState& state) noexcept {
         survivor.playerMissMass + released.playerMissMass);
     survivor.opponentMissMass = static_cast<std::uint16_t>(
         survivor.opponentMissMass + released.opponentMissMass);
+    survivor.protocolTagMass = static_cast<std::uint16_t>(
+        survivor.protocolTagMass + released.protocolTagMass);
+    survivor.patchFeedMass = static_cast<std::uint16_t>(
+        survivor.patchFeedMass + released.patchFeedMass);
     if (released.reclaimLockTicks > survivor.reclaimLockTicks) {
         survivor.reclaimLockTicks = released.reclaimLockTicks;
     }
@@ -119,6 +123,8 @@ bool RecoverNeutralSlot(CombatState& state) noexcept {
     released.mass = 0;
     released.playerMissMass = 0;
     released.opponentMissMass = 0;
+    released.protocolTagMass = 0;
+    released.patchFeedMass = 0;
     released.reclaimLockTicks = 0;
     released.immunityTicks = 0;
     released.inertiaTicks = 0;
@@ -238,6 +244,8 @@ bool AllocateNeutralSlot(
     slot.immunityTicks = 0;
     slot.playerMissMass = playerMissMass;
     slot.opponentMissMass = opponentMissMass;
+    slot.protocolTagMass = 0;
+    slot.patchFeedMass = 0;
     slot.inertiaTicks = 15;
     slot.active = 1;
     indexOut = index;
@@ -256,6 +264,32 @@ std::uint16_t CooldownForMass(std::uint16_t mass) noexcept {
     if (mass >= 32) return 27;
     if (mass >= 16) return 19;
     return 15;
+}
+
+std::int32_t ProjectileCollisionRadiusPixels(const ProjectileSlot& projectile) noexcept {
+    if (projectile.widthPixels != 0 && projectile.heightPixels != 0) {
+        const std::uint8_t maximum = projectile.widthPixels > projectile.heightPixels
+            ? projectile.widthPixels
+            : projectile.heightPixels;
+        return static_cast<std::int32_t>((maximum + 1u) / 2u);
+    }
+    return ProjectileRadiusPixels(projectile.mass);
+}
+
+std::int32_t ProjectileHalfWidthPixels(const ProjectileSlot& projectile) noexcept {
+    return projectile.widthPixels != 0
+        ? static_cast<std::int32_t>((projectile.widthPixels + 1u) / 2u)
+        : ProjectileRadiusPixels(projectile.mass);
+}
+
+std::int32_t ProjectileHalfHeightPixels(const ProjectileSlot& projectile) noexcept {
+    return projectile.heightPixels != 0
+        ? static_cast<std::int32_t>((projectile.heightPixels + 1u) / 2u)
+        : ProjectileRadiusPixels(projectile.mass);
+}
+
+bool RectangularProjectile(const ProjectileSlot& projectile) noexcept {
+    return projectile.widthPixels != 0 && projectile.heightPixels != 0;
 }
 
 std::uint32_t CeilingSqrt(std::uint64_t value) noexcept {
@@ -367,6 +401,28 @@ void OfferCircleImpact(
     if (BetterImpact(candidate, best)) best = candidate;
 }
 
+void OfferAabbImpact(
+    ImpactCandidate& best,
+    ImpactKind kind,
+    std::uint16_t targetIndex,
+    std::uint32_t stableId,
+    Vec2Q8 start,
+    Vec2Q8 delta,
+    Vec2Q8 target,
+    Vec2Q8 targetDelta,
+    std::int32_t halfWidthQ8,
+    std::int32_t halfHeightQ8) noexcept {
+    std::uint16_t time = 0;
+    const Vec2Q8 relativeDelta{delta.x - targetDelta.x, delta.y - targetDelta.y};
+    if (!SweptPointAabbTimeQ16(
+            start, relativeDelta,
+            target.x - halfWidthQ8, target.y - halfHeightQ8,
+            target.x + halfWidthQ8, target.y + halfHeightQ8,
+            time)) return;
+    ImpactCandidate candidate{kind, time, targetIndex, stableId, PointAtTime(start, delta, time)};
+    if (BetterImpact(candidate, best)) best = candidate;
+}
+
 ImpactCandidate FindEarliestImpactInternal(
     const CombatState& state,
     const PhysicalLedger& ledger,
@@ -377,20 +433,29 @@ ImpactCandidate FindEarliestImpactInternal(
     const ProjectileSlot& projectile = state.projectiles[projectileIndex];
     const Vec2Q8 start = projectile.position;
     const Vec2Q8 delta = projectile.velocity;
-    const std::int32_t projectileRadiusQ8 = ProjectileRadiusPixels(projectile.mass) * kQ8One;
+    const std::int32_t projectileRadiusQ8 = ProjectileCollisionRadiusPixels(projectile) * kQ8One;
+    const std::int32_t projectileHalfWidthQ8 = ProjectileHalfWidthPixels(projectile) * kQ8One;
+    const std::int32_t projectileHalfHeightQ8 = ProjectileHalfHeightPixels(projectile) * kQ8One;
     const CombatSide targetSide = Opposite(projectile.owner);
     const CombatActor& actor = state.actors[SideIndex(targetSide)];
     if (actor.projectileImmune == 0) {
         const std::uint16_t shellMass = ledger.mass[AccountIndex(ShellAccount(targetSide))];
         std::uint16_t coreTime = 0;
-        const bool coreCandidate = shellMass <= kCoreExposureShell
-            && actor.exposureGraceTicks == 0
-            && SweptCircleTimeQ16(
-                start,
-                delta,
-                actor.position,
-                projectileRadiusQ8 + kCoreRadiusPixels * kQ8One,
-                coreTime);
+        bool coreCandidate = false;
+        if (shellMass <= kCoreExposureShell && actor.exposureGraceTicks == 0) {
+            coreCandidate = RectangularProjectile(projectile)
+                ? SweptPointAabbTimeQ16(
+                    start, delta,
+                    actor.position.x - projectileHalfWidthQ8 - kCoreRadiusPixels * kQ8One,
+                    actor.position.y - projectileHalfHeightQ8 - kCoreRadiusPixels * kQ8One,
+                    actor.position.x + projectileHalfWidthQ8 + kCoreRadiusPixels * kQ8One,
+                    actor.position.y + projectileHalfHeightQ8 + kCoreRadiusPixels * kQ8One,
+                    coreTime)
+                : SweptCircleTimeQ16(
+                    start, delta, actor.position,
+                    projectileRadiusQ8 + kCoreRadiusPixels * kQ8One,
+                    coreTime);
+        }
         if (coreCandidate) {
             best = ImpactCandidate{
                 ImpactKind::Core,
@@ -400,57 +465,61 @@ ImpactCandidate FindEarliestImpactInternal(
                 PointAtTime(start, delta, coreTime),
             };
         } else {
-            OfferCircleImpact(
-                best,
-                ImpactKind::Shell,
-                SideIndex(targetSide),
-                static_cast<std::uint32_t>(SideIndex(targetSide) + 1u),
-                start,
-                delta,
-                actor.position,
-                Vec2Q8{0, 0},
-                projectileRadiusQ8 + ActorRadiusPixels(shellMass) * kQ8One);
+            const std::int32_t actorRadiusQ8 = ActorRadiusPixels(shellMass) * kQ8One;
+            if (RectangularProjectile(projectile)) {
+                OfferAabbImpact(best, ImpactKind::Shell, SideIndex(targetSide),
+                    static_cast<std::uint32_t>(SideIndex(targetSide) + 1u),
+                    start, delta, actor.position, Vec2Q8{0, 0},
+                    projectileHalfWidthQ8 + actorRadiusQ8,
+                    projectileHalfHeightQ8 + actorRadiusQ8);
+            } else {
+                OfferCircleImpact(best, ImpactKind::Shell, SideIndex(targetSide),
+                    static_cast<std::uint32_t>(SideIndex(targetSide) + 1u),
+                    start, delta, actor.position, Vec2Q8{0, 0},
+                    projectileRadiusQ8 + actorRadiusQ8);
+            }
         }
     }
 
     const ChargeSlot& charge = state.charges[SideIndex(targetSide)];
     if (charge.active != 0) {
         const std::uint16_t targetShellMass = ledger.mass[AccountIndex(ShellAccount(targetSide))];
-        OfferCircleImpact(
-            best,
-            ImpactKind::Charge,
-            SideIndex(targetSide),
-            charge.stableId,
-            start,
-            delta,
-            charge.position,
-            Vec2Q8{0, 0},
-            projectileRadiusQ8 + ActorRadiusPixels(targetShellMass) * kQ8One);
+        const std::int32_t chargeRadiusQ8 = ActorRadiusPixels(targetShellMass) * kQ8One;
+        if (RectangularProjectile(projectile)) {
+            OfferAabbImpact(best, ImpactKind::Charge, SideIndex(targetSide), charge.stableId,
+                start, delta, charge.position, Vec2Q8{0, 0},
+                projectileHalfWidthQ8 + chargeRadiusQ8,
+                projectileHalfHeightQ8 + chargeRadiusQ8);
+        } else {
+            OfferCircleImpact(best, ImpactKind::Charge, SideIndex(targetSide), charge.stableId,
+                start, delta, charge.position, Vec2Q8{0, 0},
+                projectileRadiusQ8 + chargeRadiusQ8);
+        }
     }
 
     for (std::uint16_t index = 0; index < kProjectileCapacity; ++index) {
         const ProjectileSlot& target = state.projectiles[index];
         if (index == projectileIndex || target.active == 0 || target.owner == projectile.owner) continue;
         if (processed != nullptr && processed[index]) continue;
-        OfferCircleImpact(
-            best,
-            ImpactKind::Projectile,
-            index,
-            target.stableId,
-            start,
-            delta,
-            target.position,
-            target.velocity,
-            projectileRadiusQ8 + ProjectileRadiusPixels(target.mass) * kQ8One);
+        if (RectangularProjectile(projectile) || RectangularProjectile(target)) {
+            OfferAabbImpact(best, ImpactKind::Projectile, index, target.stableId,
+                start, delta, target.position, target.velocity,
+                projectileHalfWidthQ8 + ProjectileHalfWidthPixels(target) * kQ8One,
+                projectileHalfHeightQ8 + ProjectileHalfHeightPixels(target) * kQ8One);
+        } else {
+            OfferCircleImpact(best, ImpactKind::Projectile, index, target.stableId,
+                start, delta, target.position, target.velocity,
+                projectileRadiusQ8 + ProjectileCollisionRadiusPixels(target) * kQ8One);
+        }
     }
 
     for (std::uint16_t index = 0; index < kCoverCapacity; ++index) {
         const CoverSlot& cover = state.covers[index];
         if (cover.active == 0) continue;
-        const std::int32_t minimumX = cover.bounds.x * kQ8One - projectileRadiusQ8;
-        const std::int32_t minimumY = cover.bounds.y * kQ8One - projectileRadiusQ8;
-        const std::int32_t maximumX = (cover.bounds.x + cover.bounds.width) * kQ8One + projectileRadiusQ8;
-        const std::int32_t maximumY = (cover.bounds.y + cover.bounds.height) * kQ8One + projectileRadiusQ8;
+        const std::int32_t minimumX = cover.bounds.x * kQ8One - projectileHalfWidthQ8;
+        const std::int32_t minimumY = cover.bounds.y * kQ8One - projectileHalfHeightQ8;
+        const std::int32_t maximumX = (cover.bounds.x + cover.bounds.width) * kQ8One + projectileHalfWidthQ8;
+        const std::int32_t maximumY = (cover.bounds.y + cover.bounds.height) * kQ8One + projectileHalfHeightQ8;
         std::uint16_t time = 0;
         if (SweptPointAabbTimeQ16(start, delta, minimumX, minimumY, maximumX, maximumY, time)) {
             ImpactCandidate candidate{
@@ -464,10 +533,10 @@ ImpactCandidate FindEarliestImpactInternal(
         }
     }
 
-    const std::int32_t minimumX = kPlayInterior.x * kQ8One + projectileRadiusQ8;
-    const std::int32_t minimumY = kPlayInterior.y * kQ8One + projectileRadiusQ8;
-    const std::int32_t maximumX = (kPlayInterior.x + kPlayInterior.width) * kQ8One - projectileRadiusQ8;
-    const std::int32_t maximumY = (kPlayInterior.y + kPlayInterior.height) * kQ8One - projectileRadiusQ8;
+    const std::int32_t minimumX = kPlayInterior.x * kQ8One + projectileHalfWidthQ8;
+    const std::int32_t minimumY = kPlayInterior.y * kQ8One + projectileHalfHeightQ8;
+    const std::int32_t maximumX = (kPlayInterior.x + kPlayInterior.width) * kQ8One - projectileHalfWidthQ8;
+    const std::int32_t maximumY = (kPlayInterior.y + kPlayInterior.height) * kQ8One - projectileHalfHeightQ8;
     const Vec2Q8 end{start.x + delta.x, start.y + delta.y};
     std::uint16_t boundaryTime = 65535u;
     std::uint16_t boundaryMask = 0;
@@ -597,6 +666,8 @@ bool ProcessImpact(
             return false;
         }
         NeutralSlot& neutral = candidate.neutrals[neutralIndex];
+        candidate.shellDamageThisTick[SideIndex(targetSide)] = static_cast<std::uint16_t>(
+            candidate.shellDamageThisTick[SideIndex(targetSide)] + damage);
         neutral.reclaimLockTicks = static_cast<std::uint16_t>(6 + neutral.mass / 3);
         neutral.immunityTicks = 45;
         shot.active = 0;
@@ -811,14 +882,17 @@ bool CombatStateValid(const CombatState& state, const PhysicalLedger& ledger) no
     for (const ProjectileSlot& slot : state.projectiles) {
         if (slot.active != 0) {
             if (slot.mass == 0 || slot.mass > 48 || slot.stableId == 0 || slot.generation == 0
-                || SideIndex(slot.owner) >= 2) return false;
+                || SideIndex(slot.owner) >= 2
+                || ((slot.widthPixels == 0) != (slot.heightPixels == 0))) return false;
             projectileMass += slot.mass;
         } else if (slot.mass != 0) return false;
     }
     for (const NeutralSlot& slot : state.neutrals) {
         if (slot.active != 0) {
             if (slot.mass == 0 || slot.mass > 256 || slot.stableId == 0 || slot.generation == 0
-                || static_cast<std::uint32_t>(slot.playerMissMass) + slot.opponentMissMass > slot.mass) return false;
+                || static_cast<std::uint32_t>(slot.playerMissMass)
+                    + slot.opponentMissMass + slot.protocolTagMass
+                    + slot.patchFeedMass > slot.mass) return false;
             neutralMass += slot.mass;
         } else if (slot.mass != 0) return false;
     }
@@ -931,6 +1005,8 @@ bool ReleaseCharge(CombatState& state, PhysicalLedger& ledger, CombatSide side) 
     projectile.stableId = charge.stableId;
     projectile.generation = NextGeneration(projectile.generation);
     projectile.mass = charge.mass;
+    projectile.widthPixels = 0;
+    projectile.heightPixels = 0;
     projectile.owner = side;
     projectile.active = 1;
     const Vec2Q8 recoil = ScaleDirection(charge.directionQ15, RecoilQ8(charge.mass));
@@ -942,6 +1018,59 @@ bool ReleaseCharge(CombatState& state, PhysicalLedger& ledger, CombatSide side) 
     charge.ageTicks = 0;
     charge.active = 0;
     if (!CombatStateValid(candidate, ledgerCandidate)) return false;
+    state = candidate;
+    ledger = ledgerCandidate;
+    return true;
+}
+
+bool SpawnScriptedProjectile(
+    CombatState& state,
+    PhysicalLedger& ledger,
+    CombatSide side,
+    std::uint16_t mass,
+    Vec2Q8 position,
+    Vec2Q8 directionQ15,
+    std::int32_t speedQ8,
+    std::uint8_t widthPixels,
+    std::uint8_t heightPixels) noexcept {
+    const std::uint8_t sideIndex = SideIndex(side);
+    const std::uint16_t projectileIndex = FindFreeProjectile(state);
+    if (sideIndex >= 2
+        || state.phase != CombatPhase::Active
+        || !CombatStateValid(state, ledger)
+        || projectileIndex == kInvalidSlotIndex
+        || (mass != 8 && mass != 16 && mass != 32 && mass != 48)
+        || ((widthPixels == 0) != (heightPixels == 0))
+        || speedQ8 <= 0
+        || ledger.mass[AccountIndex(ShellAccount(side))] < mass) {
+        return false;
+    }
+
+    CombatState candidate = state;
+    PhysicalLedger ledgerCandidate = ledger;
+    std::uint32_t stableId = 0;
+    if (!TakeStableId(candidate, stableId)
+        || !PhysicalTransfer(
+            ledgerCandidate,
+            ShellAccount(side),
+            PhysicalAccount::Projectile,
+            mass)) {
+        return false;
+    }
+
+    ProjectileSlot& projectile = candidate.projectiles[projectileIndex];
+    projectile.position = position;
+    projectile.velocity = ScaleDirection(NormalizeVectorQ15(directionQ15), speedQ8);
+    projectile.stableId = stableId;
+    projectile.generation = NextGeneration(projectile.generation);
+    projectile.mass = mass;
+    projectile.widthPixels = widthPixels;
+    projectile.heightPixels = heightPixels;
+    projectile.owner = side;
+    projectile.active = 1;
+    if (!CombatStateValid(candidate, ledgerCandidate)) {
+        return false;
+    }
     state = candidate;
     ledger = ledgerCandidate;
     return true;
@@ -1076,6 +1205,8 @@ bool StepCombatProjectiles(
         state.error = CombatError::InvariantFailure;
         return false;
     }
+    state.shellDamageThisTick[0] = 0;
+    state.shellDamageThisTick[1] = 0;
     bool processed[kProjectileCapacity]{};
     for (std::uint16_t pass = 0; pass < kProjectileCapacity; ++pass) {
         std::uint16_t selected = kInvalidSlotIndex;

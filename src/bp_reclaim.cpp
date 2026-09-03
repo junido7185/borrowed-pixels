@@ -123,7 +123,8 @@ void ConsumeProvenance(NeutralSlot& neutral, CombatSide side) noexcept {
         ? neutral.opponentMissMass
         : neutral.playerMissMass;
     const std::uint16_t general = static_cast<std::uint16_t>(
-        neutral.mass - neutral.playerMissMass - neutral.opponentMissMass);
+        neutral.mass - neutral.playerMissMass - neutral.opponentMissMass
+        - neutral.protocolTagMass - neutral.patchFeedMass);
     if (ownMiss > 0) --ownMiss;
     else if (general == 0 && otherMiss > 0) --otherMiss;
 }
@@ -133,13 +134,17 @@ bool AbsorbOne(CombatState& state, PhysicalLedger& ledger, ReclaimState& reclaim
     NeutralSlot& neutral = state.neutrals[neutralIndex];
     if (neutral.active == 0 || neutral.mass == 0 || neutral.reclaimLockTicks != 0) return false;
     if (!PhysicalTransfer(ledger, PhysicalAccount::Neutral, ShellAccount(side), 1)) return false;
-    ConsumeProvenance(neutral, side);
+    if (neutral.protocolTagMass > 0) --neutral.protocolTagMass;
+    else if (neutral.patchFeedMass > 0) --neutral.patchFeedMass;
+    else ConsumeProvenance(neutral, side);
     --neutral.mass;
     reclaim.accumulator[SideIndex(side)] = static_cast<std::uint16_t>(
         reclaim.accumulator[SideIndex(side)] - kReclaimRateDenominator);
     if (neutral.mass == 0) {
         neutral.playerMissMass = 0;
         neutral.opponentMissMass = 0;
+        neutral.protocolTagMass = 0;
+        neutral.patchFeedMass = 0;
         neutral.reclaimLockTicks = 0;
         neutral.immunityTicks = 0;
         neutral.inertiaTicks = 0;
@@ -154,6 +159,10 @@ void MergePair(NeutralSlot& survivor, NeutralSlot& released) noexcept {
         survivor.playerMissMass + released.playerMissMass);
     survivor.opponentMissMass = static_cast<std::uint16_t>(
         survivor.opponentMissMass + released.opponentMissMass);
+    survivor.protocolTagMass = static_cast<std::uint16_t>(
+        survivor.protocolTagMass + released.protocolTagMass);
+    survivor.patchFeedMass = static_cast<std::uint16_t>(
+        survivor.patchFeedMass + released.patchFeedMass);
     if (released.reclaimLockTicks > survivor.reclaimLockTicks) {
         survivor.reclaimLockTicks = released.reclaimLockTicks;
     }
@@ -166,6 +175,8 @@ void MergePair(NeutralSlot& survivor, NeutralSlot& released) noexcept {
     released.mass = 0;
     released.playerMissMass = 0;
     released.opponentMissMass = 0;
+    released.protocolTagMass = 0;
+    released.patchFeedMass = 0;
     released.reclaimLockTicks = 0;
     released.immunityTicks = 0;
     released.inertiaTicks = 0;
