@@ -195,6 +195,10 @@ void TestAuditAndDeterminism() noexcept {
         same=bp::PrecedentRuntimeHash(left)==bp::PrecedentRuntimeHash(right) && same;
     }
     Check(same,"same seed profile and input produce same hash every tick");
+    const std::uint32_t fullHash=bp::PrecedentRuntimeHash(left);
+    ++left.combat.actors[0].position.x;
+    Check(bp::PrecedentRuntimeHash(left)!=fullHash,
+        "PRECEDENT hash includes combat actor state without padding");
 }
 
 void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noexcept {
@@ -211,6 +215,20 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
         return state;
     };
 
+    bp::ClaimLedger highClaims=bp::MakeInitialClaimLedger();
+    Check(bp::ClaimTransfer(highClaims,bp::ClaimOwner::System,bp::ClaimOwner::Player,240),
+        "PRECEDENT high-claim fixture transfers claim only");
+    bp::PrecedentRuntime highPlayer{};
+    Check(bp::InitializePrecedentRuntime(highPlayer,highClaims,NarrativeForCode(0))
+        && bp::PopulatePrecedentBattlefield(highPlayer)
+        && highPlayer.movement.physicalLedger.mass[
+            Account(bp::PhysicalAccount::PlayerCore)]==16
+        && highPlayer.movement.physicalLedger.mass[
+            Account(bp::PhysicalAccount::PlayerShell)]==224
+        && highPlayer.movement.physicalLedger.mass[
+            Account(bp::PhysicalAccount::LockedBands)]==240,
+        "PRECEDENT derives PlayerActiveMass min240 max64 from PLAYER claim");
+
     bp::PrecedentRuntime material=world(0);
     material.encounterTick=719;
     Check(bp::TickPrecedentRuntime(material,Idle()) && material.markedOriginMass==16
@@ -222,6 +240,19 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
     continuity.encounterTick=599;
     Check(bp::TickPrecedentRuntime(continuity,Idle()) && continuity.forkTicks==180,
         "FORK starts exact tick600 duration180");
+    std::uint32_t pulsePixels[bp::kRenderWidth*bp::kRenderHeight]{};
+    bp::PixelBuffer pulseBuffer{pulsePixels,bp::kRenderWidth,bp::kRenderHeight,bp::kRenderWidth};
+    continuity.globalTick=30;
+    bp::RenderPrecedentRuntime(pulseBuffer,continuity);
+    const std::int32_t pulseX=continuity.combat.actors[1].position.x/bp::kQ8One+8;
+    const std::int32_t pulseY=continuity.combat.actors[1].position.y/bp::kQ8One;
+    const bool pulseOn=pulsePixels[pulseY*bp::kRenderWidth+pulseX]
+        ==bp::Color(bp::PaletteColor::Warning);
+    continuity.globalTick=36;
+    bp::RenderPrecedentRuntime(pulseBuffer,continuity);
+    Check(pulseOn && pulsePixels[pulseY*bp::kRenderWidth+pulseX]
+        !=bp::Color(bp::PaletteColor::Warning),
+        "FORK real-body causal pulse uses exact 30 tick cadence");
 
     const std::uint8_t relationIndex=static_cast<std::uint8_t>(
         static_cast<std::uint8_t>(bp::IdentityPolicy::Relation)*27u);
@@ -276,10 +307,17 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
 
     bp::PrecedentRuntime adaptive=world(0);
     bool adaptiveOk=true;
-    for (std::uint8_t tick=0;tick<24;++tick)
+    for (std::uint8_t tick=0;tick<12;++tick)
         adaptiveOk=adaptiveOk && bp::TickPrecedentRuntime(adaptive,Idle());
-    Check(adaptiveOk && adaptive.action!=bp::PrecedentAction::Evade,
-        "base Utility AI remains reachable before GOVERNANCE phase");
+    Check(adaptiveOk && adaptive.action==bp::PrecedentAction::Evade
+        && adaptive.pendingValid!=0,"UTILITY_ADAPT observes at exact tick12 without switching");
+    for (std::uint8_t tick=12;tick<23;++tick)
+        adaptiveOk=adaptiveOk && bp::TickPrecedentRuntime(adaptive,Idle());
+    Check(adaptiveOk && adaptive.action==bp::PrecedentAction::Evade,
+        "UTILITY_ADAPT retains action through reaction tick23");
+    Check(bp::TickPrecedentRuntime(adaptive,Idle())
+        && adaptive.action!=bp::PrecedentAction::Evade,
+        "UTILITY_ADAPT applies queued choice at exact tick24");
 
     const std::uint8_t commonsIndex=static_cast<std::uint8_t>(
         static_cast<std::uint8_t>(bp::GovernancePolicy::Commons)*3u);
@@ -290,11 +328,59 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
         && commons.action==bp::PrecedentAction::Reclaim,
         "VOTE_NODES count physical COMMON cover mass and choose low aggression on ties");
 
+    bp::PrecedentRuntime chargeVote=world(commonsIndex);
+    for (bp::CoverSlot& cover:chargeVote.combat.covers)
+        if (cover.active!=0) cover.bounds=bp::RectPixels{8,8,cover.bounds.width,cover.bounds.height};
+    for (bp::NeutralSlot& neutral:chargeVote.combat.neutrals)
+        if (neutral.active!=0) neutral.position=bp::Vec2Q8{12*bp::kQ8One,12*bp::kQ8One};
+    chargeVote.combat.actors[1].position=bp::Vec2Q8{160*bp::kQ8One,90*bp::kQ8One};
+    Check(bp::BeginCharge(chargeVote.combat,chargeVote.movement.physicalLedger,
+        bp::CombatSide::Opponent,bp::Vec2Q8{-bp::kInputUnit,0})
+        && bp::PhysicalTransfer(chargeVote.movement.physicalLedger,
+            bp::PhysicalAccount::OpponentShell,bp::PhysicalAccount::Charge,40),
+        "VOTE_NODES active Charge fixture funds mass48");
+    chargeVote.combat.charges[1].mass=48;
+    chargeVote.combat.charges[1].stageMass=48;
+    chargeVote.combat.actors[1].position=bp::Vec2Q8{112*bp::kQ8One,90*bp::kQ8One};
+    chargeVote.combat.actors[0].position=bp::Vec2Q8{40*bp::kQ8One,150*bp::kQ8One};
+    chargeVote.movement.playerPosition=chargeVote.combat.actors[0].position;
+    DamageOpponentTo(chargeVote,80);
+    chargeVote.action=bp::PrecedentAction::Reclaim;
+    chargeVote.encounterTick=11;
+    Check(bp::TickPrecedentRuntime(chargeVote,Idle())
+        && chargeVote.action==bp::PrecedentAction::Claim,
+        "VOTE_NODES counts active Charge at its physical node");
+
     bp::PrecedentRuntime replay=world(0);
     DamageOpponentTo(replay,80);
     replay.encounterTick=599;
     Check(bp::TickPrecedentRuntime(replay,Idle()) && replay.echoTicks==180
         && replay.echoIndex==0,"REPLAY_NAMED opens exact 180 tick echo slot");
+    Check(bp::PrecedentActClaimMoved(NarrativeForCode(0),0)==208
+        && bp::PrecedentActClaimMoved(NarrativeForCode(0),1)==176
+        && bp::PrecedentActClaimMoved(NarrativeForCode(0),2)==96,
+        "REPLAY_AGGREGATE derives exact per-act claim movement totals");
+    bp::PrecedentRuntime summary=world(1);
+    DamageOpponentTo(summary,80);
+    summary.encounterTick=599;
+    Check(bp::TickPrecedentRuntime(summary,Idle()) && summary.echoTicks==180
+        && summary.echoClaimTotal==208,"SUMMARY stores actual Act1 claim movement total");
+    bp::PrecedentRuntime noReplay=world(2);
+    DamageOpponentTo(noReplay,80);
+    noReplay.encounterTick=599;
+    Check(bp::TickPrecedentRuntime(noReplay,Idle()) && noReplay.echoTicks==0,
+        "NO_REPLAY leaves echo slot empty at module boundary");
+    std::uint32_t namedPixels[bp::kRenderWidth*bp::kRenderHeight]{};
+    std::uint32_t emptyPixels[bp::kRenderWidth*bp::kRenderHeight]{};
+    bp::RenderPrecedentRuntime(
+        bp::PixelBuffer{namedPixels,bp::kRenderWidth,bp::kRenderHeight,bp::kRenderWidth},replay);
+    bp::RenderPrecedentRuntime(
+        bp::PixelBuffer{emptyPixels,bp::kRenderWidth,bp::kRenderHeight,bp::kRenderWidth},noReplay);
+    Check(namedPixels[150*bp::kRenderWidth+250]
+            ==bp::Color(bp::PaletteColor::UiInactive)
+        && emptyPixels[150*bp::kRenderWidth+250]
+            !=bp::Color(bp::PaletteColor::UiInactive),
+        "REPLAY_NAMED renders choice-specific shape while NO_REPLAY stays empty");
 
     bp::PrecedentRuntime exceptionDenied=world(0);
     Check(bp::TickPrecedentRuntime(exceptionDenied,ActionInput(bp::PlatformAction::Fire)),
@@ -327,9 +413,36 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
     originPriority.combat.actors[1].aimDirectionQ15=bp::Vec2Q8{-bp::kInputUnit,0};
     bp::ReclaimTickResult priorityResult{};
     Check(bp::TickReclaim(originPriority.combat,originPriority.movement.physicalLedger,
-        originPriority.reclaim,false,true,priorityResult,false,true)
+        originPriority.reclaim,false,true,priorityResult,false,marked.stableId)
         && priorityResult.opponentTarget==originPriority.neutrals[0].index,
         "ORIGIN_LOCK gives player projectile residue exact +128 reclaim priority");
+
+    bp::PrecedentRuntime originProjectile=world(0);
+    originProjectile.encounterTick=719;
+    Check(bp::TickPrecedentRuntime(originProjectile,Idle())
+        && originProjectile.markedOriginMass==16,"ORIGIN_LOCK marks exact shell16");
+    Check(bp::TickPrecedentRuntime(originProjectile,ActionInput(bp::PlatformAction::Fire))
+        && originProjectile.originChargeMass==8
+        && originProjectile.markedOriginMass==8,
+        "ORIGIN_LOCK provenance moves marked mass into Charge");
+    bp::InputFrame release=Idle();
+    release.actions[static_cast<std::uint8_t>(bp::PlatformAction::Fire)].released=1;
+    Check(bp::TickPrecedentRuntime(originProjectile,release)
+        && originProjectile.reclaimPriorityTicks==90
+        && originProjectile.originPriorityStableId!=0,
+        "ORIGIN_LOCK provenance follows released Projectile for exact 90 ticks");
+    for (bp::ProjectileSlot& shot:originProjectile.combat.projectiles)
+        if (shot.active!=0 && shot.stableId==originProjectile.originPriorityStableId) {
+            shot.position=bp::Vec2Q8{309*bp::kQ8One,92*bp::kQ8One};
+            shot.velocity=bp::Vec2Q8{4*bp::kQ8One,0};
+        }
+    Check(bp::TickPrecedentRuntime(originProjectile,Idle()),
+        "ORIGIN_LOCK marked Projectile reaches boundary safely");
+    bool markedResidue=false;
+    for (const bp::NeutralSlot& neutral:originProjectile.combat.neutrals)
+        if (neutral.active!=0 && neutral.stableId==originProjectile.originPriorityStableId
+            && neutral.playerMissMass!=0) markedResidue=true;
+    Check(markedResidue,"ORIGIN_LOCK priority stable id follows actual missed residue");
 
     bp::PrecedentRuntime fixedCycle=world(0);
     DamageOpponentTo(fixedCycle,80);
@@ -338,6 +451,9 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
         "FIXED_CYCLE core-hit prediction fixture transfers player shell");
     bp::NeutralSlot& fixedNeutral=fixedCycle.combat.neutrals[fixedCycle.neutrals[0].index];
     fixedNeutral.mass=static_cast<std::uint16_t>(fixedNeutral.mass+16);
+    fixedCycle.combat.actors[0].position.y=60*bp::kQ8One;
+    fixedCycle.combat.actors[1].position.y=60*bp::kQ8One;
+    fixedCycle.movement.playerPosition=fixedCycle.combat.actors[0].position;
     fixedCycle.action=bp::PrecedentAction::Foreclose;
     fixedCycle.phaseTicks=0;
     bool forecloseOk=true;
@@ -358,6 +474,24 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
         && fixedCycle.action==bp::PrecedentAction::Evade,
         "FIXED_CYCLE completes exact tick75 FORECLOSE before enum wrap");
 
+    bp::PrecedentRuntime blockedShot=world(0);
+    DamageOpponentTo(blockedShot,80);
+    Check(bp::PhysicalTransfer(blockedShot.movement.physicalLedger,
+        bp::PhysicalAccount::PlayerShell,bp::PhysicalAccount::Neutral,16),
+        "Bresenham prediction fixture exposes player core");
+    blockedShot.combat.neutrals[blockedShot.neutrals[0].index].mass=
+        static_cast<std::uint16_t>(
+            blockedShot.combat.neutrals[blockedShot.neutrals[0].index].mass+16);
+    for (bp::CoverSlot& cover:blockedShot.combat.covers)
+        if (cover.active!=0) cover.bounds=bp::RectPixels{8,8,cover.bounds.width,cover.bounds.height};
+    blockedShot.combat.covers[blockedShot.covers[0].index].bounds=bp::RectPixels{80,88,8,8};
+    blockedShot.action=bp::PrecedentAction::Foreclose;
+    blockedShot.phaseTicks=0;
+    Check(bp::TickPrecedentRuntime(blockedShot,Idle())
+        && blockedShot.action==bp::PrecedentAction::Move
+        && blockedShot.combat.charges[1].active==0,
+        "Bresenham AABB blocker outside midpoint rejects sub-Shell41 attack");
+
     bp::PrecedentRuntime failedDistribution=world(0);
     DamageOpponentTo(failedDistribution,160);
     failedDistribution.combat.nextStableId=0xFFFFFFFFu;
@@ -369,6 +503,35 @@ void TestBoundariesModulesAndFold(const std::uint32_t (&representative)[81]) noe
             sizeof(distributionBefore))==0
         && failedDistribution.combat.phase==bp::CombatPhase::Active,
         "failed scheduled distribution allocation skips exact-or-zero");
+
+    bp::PrecedentRuntime tetherDamage=world(relationIndex);
+    DamageOpponentTo(tetherDamage,48);
+    Check(bp::SpawnScriptedProjectile(tetherDamage.combat,
+        tetherDamage.movement.physicalLedger,bp::CombatSide::Player,8,
+        tetherDamage.combat.actors[1].position,bp::Vec2Q8{bp::kInputUnit,0},1)
+        && bp::StepCombatProjectiles(tetherDamage.combat,
+            tetherDamage.movement.physicalLedger,tetherDamage.claimLedger)
+        && tetherDamage.movement.physicalLedger.mass[
+            Account(bp::PhysicalAccount::OpponentShell)]==48
+        && bp::CombatStateValid(tetherDamage.combat,tetherDamage.movement.physicalLedger),
+        "TETHER backing reserves shell mass from direct body damage");
+
+    bp::PrecedentRuntime orderedCore=world(0);
+    DamageOpponentTo(orderedCore,40);
+    orderedCore.action=bp::PrecedentAction::Reclaim;
+    const bp::Vec2Q8 neutralBefore=orderedCore.combat.neutrals[
+        orderedCore.neutrals[0].index].position;
+    Check(bp::SpawnScriptedProjectile(orderedCore.combat,
+        orderedCore.movement.physicalLedger,bp::CombatSide::Player,8,
+        orderedCore.combat.actors[1].position,bp::Vec2Q8{bp::kInputUnit,0},1)
+        && bp::TickPrecedentRuntime(orderedCore,Idle())
+        && orderedCore.scene==bp::PrecedentScene::CoreUnfold
+        && orderedCore.reclaim.accumulator[1]==0
+        && orderedCore.combat.neutrals[orderedCore.neutrals[0].index].position.x
+            ==neutralBefore.x
+        && orderedCore.combat.neutrals[orderedCore.neutrals[0].index].position.y
+            ==neutralBefore.y,
+        "core snapshot skips Neutral and Reclaim steps 14 through 19");
 
     bp::PrecedentRuntime folded=world(0);
     const std::uint16_t lockedBefore=folded.movement.physicalLedger.mass[

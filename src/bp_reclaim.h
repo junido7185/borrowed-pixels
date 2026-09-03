@@ -47,6 +47,6 @@ bool TickReclaim(
     bool opponentActive,
     ReclaimTickResult& result,
     bool opponentStructurePriority = false,
-    bool opponentPlayerMissPriority = false) noexcept;
+    std::uint32_t opponentPlayerMissPriorityStableId = 0) noexcept;
 
 }  // namespace bp

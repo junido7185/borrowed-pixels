@@ -21,6 +21,14 @@ constexpr PhysicalAccount ShellAccount(CombatSide side) noexcept {
         : PhysicalAccount::OpponentShell;
 }
 
+std::uint16_t ReservedShellBacking(const CombatState& state,
+    PhysicalAccount shell) noexcept {
+    std::uint32_t total=0;
+    for (const CoverSlot& cover:state.covers)
+        if (cover.active!=0 && cover.backingAccount==shell) total+=cover.mass;
+    return total>UINT16_MAX?UINT16_MAX:static_cast<std::uint16_t>(total);
+}
+
 constexpr std::uint8_t AccountIndex(PhysicalAccount account) noexcept {
     return static_cast<std::uint8_t>(account);
 }
@@ -658,9 +666,12 @@ bool ProcessImpact(
         const CombatSide targetSide = static_cast<CombatSide>(impact.targetIndex);
         const PhysicalAccount targetShell = ShellAccount(targetSide);
         const std::uint16_t beforeShell = ledgerCandidate.mass[AccountIndex(targetShell)];
-        const std::uint16_t damage = ProjectileShellDamage(shot.mass) < beforeShell
+        const std::uint16_t reserved=ReservedShellBacking(candidate,targetShell);
+        const std::uint16_t damageable=beforeShell>reserved
+            ?static_cast<std::uint16_t>(beforeShell-reserved):0u;
+        const std::uint16_t damage = ProjectileShellDamage(shot.mass) < damageable
             ? ProjectileShellDamage(shot.mass)
-            : beforeShell;
+            : damageable;
         const std::uint16_t neutralMass = static_cast<std::uint16_t>(shot.mass + damage);
         if (!AllocateNeutralSlot(
                 candidate,

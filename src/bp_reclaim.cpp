@@ -309,7 +309,7 @@ std::uint16_t FindReclaimTargetInternal(
     CombatSide side,
     Vec2Q8 aimDirectionQ15,
     bool structureOnly,
-    bool playerMissPriority) noexcept {
+    std::uint32_t playerMissPriorityStableId) noexcept {
     const std::uint8_t sideIndex = SideIndex(side);
     if (sideIndex >= 2) return kInvalidSlotIndex;
     const Vec2Q8 actorPosition = state.actors[sideIndex].position;
@@ -334,7 +334,9 @@ std::uint16_t FindReclaimTargetInternal(
         const std::uint32_t distancePixels = IntegerSqrt(distanceSquared) / kQ8One;
         std::uint32_t score = static_cast<std::uint32_t>(neutral.mass) * 256u
             / (distancePixels + 16u);
-        if (playerMissPriority && neutral.playerMissMass != 0) score += 128u;
+        if (playerMissPriorityStableId!=0
+            && neutral.stableId==playerMissPriorityStableId
+            && neutral.playerMissMass!=0) score+=128u;
         if (best == kInvalidSlotIndex || score > bestScore
             || (score == bestScore && neutral.stableId < bestStableId)) {
             best = index;
@@ -360,7 +362,7 @@ bool TickReclaim(
     bool opponentActive,
     ReclaimTickResult& result,
     bool opponentStructurePriority,
-    bool opponentPlayerMissPriority) noexcept {
+    std::uint32_t opponentPlayerMissPriorityStableId) noexcept {
     result = ReclaimTickResult{
         0, 0, 0, 0, 0, 0, kInvalidSlotIndex, kInvalidSlotIndex};
     if (!CombatStateValid(state, ledger)) return false;
@@ -379,12 +381,12 @@ bool TickReclaim(
             side,
             candidate.actors[sideIndex].aimDirectionQ15,
             side == CombatSide::Opponent && opponentStructurePriority,
-            side == CombatSide::Opponent && opponentPlayerMissPriority);
+            side == CombatSide::Opponent?opponentPlayerMissPriorityStableId:0u);
         if (targets[sideIndex] == kInvalidSlotIndex
             && side == CombatSide::Opponent && opponentStructurePriority) {
             targets[sideIndex] = FindReclaimTargetInternal(
                 candidate, side, candidate.actors[sideIndex].aimDirectionQ15,
-                false, opponentPlayerMissPriority);
+                false, opponentPlayerMissPriorityStableId);
         }
         reclaimCandidate.targetIndex[sideIndex] = targets[sideIndex];
         if (targets[sideIndex] == kInvalidSlotIndex) continue;

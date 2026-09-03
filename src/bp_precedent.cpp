@@ -141,8 +141,30 @@ void ClearInterrupted(PrecedentRuntime& state) noexcept {
     state.movement.chargeActive=0;
     state.movement.reclaimActive=0;
     state.movement.hudChannelActive=0;
-    if (state.combat.charges[0].active!=0)
+    if (state.combat.charges[0].active!=0) {
+        if (state.markedOriginTicks>0)
+            state.markedOriginMass=static_cast<std::uint16_t>(
+                state.markedOriginMass+state.originChargeMass);
+        state.originChargeMass=0;
         RollbackCharge(state.combat,state.movement.physicalLedger,CombatSide::Player);
+    }
+}
+
+void CaptureOriginChargeGrowth(PrecedentRuntime& state,std::uint16_t before) noexcept {
+    const std::uint16_t after=state.combat.charges[0].active!=0
+        ?state.combat.charges[0].mass:0u;
+    if (after<=before || state.markedOriginMass==0 || state.markedOriginTicks==0) return;
+    const std::uint16_t added=static_cast<std::uint16_t>(after-before);
+    const std::uint16_t marked=added<state.markedOriginMass?added:state.markedOriginMass;
+    state.markedOriginMass=static_cast<std::uint16_t>(state.markedOriginMass-marked);
+    state.originChargeMass=static_cast<std::uint16_t>(state.originChargeMass+marked);
+}
+
+void RestoreOriginCharge(PrecedentRuntime& state) noexcept {
+    if (state.markedOriginTicks>0)
+        state.markedOriginMass=static_cast<std::uint16_t>(
+            state.markedOriginMass+state.originChargeMass);
+    state.originChargeMass=0;
 }
 
 bool ResolveActorCovers(CombatActor& actor,std::int32_t radius,
@@ -180,13 +202,27 @@ bool HasNeutralNear(const PrecedentRuntime& state,Vec2Q8 point,std::uint32_t rad
     return false;
 }
 
-bool CoverBlocksMidpoint(const PrecedentRuntime& state,Vec2Q8 a,Vec2Q8 b) noexcept {
-    const std::int32_t x=(a.x+b.x)/(2*kQ8One);
-    const std::int32_t y=(a.y+b.y)/(2*kQ8One);
-    for (const CoverSlot& cover:state.combat.covers)
-        if (cover.active!=0 && x>=cover.bounds.x && x<cover.bounds.x+cover.bounds.width
-            && y>=cover.bounds.y && y<cover.bounds.y+cover.bounds.height) return true;
-    return false;
+bool CoverBlocksLine(const PrecedentRuntime& state,Vec2Q8 a,Vec2Q8 b) noexcept {
+    std::int32_t x=a.x/kQ8One;
+    std::int32_t y=a.y/kQ8One;
+    const std::int32_t endX=b.x/kQ8One;
+    const std::int32_t endY=b.y/kQ8One;
+    const std::int32_t dx=endX>x?endX-x:x-endX;
+    const std::int32_t sx=x<endX?1:-1;
+    const std::int32_t magnitudeY=endY>y?endY-y:y-endY;
+    const std::int32_t dy=-magnitudeY;
+    const std::int32_t sy=y<endY?1:-1;
+    std::int32_t error=dx+dy;
+    for (;;) {
+        for (const CoverSlot& cover:state.combat.covers)
+            if (cover.active!=0 && x>=cover.bounds.x
+                && x<cover.bounds.x+cover.bounds.width && y>=cover.bounds.y
+                && y<cover.bounds.y+cover.bounds.height) return true;
+        if (x==endX && y==endY) return false;
+        const std::int32_t doubled=error*2;
+        if (doubled>=dy) { error+=dy; x+=sx; }
+        if (doubled<=dx) { error+=dx; y+=sy; }
+    }
 }
 
 void SetAction(PrecedentRuntime& state,PrecedentAction action) noexcept {
@@ -275,15 +311,34 @@ std::uint8_t ActiveTethers(const PrecedentRuntime& state) noexcept {
     return count;
 }
 
+std::uint16_t BackedMass(const PrecedentRuntime& state,PhysicalAccount account) noexcept {
+    std::uint16_t total=0;
+    for (const CoverSlot& cover:state.combat.covers)
+        if (cover.active!=0 && cover.backingAccount==account)
+            total=static_cast<std::uint16_t>(total+cover.mass);
+    return total;
+}
+
 PrecedentAction VoteAction(const PrecedentRuntime& state) noexcept {
     std::uint16_t votes[3]{}; // COMMON, PLAYER, OPPONENT
     constexpr std::uint32_t radius=24;
     for (Vec2Q8 node:kVotePositions) {
         std::uint32_t mass[3]{};
-        if (DistancePixels(state.combat.actors[0].position,node)<=radius)
-            mass[1]+=state.movement.physicalLedger.mass[Account(PhysicalAccount::PlayerShell)]+16;
-        if (DistancePixels(state.combat.actors[1].position,node)<=radius)
-            mass[2]+=state.movement.physicalLedger.mass[Account(PhysicalAccount::OpponentShell)]+16;
+        if (DistancePixels(state.combat.actors[0].position,node)<=radius) {
+            const std::uint16_t shell=state.movement.physicalLedger.mass[
+                Account(PhysicalAccount::PlayerShell)];
+            mass[1]+=16u+shell-BackedMass(state,PhysicalAccount::PlayerShell);
+        }
+        if (DistancePixels(state.combat.actors[1].position,node)<=radius) {
+            const std::uint16_t shell=state.movement.physicalLedger.mass[
+                Account(PhysicalAccount::OpponentShell)];
+            mass[2]+=16u+shell-BackedMass(state,PhysicalAccount::OpponentShell);
+        }
+        for (std::uint8_t side=0;side<2;++side) {
+            const ChargeSlot& charge=state.combat.charges[side];
+            if (charge.active!=0 && DistancePixels(charge.position,node)<=radius)
+                mass[side+1u]+=charge.mass;
+        }
         for (const ProjectileSlot& shot:state.combat.projectiles) {
             if (shot.active==0 || DistancePixels(shot.position,node)>radius) continue;
             mass[shot.owner==CombatSide::Player?1:2]+=shot.mass;
@@ -389,7 +444,12 @@ void ApplyMemory(PrecedentRuntime& state) noexcept {
     if (policy==MemoryPolicy::None) { state.echoTicks=0; return; }
     if (state.echoTicks==0 && state.encounterTick%600u==0) {
         state.echoTicks=180;
-        state.echoIndex=static_cast<std::uint8_t>((state.encounterTick/600u-1u)%9u);
+        const std::uint8_t cycle=static_cast<std::uint8_t>(state.encounterTick/600u-1u);
+        state.echoIndex=policy==MemoryPolicy::Summary
+            ?static_cast<std::uint8_t>((cycle%3u)*3u)
+            :static_cast<std::uint8_t>(cycle%9u);
+        state.echoClaimTotal=policy==MemoryPolicy::Summary
+            ?PrecedentActClaimMoved(state.narrative,state.echoIndex/3u):0u;
     }
     else if (state.echoTicks>0) --state.echoTicks;
 }
@@ -426,18 +486,14 @@ void UpdateGovernance(PrecedentRuntime& state) noexcept {
 }
 
 std::uint16_t OpponentBackedCoverMass(const PrecedentRuntime& state) noexcept {
-    std::uint16_t backedCoverMass=0;
-    for (const CoverSlot& cover:state.combat.covers)
-        if (cover.active!=0 && cover.backingAccount==PhysicalAccount::OpponentShell)
-            backedCoverMass=static_cast<std::uint16_t>(backedCoverMass+cover.mass);
-    return backedCoverMass;
+    return BackedMass(state,PhysicalAccount::OpponentShell);
 }
 
-bool PredictedPlayerCoreHit(const PrecedentRuntime& state) noexcept {
+std::int32_t PlayerCoreHitPredictionQ8(const PrecedentRuntime& state) noexcept {
     return state.movement.physicalLedger.mass[
         Account(PhysicalAccount::PlayerShell)]<=40
-        && !CoverBlocksMidpoint(state,state.combat.actors[0].position,
-            state.combat.actors[1].position);
+        && !CoverBlocksLine(state,state.combat.actors[1].position,
+            state.combat.actors[0].position)?256:0;
 }
 
 bool AttackAffordable(const PrecedentRuntime& state,std::uint16_t mass) noexcept {
@@ -445,7 +501,7 @@ bool AttackAffordable(const PrecedentRuntime& state,std::uint16_t mass) noexcept
         Account(PhysicalAccount::OpponentShell)];
     return ProjectileCount(state.combat)<kProjectileCapacity-1u
         && shell>=static_cast<std::uint16_t>(mass+OpponentBackedCoverMass(state))
-        && (shell>=mass+41u || PredictedPlayerCoreHit(state));
+        && (shell>=mass+41u || PlayerCoreHitPredictionQ8(state)>=192);
 }
 
 bool SpawnOpponentAttack(PrecedentRuntime& state,std::uint16_t mass) noexcept {
@@ -474,7 +530,7 @@ bool ExecuteAction(PrecedentRuntime& state) noexcept {
                 state.movement.physicalLedger.mass[Account(PhysicalAccount::OpponentShell)]
                 +state.combat.charges[1].mass);
             if (available<static_cast<std::uint16_t>(48u+OpponentBackedCoverMass(state))
-                || (available<89 && !PredictedPlayerCoreHit(state))
+                || (available<89 && PlayerCoreHitPredictionQ8(state)<192)
                 || ProjectileCount(state.combat)>=kProjectileCapacity-1u) {
                 if (!RollbackCharge(state.combat,state.movement.physicalLedger,
                         CombatSide::Opponent)) return false;
@@ -523,6 +579,14 @@ void MoveOpponent(PrecedentRuntime& state) noexcept {
 
 void Centered(PixelBuffer buffer,std::int32_t y,const char* text,PaletteColor color) noexcept {
     DrawLatin(buffer,(kRenderWidth-MeasureLatin(text))/2,y,text,color);
+}
+
+void UnsignedText(std::uint16_t value,char (&text)[6]) noexcept {
+    char reverse[5]{};
+    std::uint8_t count=0;
+    do { reverse[count++]=static_cast<char>('0'+value%10u); value/=10u; } while (value!=0);
+    for (std::uint8_t i=0;i<count;++i) text[i]=reverse[count-1u-i];
+    text[count]='\0';
 }
 
 void RenderBattle(PixelBuffer buffer,const PrecedentRuntime& state) noexcept {
@@ -579,14 +643,25 @@ void RenderBattle(PixelBuffer buffer,const PrecedentRuntime& state) noexcept {
     }
     if (state.echoTicks>0) {
         constexpr const char* actTotals[3]={"ACT 1 TOTAL","ACT 2 TOTAL","ACT 3 TOTAL"};
-        const char* echo=state.policy.profile.memory==static_cast<std::uint8_t>(MemoryPolicy::Full)
-            ?kSubjects[state.echoIndex]:actTotals[state.echoIndex/3u];
-        DrawLatin(buffer,14,158,echo,PaletteColor::UiInactive);
+        if (state.policy.profile.memory==static_cast<std::uint8_t>(MemoryPolicy::Full)) {
+            const std::uint8_t choice=static_cast<std::uint8_t>(ChoiceForEncounter(
+                state.narrative,static_cast<EncounterId>(state.echoIndex)));
+            DrawLatin(buffer,14,148,kSubjects[state.echoIndex],PaletteColor::UiInactive);
+            DrawLatin(buffer,14,158,kChoices[state.echoIndex][choice],PaletteColor::Neutral);
+            for (std::uint8_t shape=0;shape<=choice;++shape)
+                StrokeRect(buffer,RectI{250+shape*10,150-shape*3,7,7+shape*3},
+                    PaletteColor::UiInactive);
+        } else {
+            char total[6]{};
+            UnsignedText(state.echoClaimTotal,total);
+            DrawLatin(buffer,14,158,actTotals[state.echoIndex/3u],PaletteColor::UiInactive);
+            DrawLatin(buffer,92,158,total,PaletteColor::Neutral);
+        }
     }
     if (state.exceptionTicks>0) {
-        Centered(buffer,142,"EXCEPTION REQUESTED",PaletteColor::Warning);
+        Centered(buffer,142,"EXCEPTION REQUESTED.",PaletteColor::Warning);
         if (state.exceptionDeniedShown!=0)
-            Centered(buffer,152,"EXCEPTIONS WERE NOT IN YOUR DATA",PaletteColor::UiInactive);
+            Centered(buffer,152,"EXCEPTIONS WERE NOT IN YOUR DATA.",PaletteColor::UiInactive);
     }
 }
 
@@ -597,6 +672,28 @@ ChoiceId ChoiceForEncounter(const NarrativeState& narrative,EncounterId encounte
     if (index>=kSettlementEncounterCount) return ChoiceId::Count;
     const std::uint8_t choice=static_cast<std::uint8_t>((narrative.choiceBits>>(index*2u))&3u);
     return choice<3?static_cast<ChoiceId>(choice):ChoiceId::Count;
+}
+
+std::uint16_t PrecedentActClaimMoved(const NarrativeState& narrative,
+    std::uint8_t actIndex) noexcept {
+    if (actIndex>=3) return 0;
+    ClaimLedger ledger=MakeInitialClaimLedger();
+    NarrativeState replay{};
+    std::uint32_t moved=0;
+    for (std::uint8_t encounter=0;encounter<kSettlementEncounterCount;++encounter) {
+        const ChoiceId choice=ChoiceForEncounter(narrative,static_cast<EncounterId>(encounter));
+        if (choice==ChoiceId::Count) return 0;
+        const ClaimLedger before=ledger;
+        if (!ApplySettlement(ledger,replay,static_cast<EncounterId>(encounter),choice)) return 0;
+        if (encounter/3u!=actIndex) continue;
+        std::uint32_t changed=0;
+        for (std::uint8_t owner=0;owner<kClaimOwnerCount;++owner)
+            changed+=before.mass[owner]>ledger.mass[owner]
+                ?before.mass[owner]-ledger.mass[owner]
+                :ledger.mass[owner]-before.mass[owner];
+        moved+=changed/2u;
+    }
+    return moved>UINT16_MAX?UINT16_MAX:static_cast<std::uint16_t>(moved);
 }
 
 bool DerivePolicyDecision(const NarrativeState& narrative,PolicyDecision& out) noexcept {
@@ -690,7 +787,7 @@ PrecedentActionScores EvaluatePrecedentActions(const PrecedentRuntime& state) no
     const std::int32_t distance=static_cast<std::int32_t>(DistancePixels(
         state.combat.actors[0].position,state.combat.actors[1].position));
     const std::int32_t rangeFit=256-(Abs32(distance-96)*4>256?256:Abs32(distance-96)*4);
-    const std::int32_t coverBlocks=CoverBlocksMidpoint(state,state.combat.actors[0].position,
+    const std::int32_t coverBlocks=CoverBlocksLine(state,state.combat.actors[0].position,
         state.combat.actors[1].position)?256:0;
     const std::int32_t lineOfSight=256-coverBlocks;
     const std::int32_t playerExposed=playerShell<=40?256:0;
@@ -716,7 +813,10 @@ bool PopulatePrecedentBattlefield(PrecedentRuntime& state) noexcept {
         return false;
     candidate.movement.claimLedger=candidate.claimLedger;
     candidate.movement.narrative=candidate.narrative;
-    if (!InitializePhysicalLedger(candidate.movement.physicalLedger,64,
+    const std::uint16_t playerClaim=candidate.claimLedger.mass[
+        static_cast<std::uint8_t>(ClaimOwner::Player)];
+    const std::uint16_t playerActive=playerClaim<64?64:(playerClaim>240?240:playerClaim);
+    if (!InitializePhysicalLedger(candidate.movement.physicalLedger,playerActive,
             kPrecedentBorrowMass,320,128)) return false;
     InitializeCombatState(candidate.combat,Vec2Q8{48*kQ8One,92*kQ8One},
         Vec2Q8{264*kQ8One,90*kQ8One});
@@ -744,6 +844,19 @@ bool PopulatePrecedentBattlefield(PrecedentRuntime& state) noexcept {
     candidate.phaseDisplayTicks=0;
     candidate.exceptionTicks=0;
     candidate.phase=0;
+    candidate.markedOriginMass=0;
+    candidate.markedOriginTicks=0;
+    candidate.originChargeMass=0;
+    candidate.reclaimPriorityTicks=0;
+    candidate.originPriorityStableId=0;
+    candidate.forkTicks=0;
+    candidate.echoTicks=0;
+    candidate.echoClaimTotal=0;
+    candidate.echoIndex=0;
+    std::memset(candidate.outputDamage,0,sizeof(candidate.outputDamage));
+    std::memset(candidate.outputReclaim,0,sizeof(candidate.outputReclaim));
+    std::memset(candidate.outputMovementQ8,0,sizeof(candidate.outputMovementQ8));
+    candidate.previousPlayerReclaim=0;
     candidate.borrowedActive=1;
     candidate.borrowedFoldedMass=0;
     candidate.pendingValid=0;
@@ -751,6 +864,7 @@ bool PopulatePrecedentBattlefield(PrecedentRuntime& state) noexcept {
     candidate.exceptionDeniedShown=0;
     candidate.lastPlayerPolicyAction=0;
     candidate.lastPlayerPolicyTick=0;
+    InitializeHudLoanSystem(candidate.hudLoan);
     candidate.movement.playerPosition=candidate.combat.actors[0].position;
     candidate.movement.playerVelocity=Vec2Q8{};
     if (!CombatStateValid(candidate.combat,candidate.movement.physicalLedger)
@@ -942,9 +1056,11 @@ bool TickPrecedentRuntime(PrecedentRuntime& state,const InputFrame& input) noexc
 
     const Vec2Q8 aim=AimDirection(state,input);
     state.combat.actors[0].aimDirectionQ15=aim;
-    if (state.reclaimPriorityTicks>0) --state.reclaimPriorityTicks;
+    if (state.reclaimPriorityTicks>0 && --state.reclaimPriorityTicks==0)
+        state.originPriorityStableId=0;
     ChargeSlot& playerCharge=state.combat.charges[0];
     if (intent.action==GameplayAction::HudReallocate && playerCharge.active!=0) {
+        RestoreOriginCharge(state);
         if (!RollbackCharge(state.combat,ledger,CombatSide::Player)) return false;
     } else if (intent.action==GameplayAction::Fire && !HudFireLocked(state.hudLoan)) {
         if (playerCharge.active==0) {
@@ -952,15 +1068,30 @@ bool TickPrecedentRuntime(PrecedentRuntime& state,const InputFrame& input) noexc
                 && ledger.mass[Account(PhysicalAccount::PlayerShell)]>=8
                 && ProjectileCount(state.combat)<kProjectileCapacity
                 && !BeginCharge(state.combat,ledger,CombatSide::Player,aim)) return false;
-        } else if (!AdvanceCharge(state.combat,ledger,CombatSide::Player)) return false;
+            CaptureOriginChargeGrowth(state,0);
+        } else {
+            const std::uint16_t before=playerCharge.mass;
+            if (!AdvanceCharge(state.combat,ledger,CombatSide::Player)) return false;
+            CaptureOriginChargeGrowth(state,before);
+        }
     } else if (playerCharge.active!=0) {
         if (ProjectileCount(state.combat)>=kProjectileCapacity) {
+            RestoreOriginCharge(state);
             if (!RollbackCharge(state.combat,ledger,CombatSide::Player)) return false;
         } else if (Held(input,PlatformAction::Fire)
             || input.actions[Action(PlatformAction::Fire)].released!=0) {
+            const std::uint32_t stableId=playerCharge.stableId;
+            const std::uint16_t originMass=state.originChargeMass;
             if (!ReleaseCharge(state.combat,ledger,CombatSide::Player)) return false;
-            if (state.markedOriginTicks>0) state.reclaimPriorityTicks=90;
-        } else if (!RollbackCharge(state.combat,ledger,CombatSide::Player)) return false;
+            state.originChargeMass=0;
+            if (originMass>0) {
+                state.originPriorityStableId=stableId;
+                state.reclaimPriorityTicks=90;
+            }
+        } else {
+            RestoreOriginCharge(state);
+            if (!RollbackCharge(state.combat,ledger,CombatSide::Player)) return false;
+        }
     }
     state.movement.chargeActive=playerCharge.active!=0?1u:0u;
     if (!AdvanceGameIntent(state.movement,intent)) return false;
@@ -977,17 +1108,14 @@ bool TickPrecedentRuntime(PrecedentRuntime& state,const InputFrame& input) noexc
     SeparateCombatActorsByMass(state.combat,ledger,kPlayInterior);
     state.movement.playerPosition=state.combat.actors[0].position;
 
-    ReclaimTickResult reclaimed{};
-    if (!TickReclaim(state.combat,ledger,state.reclaim,
-            intent.action==GameplayAction::Reclaim,
-            state.action==PrecedentAction::Reclaim,reclaimed,false,
-            state.reclaimPriorityTicks>0)) return false;
-    state.previousPlayerReclaim=reclaimed.playerMass;
-    state.outputReclaim[0]=static_cast<std::uint16_t>(state.outputReclaim[0]+reclaimed.playerMass);
-    state.outputReclaim[1]=static_cast<std::uint16_t>(state.outputReclaim[1]+reclaimed.opponentMass);
     if (state.policy.profile.identity==static_cast<std::uint8_t>(IdentityPolicy::Relation)
         && ActiveTethers(state)>0) state.combat.actors[1].exposureGraceTicks=1;
     if (!StepCombatProjectiles(state.combat,ledger,state.claimLedger)) return false;
+    if (state.markedOriginMass>ledger.mass[Account(PhysicalAccount::PlayerShell)])
+        state.markedOriginMass=ledger.mass[Account(PhysicalAccount::PlayerShell)];
+    const std::uint16_t livePlayerCharge=state.combat.charges[0].active!=0
+        ?state.combat.charges[0].mass:0u;
+    if (state.originChargeMass>livePlayerCharge) state.originChargeMass=livePlayerCharge;
     state.outputDamage[0]=static_cast<std::uint16_t>(state.outputDamage[0]
         +state.combat.shellDamageThisTick[1]);
     state.outputDamage[1]=static_cast<std::uint16_t>(state.outputDamage[1]
@@ -997,15 +1125,26 @@ bool TickPrecedentRuntime(PrecedentRuntime& state,const InputFrame& input) noexc
         state.combat.actors[0].position.y-playerBefore.y));
     state.outputMovementQ8[1]+=static_cast<std::uint32_t>(Abs32(
         state.combat.actors[1].velocity.x)+Abs32(state.combat.actors[1].velocity.y));
-    if (!TickNeutralDynamics(state.combat,ledger)
-        || !MergeNeutralClusters(state.combat,ledger)
-        || !ResolvePendingHudCommit(state.hudLoan,ledger,
-            state.combat.shellDamageThisTick[0]!=0)) return false;
     if (state.combat.actors[0].coreHit!=0) {
         state.scene=PrecedentScene::HitFreeze; state.sceneTicks=0; state.retryPending=1;
     } else if (state.combat.actors[1].coreHit!=0) {
         state.scene=PrecedentScene::CoreUnfold; state.sceneTicks=0;
         state.combat.phase=CombatPhase::Active;
+    } else {
+        if (!TickNeutralDynamics(state.combat,ledger)) return false;
+        ReclaimTickResult reclaimed{};
+        if (!TickReclaim(state.combat,ledger,state.reclaim,
+                intent.action==GameplayAction::Reclaim,
+                state.action==PrecedentAction::Reclaim,reclaimed,false,
+                state.reclaimPriorityTicks>0?state.originPriorityStableId:0u)) return false;
+        state.previousPlayerReclaim=reclaimed.playerMass;
+        state.outputReclaim[0]=static_cast<std::uint16_t>(
+            state.outputReclaim[0]+reclaimed.playerMass);
+        state.outputReclaim[1]=static_cast<std::uint16_t>(
+            state.outputReclaim[1]+reclaimed.opponentMass);
+        if (!MergeNeutralClusters(state.combat,ledger)
+            || !ResolvePendingHudCommit(state.hudLoan,ledger,
+                state.combat.shellDamageThisTick[0]!=0)) return false;
     }
     ++state.combat.globalTick;
     ++state.movement.globalTick;
@@ -1064,19 +1203,56 @@ std::uint32_t PrecedentRuntimeHash(const PrecedentRuntime& state) noexcept {
     add(static_cast<std::uint8_t>(state.pendingAction)); add(state.globalTick); add(state.encounterTick);
     add(state.sceneTicks); add(state.phaseTicks); add(state.phaseDisplayTicks);
     add(state.exceptionTicks); add(state.auditRow); add(state.phase);
-    add(state.markedOriginMass); add(state.markedOriginTicks); add(state.reclaimPriorityTicks);
-    add(state.forkTicks); add(state.echoTicks); add(state.echoIndex); add(state.borrowedFoldedMass);
+    add(state.markedOriginMass); add(state.markedOriginTicks); add(state.originChargeMass);
+    add(state.reclaimPriorityTicks); add(state.originPriorityStableId);
+    add(state.forkTicks); add(state.echoTicks); add(state.echoIndex);
+    add(state.echoClaimTotal); add(state.borrowedFoldedMass);
     add(state.borrowedActive); add(state.pendingValid); add(state.exceptionShown);
     add(state.exceptionDeniedShown); add(state.lastPlayerPolicyAction);
     add(state.lastPlayerPolicyTick); add(GameStateHash(state.movement));
+    for (const ChargeSlot& charge:state.combat.charges) {
+        add(charge.position.x); add(charge.position.y); add(charge.directionQ15.x);
+        add(charge.directionQ15.y); add(charge.stableId); add(charge.generation);
+        add(charge.mass); add(charge.stageMass); add(charge.ageTicks); add(charge.active);
+    }
     for (const ProjectileSlot& shot:state.combat.projectiles) {
         add(shot.active); add(shot.stableId); add(shot.mass); add(static_cast<std::uint8_t>(shot.owner));
-        add(shot.position.x); add(shot.position.y);
+        add(shot.generation); add(shot.position.x); add(shot.position.y);
+        add(shot.velocity.x); add(shot.velocity.y); add(shot.widthPixels); add(shot.heightPixels);
     }
     for (const NeutralSlot& neutral:state.combat.neutrals) {
         add(neutral.active); add(neutral.stableId); add(neutral.mass);
-        add(neutral.position.x); add(neutral.position.y);
+        add(neutral.generation); add(neutral.position.x); add(neutral.position.y);
+        add(neutral.velocity.x); add(neutral.velocity.y); add(neutral.reclaimLockTicks);
+        add(neutral.immunityTicks); add(neutral.playerMissMass); add(neutral.opponentMissMass);
+        add(neutral.protocolTagMass); add(neutral.patchFeedMass);
+        add(neutral.adapterEscrowMass); add(neutral.structureMass);
+        add(neutral.unscoredMass); add(neutral.inertiaTicks);
     }
+    for (const CoverSlot& cover:state.combat.covers) {
+        add(cover.active); add(cover.stableId); add(cover.generation); add(cover.mass);
+        add(cover.bounds.x); add(cover.bounds.y); add(cover.bounds.width); add(cover.bounds.height);
+        add(static_cast<std::uint8_t>(cover.backingAccount));
+        add(static_cast<std::uint8_t>(cover.behavior));
+    }
+    for (const CombatActor& actor:state.combat.actors) {
+        add(actor.position.x); add(actor.position.y); add(actor.velocity.x); add(actor.velocity.y);
+        add(actor.aimDirectionQ15.x); add(actor.aimDirectionQ15.y);
+        add(actor.exposureGraceTicks); add(actor.shotCooldownTicks);
+        add(actor.projectileImmune); add(actor.coreHit);
+    }
+    for (std::uint8_t side=0;side<2;++side) {
+        add(state.reclaim.accumulator[side]); add(state.reclaim.targetIndex[side]);
+    }
+    for (const HudModuleLoan& module:state.hudLoan.modules) {
+        add(module.mass); add(module.channelTicks); add(module.stateTicks);
+        add(module.maturityRemaining); add(module.maturityAdvanceTicks);
+        add(module.transitMass); add(module.arrivedMass);
+        add(static_cast<std::uint8_t>(module.state)); add(module.warning);
+    }
+    add(static_cast<std::uint8_t>(state.hudLoan.selected));
+    add(static_cast<std::uint8_t>(state.hudLoan.pendingModule));
+    add(state.hudLoan.reallocationLockTicks); add(state.hudLoan.pendingCommit);
     return hash;
 }
 

@@ -78,9 +78,11 @@ struct PrecedentRuntime {
     std::uint16_t previousPlayerReclaim;
     std::uint16_t markedOriginMass;
     std::uint16_t markedOriginTicks;
+    std::uint16_t originChargeMass;
     std::uint16_t reclaimPriorityTicks;
     std::uint16_t forkTicks;
     std::uint16_t echoTicks;
+    std::uint16_t echoClaimTotal;
     std::uint16_t borrowedFoldedMass;
     std::uint8_t auditRow;
     std::uint8_t phase;
@@ -92,6 +94,7 @@ struct PrecedentRuntime {
     std::uint8_t retryPending;
     std::uint8_t lastPlayerPolicyAction;
     std::uint32_t lastPlayerPolicyTick;
+    std::uint32_t originPriorityStableId;
 };
 
 ChoiceId ChoiceForEncounter(const NarrativeState& narrative,EncounterId encounter) noexcept;
@@ -106,6 +109,8 @@ bool InitializePrecedentRuntime(PrecedentRuntime& state,const ClaimLedger& claim
 bool TickPrecedentRuntime(PrecedentRuntime& state,const InputFrame& input) noexcept;
 void RenderPrecedentRuntime(PixelBuffer buffer,const PrecedentRuntime& state) noexcept;
 std::uint32_t PrecedentRuntimeHash(const PrecedentRuntime& state) noexcept;
+std::uint16_t PrecedentActClaimMoved(const NarrativeState& narrative,
+    std::uint8_t actIndex) noexcept;
 
 #if defined(BP_TEST)
 bool ApplyPrecedentNeutralTransferForTest(PrecedentRuntime& state,
