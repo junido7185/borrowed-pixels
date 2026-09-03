@@ -433,10 +433,13 @@ FrameObservation ObserveFrame(const Act2Runtime& state) noexcept {
         state.combat, player, Vec2Q8{308*kQ8One,90*kQ8One}) ? 1u : 0u;
     observation.playerChannel = (state.combat.charges[0].active != 0
         || state.movement.reclaimActive != 0 || state.movement.hudChannelActive != 0) ? 1u : 0u;
-    observation.selfLowStructure = state.frame.structureControlMass < 64 ? 1u : 0u;
+    // Every threshold below is an existing authority boundary: core exposure
+    // Shell40, EVICT funding32, opponent Reclaim72, CLAIM140px/s for 48 ticks,
+    // and the 30-tick FRAME decision cadence.
+    observation.selfLowStructure = state.frame.structureControlMass < 32 ? 1u : 0u;
     const std::uint64_t range = DistanceSquared(frame, player);
-    observation.rangeFit = range >= static_cast<std::uint64_t>(72*kQ8One)*(72*kQ8One)
-        && range <= static_cast<std::uint64_t>(132*kQ8One)*(132*kQ8One) ? 1u : 0u;
+    constexpr std::int32_t claimReachQ8 = PixelsPerSecondToQ8PerTick(140) * 48;
+    observation.rangeFit = range <= static_cast<std::uint64_t>(claimReachQ8)*claimReachQ8 ? 1u : 0u;
     for (const NeutralSlot& neutral : state.combat.neutrals) {
         if (neutral.active != 0
             && DistanceSquared(frame, neutral.position)
@@ -446,9 +449,17 @@ FrameObservation ObserveFrame(const Act2Runtime& state) noexcept {
         }
     }
     for (const ProjectileSlot& shot : state.combat.projectiles) {
-        if (shot.active != 0 && shot.owner == CombatSide::Player
-            && DistanceSquared(frame, shot.position)
-                <= static_cast<std::uint64_t>(80*kQ8One)*(80*kQ8One)) {
+        if (shot.active == 0 || shot.owner != CombatSide::Player) continue;
+        const Vec2Q8 predicted{
+            shot.position.x + shot.velocity.x*kFrameDecisionTicks,
+            shot.position.y + shot.velocity.y*kFrameDecisionTicks,
+        };
+        const std::int32_t collisionRadiusQ8 = (ProjectileRadiusPixels(shot.mass)
+            + ActorRadiusPixels(state.movement.physicalLedger.mass[
+                AccountIndex(PhysicalAccount::OpponentShell)]))*kQ8One;
+        if (!CoverBlocksLine(state.combat, shot.position, predicted)
+            && PointSegmentDistanceSquared(frame, shot.position, predicted)
+                <= static_cast<std::uint64_t>(collisionRadiusQ8)*collisionRadiusQ8) {
             observation.incomingThreat = 1;
             break;
         }
@@ -650,6 +661,44 @@ bool TickFrameAction(Act2Runtime& state) noexcept {
     Act2Runtime candidate = state;
     if (!TickFrameActionMutable(candidate)) return false;
     state = candidate;
+    return true;
+}
+
+bool DecideFrameAction(Act2Runtime& state) noexcept {
+    if ((state.encounterTick+1u) % kFrameDecisionTicks != 0
+        || state.frame.actionCooldown != 0) return true;
+    const FrameObservation observation = ObserveFrame(state);
+    std::uint8_t available = 1u << static_cast<std::uint8_t>(FrameAction::Move);
+    const std::uint16_t closestPanel = ClosestPanel(state);
+    if (closestPanel != kInvalidSlotIndex && state.frame.structureControlMass >= 16
+        && PlayerNearPanel(state, closestPanel, 18)) {
+        available = static_cast<std::uint8_t>(available
+            | (1u << static_cast<std::uint8_t>(FrameAction::Toll)));
+    }
+    const std::uint16_t shiftPanel = ClosestShiftPanel(state);
+    if (PanelHasShiftRoute(state, shiftPanel)) {
+        available = static_cast<std::uint8_t>(available
+            | (1u << static_cast<std::uint8_t>(FrameAction::Shift)));
+    }
+    if (state.frame.structureControlMass >= 32
+        && ClosestPanelAtLeastMass(state, 32) != kInvalidSlotIndex) {
+        available = static_cast<std::uint8_t>(available
+            | (1u << static_cast<std::uint8_t>(FrameAction::Evict)));
+    }
+    PhysicalLedger& ledger = state.movement.physicalLedger;
+    if (ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)] >= 32) {
+        available = static_cast<std::uint8_t>(available
+            | (1u << static_cast<std::uint8_t>(FrameAction::Claim)));
+    }
+    const std::uint16_t shellCap = static_cast<std::uint16_t>(
+        48 + state.frame.structureControlMass);
+    if (ledger.mass[AccountIndex(PhysicalAccount::Neutral)] != 0
+        && ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)] < shellCap) {
+        available = static_cast<std::uint8_t>(available
+            | (1u << static_cast<std::uint8_t>(FrameAction::Reclaim)));
+    }
+    const FrameAction selected = ChooseFrameAction(observation, available);
+    if (!BeginFrameAction(state, selected)) return false;
     return true;
 }
 
@@ -1086,7 +1135,13 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
     }
     if (state.scene == Act2Scene::SettlementWait) {
         if (++state.sceneTicks >= kSettlementWaitTicks) {
-            state.scene = Act2Scene::Settlement;
+            if (state.encounterIndex == 1) {
+                state.focusedChoice = AdapterChoiceForEscrow(state.adapter.playerEscrow);
+                state.committedChoice = state.focusedChoice;
+                state.scene = Act2Scene::Preview;
+            } else {
+                state.scene = Act2Scene::Settlement;
+            }
             state.sceneTicks = 0;
         }
         return true;
@@ -1108,7 +1163,8 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
     }
     if (state.scene == Act2Scene::Preview) {
         if (++state.sceneTicks >= kAllocationPreviewTicks) {
-            state.scene = Act2Scene::Settlement;
+            state.scene = state.encounterIndex == 1
+                ? Act2Scene::CommitTransit : Act2Scene::Settlement;
             state.sceneTicks = 0;
         }
         return true;
@@ -1196,6 +1252,9 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
             (static_cast<std::uint8_t>(state.hudLoan.selected) + 1u) % kHudModuleCount);
         SelectHudModule(state.hudLoan, static_cast<HudModuleId>(next));
     }
+    // Authority 32.9 step 07: opponent policy observes the pre-Charge,
+    // pre-movement physical state for this tick.
+    if (state.encounterIndex == 2 && !DecideFrameAction(state)) return false;
     ++state.encounterTick;
     const Vec2Q8 aim = AimDirection(state, input);
     state.combat.actors[0].aimDirectionQ15 = aim;
@@ -1271,47 +1330,26 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
                 state.combat);
             if (adapter.position.x <= 34 * kQ8One) state.adapter.adapterArrived = 1;
         }
-    } else if (state.encounterTick % kFrameDecisionTicks == 0
-        && state.frame.actionCooldown == 0) {
-        const FrameObservation observation = ObserveFrame(state);
-        std::uint8_t available = 1u << static_cast<std::uint8_t>(FrameAction::Move);
-        const std::uint16_t closestPanel = ClosestPanel(state);
-        if (closestPanel != kInvalidSlotIndex) {
-            available = static_cast<std::uint8_t>(available
-                | (state.frame.structureControlMass >= 16
-                    && PlayerNearPanel(state, closestPanel, 18)
-                    ? (1u << static_cast<std::uint8_t>(FrameAction::Toll)) : 0));
-        }
-        const std::uint16_t shiftPanel = ClosestShiftPanel(state);
-        if (PanelHasShiftRoute(state, shiftPanel)) {
-            available = static_cast<std::uint8_t>(available
-                | (1u << static_cast<std::uint8_t>(FrameAction::Shift)));
-        }
-        if (state.frame.structureControlMass >= 32
-            && ClosestPanelAtLeastMass(state, 32) != kInvalidSlotIndex) {
-            available = static_cast<std::uint8_t>(available
-                | (1u << static_cast<std::uint8_t>(FrameAction::Evict)));
-        }
-        if (ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)] >= 32) {
-            available = static_cast<std::uint8_t>(available
-                | (1u << static_cast<std::uint8_t>(FrameAction::Claim)));
-        }
-        const std::uint16_t frameShellCap = static_cast<std::uint16_t>(48 + state.frame.structureControlMass);
-        if (ledger.mass[AccountIndex(PhysicalAccount::Neutral)] != 0
-            && ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)] < frameShellCap) {
-            available = static_cast<std::uint8_t>(available
-                | (1u << static_cast<std::uint8_t>(FrameAction::Reclaim)));
-        }
-        const FrameAction selected = ChooseFrameAction(observation, available);
-        if (!BeginFrameAction(state, selected)) {
-            state.frame.action = FrameAction::Move;
-            state.frame.actionCooldown = 30;
-        }
     }
 
     if (state.encounterIndex == 2 && !TickFrameAction(state)) return false;
 
     if (!StepCombatProjectiles(state.combat, ledger, state.claimLedger)) return false;
+    // Authority 32.9 step 13: a core snapshot ends the tick before panel-cap,
+    // neutral, reclaim, HUD-commit, or success reconciliation.
+    if (state.combat.actors[0].coreHit != 0) {
+        ++state.failure;
+        ++state.movement.globalTick;
+        ++state.globalTick;
+        BeginRetry(state);
+        return true;
+    }
+    if (state.combat.actors[1].coreHit != 0 && state.encounterIndex == 2) {
+        ++state.movement.globalTick;
+        ++state.globalTick;
+        BeginSuccess(state);
+        return true;
+    }
     if (state.encounterIndex == 2) {
         for (std::uint8_t index = 0; index < kAct2MaximumFieldCount; ++index) {
             const std::uint16_t bit = static_cast<std::uint16_t>(1u << index);
@@ -1329,19 +1367,6 @@ bool TickAct2Runtime(Act2Runtime& state, const InputFrame& input) noexcept {
         if (shell > shellCap
             && !AddGeneralNeutral(state.combat, ledger, state.combat.actors[1].position,
                 static_cast<std::uint16_t>(shell - shellCap), PhysicalAccount::OpponentShell)) return false;
-    }
-    if (state.combat.actors[0].coreHit != 0) {
-        ++state.failure;
-        ++state.movement.globalTick;
-        ++state.globalTick;
-        BeginRetry(state);
-        return true;
-    }
-    if (state.combat.actors[1].coreHit != 0 && state.encounterIndex == 2) {
-        ++state.movement.globalTick;
-        ++state.globalTick;
-        BeginSuccess(state);
-        return state.scene != Act2Scene::Fatal;
     }
     if (!TickNeutralDynamics(state.combat, ledger)) return false;
     ReclaimTickResult reclaimed{};
@@ -1410,6 +1435,17 @@ void RenderAct2Runtime(PixelBuffer buffer, const Act2Runtime& state) noexcept {
         DrawCentered(buffer, 50, definition.name, PaletteColor::Opponent);
         if (state.encounterIndex == 0) {
             DrawCentered(buffer, 80, "PRIVATIZE   MAINTAIN   MAKE COMMON", PaletteColor::Neutral);
+        } else if (state.encounterIndex == 1) {
+            char playerText[] = "PLAYER 00";
+            char adapterText[] = "ADAPTER 00";
+            const std::uint16_t player = state.adapter.playerEscrow;
+            const std::uint16_t adapter = static_cast<std::uint16_t>(48-player);
+            playerText[7] = static_cast<char>('0'+player/10);
+            playerText[8] = static_cast<char>('0'+player%10);
+            adapterText[8] = static_cast<char>('0'+adapter/10);
+            adapterText[9] = static_cast<char>('0'+adapter%10);
+            DrawCentered(buffer, 74, playerText, PaletteColor::Player);
+            DrawCentered(buffer, 90, adapterText, PaletteColor::Opponent);
         } else {
             DrawCentered(buffer, 80, "TAKE CONTROL   RESTORE FRAME   OPEN THE FIELD", PaletteColor::Neutral);
         }

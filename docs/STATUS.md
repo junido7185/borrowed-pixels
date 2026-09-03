@@ -4,7 +4,7 @@
 - Current controller state: `T08A_CANDIDATE_PREPARATION`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: T08A Act 2 process encounters
-- Contest dist: `205,312B` (T08A delta `+21,504B`, internal cap PASS)
+- Contest dist: `206,336B` (T08A delta `+22,528B`, internal cap PASS)
 
 | Ticket | State | Evidence |
 |---|---|---|
@@ -16,7 +16,7 @@
 | T05 | LOCALLY_INTEGRATED | Candidate `f8f1c042...`; post-integration full regression PASS; independent review P0/P1=0, P2=1 test-only fault-injection debt |
 | T06 | LOCALLY_INTEGRATED | Candidate `70a2ae0b...`; post-integration full regression PASS; final independent review P0/P1/P2=0 |
 | T07 | LOCALLY_INTEGRATED | Candidate `c04cab55...`; Human Director byte-budget reapproval; post-integration full regression PASS |
-| T08A | CANDIDATE_PREPARATION | 72,334 checks; first review P0=0/P1=6/P2=1 repaired; final review pending |
+| T08A | CANDIDATE_PREPARATION | 72,434 checks; reviews P1=6 then P1=3 repaired; final review pending |
 | T08B-T14 | PENDING | Sequential controller execution |
 
 ## Gate status

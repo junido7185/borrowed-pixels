@@ -1,12 +1,23 @@
 T08A AUTHORITY INTERPRETATION
 
 Production spec 8.6 requires recovered ESCROW to open the PLAYER door faster,
-but supplies no numeric door-rate table. The implementation uses the smallest
-integer, monotonic realization: progress per tick = 1 + floor(playerEscrow/8),
-with the runtime-contract 4500 ticks as the opening threshold. Thus zero
-recovery opens at the timeout and each complete 8-TILE group accelerates it.
+but supplies no numeric door-rate table. Under the Human Director's emergency
+completion instruction and explicit statement that all completion decisions
+are approved, the implementation uses the smallest integer, monotonic
+realization: progress per tick = 1 + floor(playerEscrow/8), with the
+runtime-contract 4500 ticks as the opening threshold. Thus zero recovery opens
+at the timeout and each complete authoritative 8-TILE group accelerates it.
 
 This affects no claim transfer, settlement range, movement maximum, encounter
 duration, coordinate, save layout, or game-rule constant. It is covered by a
 dedicated zero-versus-48 escrow test and is recorded rather than claimed as an
 explicit numeric authority value.
+
+FRAME observation predicates introduce no new distance or mass thresholds:
+- incomingThreat predicts circle contact over the authoritative 30-tick policy
+  cadence using current projectile position and velocity;
+- playerLowShell uses the common authoritative core-exposure boundary Shell40;
+- selfLowStructure uses the authoritative EVICT funding boundary 32;
+- rangeFit uses standard CLAIM speed140px/s and reach48 ticks;
+- neutralNear uses the authoritative opponent Reclaim range72px;
+- panel proximity uses FRAME TOLL's explicit 18px.

@@ -453,6 +453,28 @@ void TestRuntimeReachabilityAndPixels() noexcept {
     }
     Check(state.encounterIndex == 1, "runtime reaches ADAPTER");
 
+    bp::Act2Runtime automaticAdapter{};
+    Check(bp::InitializeAct2Runtime(automaticAdapter, claims, narrative),
+        "ADAPTER automatic settlement initializes");
+    automaticAdapter.encounterIndex = 1;
+    automaticAdapter.scene = bp::Act2Scene::Playing;
+    Check(bp::PopulateAct2Encounter(automaticAdapter), "ADAPTER automatic settlement populates");
+    automaticAdapter.adapter.playerEscrow = 24;
+    Check(bp::ForceAct2EncounterSuccessForTest(automaticAdapter),
+        "ADAPTER behavior result freezes");
+    input = Input();
+    for (std::uint16_t tick = 0; tick < bp::kHitFreezeTicks+bp::kSettlementWaitTicks; ++tick) {
+        Check(bp::TickAct2Runtime(automaticAdapter, input), "ADAPTER result wait advances");
+    }
+    Check(automaticAdapter.scene == bp::Act2Scene::Preview
+        && automaticAdapter.committedChoice == bp::ChoiceId::First,
+        "ADAPTER behavior selects EQUAL preview without menu input");
+    for (std::uint16_t tick = 0; tick < bp::kAllocationPreviewTicks+bp::kCommitTransitTicks; ++tick) {
+        Check(bp::TickAct2Runtime(automaticAdapter, input), "ADAPTER automatic commit advances");
+    }
+    Check(automaticAdapter.scene == bp::Act2Scene::EntityResponse,
+        "ADAPTER reaches result response without FRAME choice UI");
+
     std::uint32_t pixels[bp::kRenderWidth * bp::kRenderHeight]{};
     bp::PixelBuffer buffer{pixels, bp::kRenderWidth, bp::kRenderHeight, bp::kRenderWidth};
     bp::RenderAct2Runtime(buffer, state);

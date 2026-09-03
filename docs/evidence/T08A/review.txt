@@ -13,4 +13,15 @@ Repairs on candidate preparation branch:
 - validate spawn/boundary/AABB, 20x20 flood-fill and two free directions;
 - replace raw-struct hashing with explicit field-wise hashing.
 
+Second review of 56b56ad5f326814a2c3463b3b86393f54ab13d96:
+FAIL P0=0 P1=3 P2=0.
+
+Second-review repairs:
+- removed invented FRAME distances and derived every predicate from existing
+  authority boundaries;
+- moved FRAME policy decision before Charge and movement, and moved the core
+  snapshot ahead of panel-cap reconciliation;
+- removed ADAPTER menu input and FRAME choice copy; behavior goes through an
+  allocation-only Preview and automatic CommitTransit.
+
 Final exact-candidate review: PENDING.
