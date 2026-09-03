@@ -5,13 +5,18 @@ T08B AUTHORITY INTERPRETATIONS
   six-degree turn cap, hit-to-PROTOCOL_TAG Neutral, and 120-tick rebuild.
 - INDEX result resolution is total and ordered REWRITE, REFUSE, OPTIMIZE; the
   authority fallback is REFUSE.
-- WITNESS records are separate opponent-owned physical mass, so PLAYER shots do
-  not damage them. A shot can cancel the approaching SWEEPER path, while a
-  continuous nearby reclaim action dismantles one record at exactly 60 ticks.
+- WITNESS records reserve opponent-owned physical mass and its opponent body is
+  projectile-immune. SWEEPER is eight physical 4-mass segments; a swept player
+  shot cancels one segment, places that mass in ProtocolEscrow, and any remainder
+  continues. Exact escrow mass returns after 36 ticks. A continuous nearby
+  reclaim action dismantles one record atomically at exactly 60 ticks.
 - CURRENT starts with core16, shell48, sixteen owned projectile8, owned
-  orbit-neutral48, and active-reserve48 inside its 240 claim. Its nominal cycle
-  is exactly 454 ticks; unaffordable attacks jump to RETURN while retaining
-  Shell41.
+  orbit-neutral48, and active-reserve48 inside its 240 claim. ORBIT uses the
+  specified x22/y36 ellipse, and FORECLOSE charges to mass48 before the exact
+  tick-75 release. Its nominal cycle is exactly 454 ticks; unaffordable attacks
+  jump to RETURN while retaining Shell41.
+- Opponent policy selection runs at section 32.9 step 07, before player charge
+  and movement mutate the observed state for that tick.
 - Runtime-contract coordinates and masses are copied without presentation
   adjustment. Validation checks totals, bounds, spawn overlap, route existence,
   and two free directions at each spawn.

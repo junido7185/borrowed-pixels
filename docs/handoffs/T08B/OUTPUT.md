@@ -12,22 +12,25 @@ IMPLEMENTED:
   neutral placements, durations, initial circulation, and authoritative copy.
 - INDEX DAMAGE/DISTANCE/IDLE meters, UNSCORED preservation, METRIC-node rewrite,
   total REWRITE→REFUSE→OPTIMIZE result priority, and reusable CHECKSUM probes.
-- WITNESS stable-id record targeting, projectile-opened SWEEPER gap, record shot
-  immunity, exact 60-tick direct dismantle, and PRESERVE/COMPRESS/ERASE meaning.
+- WITNESS stable-id record targeting, physical eight-by-four-mass SWEEPER,
+  swept projectile cancellation with 36-tick ProtocolEscrow return, record-body
+  shot immunity, atomic 60-tick direct dismantle, and PRESERVE/COMPRESS/ERASE.
 - CURRENT core/shell/circulation allocation, projectile cap, predictable fixed
-  cycle, ORBIT/WAVE/FORECLOSE material attacks, locked FORECLOSE aim, RETURN
-  priority, Shell41 affordability gate, and HOLD/RETURN/CIRCULATE settlement.
+  cycle, x22/y36 ORBIT, WAVE, exact mass48/tick75 FORECLOSE release, locked aim,
+  RETURN priority, Shell41 affordability gate, and settlement outcomes.
+- Section 32.9 step-07 opponent-policy ordering before player charge/movement,
+  plus atomic exact-or-zero ledger transfers at capacity boundaries.
 - Battlefield validation, common pause/HUD/hit-freeze/settlement flow,
   padding-independent runtime hashing, palette rendering, and minimal tested
   Win32 Act 2→Act 3 reachability glue.
 
 AUTOMATED RESULTS:
 
-- T08B 817 checks PASS; all T02-T08A regressions PASS.
+- T08B 762 focused exhaustive checks PASS; all T02-T08A regressions PASS.
 - Windows x64 MSVC configure, clean Test, direct suite, CTest, clean Debug,
   debug smoke, clean Contest, live contest launch, and MAP reachability PASS.
-- dist/contest: one file, 223,232 bytes; internal and hard caps PASS.
-- Contest SHA-256: `191d5ac5260768f44a7797be5b44526162ea304d0cba7c395d45408adfd48492`.
+- dist/contest: one file, 224,256 bytes; internal and hard caps PASS.
+- Contest SHA-256: `981b9453521443241f3f2b852e8d5d56018a08fd5dc326590774551ceebfbb83`.
 
 GATES:
 

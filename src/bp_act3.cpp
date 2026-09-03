@@ -254,15 +254,16 @@ std::uint8_t WitnessRecordsPreserved(const Act3Runtime& state) noexcept {
     return count;
 }
 
-bool AddTransferredNeutral(Act3Runtime& state, Vec2Q8 position, std::uint16_t mass,
-    PhysicalAccount from, std::uint16_t playerMiss = 0,
-    std::uint16_t opponentMiss = 0) noexcept {
-    SlotHandle handle{};
-    if (!PhysicalTransfer(state.movement.physicalLedger, from,
-            PhysicalAccount::Neutral, mass)
-        || !AddNeutral(state.combat, position, mass, playerMiss, opponentMiss, handle)) {
-        return false;
-    }
+bool TransferWitnessRecord(Act3Runtime& state,std::uint8_t recordIndex,
+    PhysicalAccount destination) noexcept {
+    if (recordIndex>=kWitnessRecordCount
+        || state.witness.records[recordIndex].active==0) return false;
+    PhysicalLedger ledger=state.movement.physicalLedger;
+    if (!PhysicalTransfer(ledger,PhysicalAccount::OpponentShell,destination,16)
+        || !CombatStateValid(state.combat,ledger)) return false;
+    state.movement.physicalLedger=ledger;
+    state.witness.records[recordIndex].active=0;
+    state.witness.records[recordIndex].channelTicks=0;
     return true;
 }
 
@@ -310,9 +311,9 @@ bool PopulateCurrent(Act3Runtime& state) noexcept {
     for (std::uint8_t i=0; i<kCurrentInitialProjectileCount; ++i) {
         const Vec2Q8 direction = kOrbitDirections[i];
         const Vec2Q8 position{
-            centerX + RoundDivideSigned(static_cast<std::int64_t>(direction.x)*36*kQ8One,
+            centerX + RoundDivideSigned(static_cast<std::int64_t>(direction.x)*22*kQ8One,
                 kInputUnit),
-            centerY + RoundDivideSigned(static_cast<std::int64_t>(direction.y)*22*kQ8One,
+            centerY + RoundDivideSigned(static_cast<std::int64_t>(direction.y)*36*kQ8One,
                 kInputUnit),
         };
         if (i==0) state.current.initialProjectileFirstStableId=state.combat.nextStableId;
@@ -323,9 +324,9 @@ bool PopulateCurrent(Act3Runtime& state) noexcept {
     for (std::uint8_t i=0; i<kCurrentOwnedNeutralCount; ++i) {
         const Vec2Q8 direction = kOrbitDirections[i*2u+1u];
         const Vec2Q8 position{
-            centerX + RoundDivideSigned(static_cast<std::int64_t>(direction.x)*29*kQ8One,
+            centerX + RoundDivideSigned(static_cast<std::int64_t>(direction.x)*22*kQ8One,
                 kInputUnit),
-            centerY + RoundDivideSigned(static_cast<std::int64_t>(direction.y)*29*kQ8One,
+            centerY + RoundDivideSigned(static_cast<std::int64_t>(direction.y)*36*kQ8One,
                 kInputUnit),
         };
         if (!PhysicalTransfer(ledger, PhysicalAccount::OpponentShell,
@@ -440,9 +441,9 @@ bool TickCurrent(Act3Runtime& state) noexcept {
             (original+state.encounterTick/6u)&15u);
         const Vec2Q8 direction=kOrbitDirections[phase];
         shot.position=Vec2Q8{
-            228*kQ8One+RoundDivideSigned(static_cast<std::int64_t>(direction.x)*36*kQ8One,
+            228*kQ8One+RoundDivideSigned(static_cast<std::int64_t>(direction.x)*22*kQ8One,
                 kInputUnit),
-            90*kQ8One+RoundDivideSigned(static_cast<std::int64_t>(direction.y)*22*kQ8One,
+            90*kQ8One+RoundDivideSigned(static_cast<std::int64_t>(direction.y)*36*kQ8One,
                 kInputUnit),
         };
         const Vec2Q8 tangent=kOrbitDirections[(phase+4u)&15u];
@@ -450,6 +451,20 @@ bool TickCurrent(Act3Runtime& state) noexcept {
         shot.velocity=Vec2Q8{
             RoundDivideSigned(static_cast<std::int64_t>(tangent.x)*speed,kInputUnit),
             RoundDivideSigned(static_cast<std::int64_t>(tangent.y)*speed,kInputUnit),
+        };
+    }
+    for (std::uint8_t i=0;i<kCurrentOwnedNeutralCount;++i) {
+        const SlotHandle handle=current.ownedNeutrals[i];
+        if (!NeutralHandleValid(state.combat,handle)) continue;
+        NeutralSlot& neutral=state.combat.neutrals[handle.index];
+        const std::uint8_t phase=static_cast<std::uint8_t>(
+            (i*2u+1u+state.encounterTick/6u)&15u);
+        const Vec2Q8 direction=kOrbitDirections[phase];
+        neutral.position=Vec2Q8{
+            228*kQ8One+RoundDivideSigned(static_cast<std::int64_t>(direction.x)*22*kQ8One,
+                kInputUnit),
+            90*kQ8One+RoundDivideSigned(static_cast<std::int64_t>(direction.y)*36*kQ8One,
+                kInputUnit),
         };
     }
     const std::uint16_t shell = ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)];
@@ -540,26 +555,18 @@ bool TickCurrent(Act3Runtime& state) noexcept {
             state.combat.actors[1].aimDirectionQ15 = current.forecloseAim;
             if (!BeginCharge(state.combat, ledger, CombatSide::Opponent,
                     current.forecloseAim)) return false;
-        } else if (current.actionTicks < 75) {
+        }
+        if (state.combat.charges[1].active!=0) {
             state.combat.actors[1].aimDirectionQ15 = current.forecloseAim;
             if (!AdvanceCharge(state.combat, ledger, CombatSide::Opponent)) return false;
-        } else {
-            if (!ReleaseCharge(state.combat, ledger, CombatSide::Opponent)) return false;
-            AdvanceCurrentAction(current, CurrentAction::ReturnB);
+            if (current.actionTicks>=75) {
+                if (state.combat.charges[1].mass!=48
+                    || !ReleaseCharge(state.combat,ledger,CombatSide::Opponent)) return false;
+                AdvanceCurrentAction(current,CurrentAction::ReturnB);
+            }
         }
         break;
     }
-    return true;
-}
-
-bool NeutralizeSweeperProjectile(Act3Runtime& state, ProjectileSlot& shot) noexcept {
-    const std::uint16_t mass = shot.mass;
-    const Vec2Q8 position = shot.position;
-    if (!AddTransferredNeutral(state, position, mass, PhysicalAccount::Projectile,
-            mass, 0)) return false;
-    shot.mass = 0;
-    shot.active = 0;
-    shot.velocity = Vec2Q8{0,0};
     return true;
 }
 
@@ -661,8 +668,73 @@ bool TickIndexProbes(Act3Runtime& state) noexcept {
     return true;
 }
 
+void RemoveWitnessSegment(CombatState& combat,SlotHandle handle) noexcept {
+    if (!CoverHandleValid(combat,handle)) return;
+    combat.covers[handle.index].mass=0;
+    combat.covers[handle.index].active=0;
+}
+
+bool StartWitnessSweeper(Act3Runtime& state,std::uint8_t targetIndex) noexcept {
+    if (targetIndex>=kWitnessRecordCount || state.witness.sweeperActive!=0
+        || state.witness.sweeperReturning!=0
+        || state.movement.physicalLedger.mass[AccountIndex(
+            PhysicalAccount::ProtocolActive)]!=32) return false;
+    CombatState combat=state.combat;
+    const std::int32_t targetY=state.witness.records[targetIndex].position.y/kQ8One;
+    SlotHandle handles[kWitnessSweeperSegmentCount]{};
+    for (std::uint8_t i=0;i<kWitnessSweeperSegmentCount;++i) {
+        if (!AddBackedCover(combat,RectPixels{12,targetY-16+i*4,4,4},4,
+                PhysicalAccount::ProtocolActive,CoverBehavior::Sweeper,handles[i])) return false;
+    }
+    if (!CombatStateValid(combat,state.movement.physicalLedger)) return false;
+    state.combat=combat;
+    for (std::uint8_t i=0;i<kWitnessSweeperSegmentCount;++i)
+        state.witness.sweeperSegments[i]=handles[i];
+    state.witness.sweeperTarget=targetIndex;
+    state.witness.sweeperTick=0;
+    state.witness.sweeperGap=0;
+    state.witness.sweeperActive=1;
+    return true;
+}
+
+bool FinishWitnessSweeper(Act3Runtime& state) noexcept {
+    WitnessRuntime& witness=state.witness;
+    if (witness.sweeperActive==0 || witness.sweeperTick<90) return true;
+    witness.sweeperGap=CoverHandleValid(state.combat,witness.sweeperSegments[4])?0u:1u;
+    if (witness.sweeperGap==0 && witness.records[witness.sweeperTarget].active!=0
+        && !TransferWitnessRecord(state,witness.sweeperTarget,
+            PhysicalAccount::Transit)) return false;
+    for (SlotHandle handle:witness.sweeperSegments) RemoveWitnessSegment(state.combat,handle);
+    witness.protocolEscrowMass=static_cast<std::uint16_t>(32
+        -state.movement.physicalLedger.mass[AccountIndex(PhysicalAccount::ProtocolActive)]);
+    witness.sweeperActive=0;
+    witness.sweeperReturnTick=0;
+    witness.sweeperReturning=witness.protocolEscrowMass!=0?1u:0u;
+    return CombatStateValid(state.combat,state.movement.physicalLedger);
+}
+
 bool TickWitness(Act3Runtime& state, const GameplayIntent& intent) noexcept {
     WitnessRuntime& witness = state.witness;
+    if (witness.sweeperReturning!=0) {
+        ++witness.sweeperReturnTick;
+        const std::uint16_t targetReturned=static_cast<std::uint16_t>(
+            static_cast<std::uint32_t>(witness.protocolEscrowMass)
+                *witness.sweeperReturnTick/36u);
+        const std::uint16_t baseline=static_cast<std::uint16_t>(
+            32-witness.protocolEscrowMass);
+        const std::uint16_t active=state.movement.physicalLedger.mass[
+            AccountIndex(PhysicalAccount::ProtocolActive)];
+        const std::uint16_t returned=active>baseline?static_cast<std::uint16_t>(active-baseline):0;
+        if (targetReturned>returned) {
+            PhysicalLedger ledger=state.movement.physicalLedger;
+            if (!PhysicalTransfer(ledger,PhysicalAccount::Transit,
+                    PhysicalAccount::ProtocolActive,
+                    static_cast<std::uint16_t>(targetReturned-returned))
+                || !CombatStateValid(state.combat,ledger)) return false;
+            state.movement.physicalLedger=ledger;
+        }
+        if (witness.sweeperReturnTick>=36) witness.sweeperReturning=0;
+    }
     const std::uint32_t waveStarts[3] = {1,1201,2401};
     for (std::uint8_t wave=0; wave<3; ++wave) {
         if (state.encounterTick != waveStarts[wave]) continue;
@@ -673,34 +745,16 @@ bool TickWitness(Act3Runtime& state, const GameplayIntent& intent) noexcept {
                 stable=witness.records[i].stableId; target=i;
             }
         }
-        if (target != 0xFFu) {
-            witness.sweeperActive=1; witness.sweeperTarget=target;
-            witness.sweeperTick=0; witness.sweeperGap=0;
-        }
+        if (target != 0xFFu && !StartWitnessSweeper(state,target)) return false;
     }
     if (witness.sweeperActive != 0) {
         ++witness.sweeperTick;
         const WitnessRecord& target = witness.records[witness.sweeperTarget];
-        const std::int32_t x = 12*kQ8One + static_cast<std::int32_t>(
-            (static_cast<std::int64_t>(target.position.x-12*kQ8One)*witness.sweeperTick)/90);
-        for (ProjectileSlot& shot : state.combat.projectiles) {
-            if (shot.active == 0 || shot.owner != CombatSide::Player) continue;
-            const std::int64_t dx=shot.position.x-x;
-            const std::int64_t dy=shot.position.y-target.position.y;
-            if (dx*dx+dy*dy <= static_cast<std::int64_t>(7*kQ8One)*(7*kQ8One)) {
-                if (!NeutralizeSweeperProjectile(state,shot)) return false;
-                witness.sweeperGap=1;
-                break;
-            }
-        }
-        if (witness.sweeperTick >= 90) {
-            WitnessRecord& record = witness.records[witness.sweeperTarget];
-            if (witness.sweeperGap == 0 && record.active != 0) {
-                record.active=0;
-                if (!AddTransferredNeutral(state,record.position,16,
-                        PhysicalAccount::OpponentShell)) return false;
-            }
-            witness.sweeperActive=0;
+        const std::int32_t x=12+static_cast<std::int32_t>(
+            (static_cast<std::int64_t>(target.position.x/kQ8One-12)
+                *witness.sweeperTick)/90);
+        for (SlotHandle handle:witness.sweeperSegments) {
+            if (CoverHandleValid(state.combat,handle)) state.combat.covers[handle.index].bounds.x=x;
         }
     }
     std::uint8_t nearest=0xFFu;
@@ -723,11 +777,12 @@ bool TickWitness(Act3Runtime& state, const GameplayIntent& intent) noexcept {
     if (nearest!=0xFFu && intent.action==GameplayAction::Reclaim) {
         WitnessRecord& record=witness.records[nearest];
         if (++record.channelTicks>=kWitnessDismantleTicks) {
-            record.active=0;
-            record.channelTicks=0;
-            witness.directRecordMass=static_cast<std::uint8_t>(witness.directRecordMass+16);
-            if (!PhysicalTransfer(state.movement.physicalLedger,
-                    PhysicalAccount::OpponentShell,PhysicalAccount::PlayerShell,16)) return false;
+            if (!TransferWitnessRecord(state,nearest,PhysicalAccount::PlayerShell)) {
+                --record.channelTicks;
+                return false;
+            }
+            witness.directRecordMass=static_cast<std::uint8_t>(
+                witness.directRecordMass+16);
         }
     } else if (nearest!=0xFFu) witness.records[nearest].channelTicks=0;
     return true;
@@ -759,7 +814,8 @@ void RenderBattle(PixelBuffer buffer, const Act3Runtime& state) noexcept {
     for (const CoverSlot& cover:state.combat.covers) {
         if (cover.active==0) continue;
         FillRect(buffer,RectI{cover.bounds.x,cover.bounds.y,cover.bounds.width,
-            cover.bounds.height},PaletteColor::Cover);
+            cover.bounds.height},cover.behavior==CoverBehavior::Sweeper
+                ?PaletteColor::Warning:PaletteColor::Cover);
     }
     for (const NeutralSlot& neutral:state.combat.neutrals) {
         if (neutral.active==0) continue;
@@ -801,12 +857,6 @@ void RenderBattle(PixelBuffer buffer, const Act3Runtime& state) noexcept {
             if (record.active==0) continue;
             StrokeRect(buffer,RectI{record.position.x/kQ8One-6,
                 record.position.y/kQ8One-3,12,6},PaletteColor::Warning);
-        }
-        if (state.witness.sweeperActive!=0) {
-            const WitnessRecord& target=state.witness.records[state.witness.sweeperTarget];
-            const std::int32_t x=12+(target.position.x/kQ8One-12)*state.witness.sweeperTick/90;
-            for (std::int32_t i=0;i<8;++i) FillRect(buffer,
-                RectI{x-1,target.position.y/kQ8One-16+i*4,3,3},PaletteColor::Warning);
         }
     } else if (state.current.action==CurrentAction::Foreclose) {
         FillRect(buffer,RectI{250,7,48-state.current.actionTicks*48/75,2},
@@ -1166,6 +1216,19 @@ bool TickAct3Runtime(Act3Runtime& state,const InputFrame& input) noexcept {
         SelectHudModule(state.hudLoan,static_cast<HudModuleId>(next));
     }
     ++state.encounterTick;
+    const Vec2Q8 playerBefore=state.combat.actors[0].position;
+    const std::uint16_t coverBefore=ledger.mass[AccountIndex(PhysicalAccount::Cover)];
+    const std::uint16_t shellBefore=ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)];
+    // Authority 32.9 step 07: every opponent/encounter decision observes the
+    // pre-Charge, pre-acceleration player state for this tick.
+    if (state.encounterIndex==0) {
+        if (state.combat.actors[1].exposureGraceTicks==0)
+            state.combat.actors[1].exposureGraceTicks=1;
+        if (!TickIndexProbes(state)) return false;
+    } else if (state.encounterIndex==1) {
+        state.combat.actors[1].projectileImmune=1;
+        if (!TickWitness(state,intent)) return false;
+    } else if (!TickCurrent(state)) return false;
     const Vec2Q8 aim=AimDirection(state,input);
     state.combat.actors[0].aimDirectionQ15=aim;
     ChargeSlot& charge=state.combat.charges[0];
@@ -1184,7 +1247,6 @@ bool TickAct3Runtime(Act3Runtime& state,const InputFrame& input) noexcept {
         } else if (!RollbackCharge(state.combat,ledger,CombatSide::Player)) return false;
     }
     state.movement.chargeActive=charge.active!=0?1u:0u;
-    const Vec2Q8 playerBefore=state.combat.actors[0].position;
     if (!AdvanceGameIntent(state.movement,intent)) return false;
     state.combat.actors[0].position=state.movement.playerPosition;
     state.combat.actors[0].velocity=state.movement.playerVelocity;
@@ -1197,11 +1259,6 @@ bool TickAct3Runtime(Act3Runtime& state,const InputFrame& input) noexcept {
     }
     state.movement.playerPosition=state.combat.actors[0].position;
     state.movement.playerVelocity=state.combat.actors[0].velocity;
-    const std::uint16_t coverBefore=ledger.mass[AccountIndex(PhysicalAccount::Cover)];
-    const std::uint16_t shellBefore=ledger.mass[AccountIndex(PhysicalAccount::OpponentShell)];
-    if (state.encounterIndex==0 && !TickIndexProbes(state)) return false;
-    if (state.encounterIndex==1 && !TickWitness(state,intent)) return false;
-    if (state.encounterIndex==2 && !TickCurrent(state)) return false;
     if (!StepCombatProjectiles(state.combat,ledger,state.claimLedger)) return false;
     if (state.combat.actors[0].coreHit!=0) {
         ++state.movement.globalTick; ++state.globalTick; BeginRetry(state); return true;
@@ -1209,6 +1266,12 @@ bool TickAct3Runtime(Act3Runtime& state,const InputFrame& input) noexcept {
     if (state.encounterIndex==2 && state.combat.actors[1].coreHit!=0) {
         ++state.movement.globalTick; ++state.globalTick; BeginSuccess(state,state.focusedChoice); return true;
     }
+    if (state.encounterIndex<2 && state.combat.actors[1].coreHit!=0) {
+        state.combat.actors[1].coreHit=0;
+        state.combat.phase=CombatPhase::Active;
+        state.combat.settlement.valid=0;
+    }
+    if (state.encounterIndex==1 && !FinishWitnessSweeper(state)) return false;
     if (state.encounterIndex==0) UpdateIndex(state,intent,playerBefore,coverBefore,shellBefore);
     if (!TickNeutralDynamics(state.combat,ledger)) return false;
     ReclaimTickResult reclaimed{};
@@ -1343,9 +1406,11 @@ std::uint32_t Act3RuntimeHash(const Act3Runtime& state) noexcept {
     for (const WitnessRecord& record:state.witness.records) {
         addVec(record.position); add(record.stableId); add(record.channelTicks); add(record.active);
     }
-    add(state.witness.sweeperTick); add(state.witness.sweeperTarget);
+    for (SlotHandle handle:state.witness.sweeperSegments) addHandle(handle);
+    add(state.witness.sweeperTick); add(state.witness.sweeperReturnTick);
+    add(state.witness.protocolEscrowMass); add(state.witness.sweeperTarget);
     add(state.witness.sweeperActive); add(state.witness.sweeperGap);
-    add(state.witness.directRecordMass);
+    add(state.witness.sweeperReturning); add(state.witness.directRecordMass);
     for (SlotHandle handle:state.current.ownedNeutrals) addHandle(handle);
     add(static_cast<std::uint32_t>(state.current.action)); addVec(state.current.forecloseAim);
     add(state.current.actionTicks); add(state.current.returnAccumulator);

@@ -12,6 +12,7 @@ inline constexpr std::uint8_t kAct3MaximumNeutralCount = 20;
 inline constexpr std::uint8_t kIndexMetricNodeCount = 3;
 inline constexpr std::uint8_t kIndexUnscoredCount = 2;
 inline constexpr std::uint8_t kWitnessRecordCount = 3;
+inline constexpr std::uint8_t kWitnessSweeperSegmentCount = 8;
 inline constexpr std::uint8_t kCurrentInitialProjectileCount = 16;
 inline constexpr std::uint8_t kCurrentOwnedNeutralCount = 6;
 inline constexpr std::uint16_t kIndexDurationTicks = 3600;
@@ -85,10 +86,14 @@ struct WitnessRecord {
 
 struct WitnessRuntime {
     WitnessRecord records[kWitnessRecordCount];
+    SlotHandle sweeperSegments[kWitnessSweeperSegmentCount];
     std::uint16_t sweeperTick;
+    std::uint16_t sweeperReturnTick;
+    std::uint16_t protocolEscrowMass;
     std::uint8_t sweeperTarget;
     std::uint8_t sweeperActive;
     std::uint8_t sweeperGap;
+    std::uint8_t sweeperReturning;
     std::uint8_t directRecordMass;
 };
 

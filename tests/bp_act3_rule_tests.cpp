@@ -176,6 +176,18 @@ void TestPopulationAndPhysicalMass() noexcept {
     for (const bp::ProjectileSlot& shot:current.combat.projectiles)
         if (shot.active!=0) ++projectiles;
     Check(projectiles==16,"CURRENT projectile count exact");
+    const std::uint32_t first=current.current.initialProjectileFirstStableId;
+    bp::Vec2Q8 cardinals[4]{};
+    for (const bp::ProjectileSlot& shot:current.combat.projectiles) {
+        if (shot.active==0 || shot.stableId<first || shot.stableId>=first+16) continue;
+        const std::uint8_t phase=static_cast<std::uint8_t>(shot.stableId-first);
+        if ((phase&3u)==0) cardinals[phase/4u]=shot.position;
+    }
+    Check(cardinals[0].x==250*bp::kQ8One && cardinals[0].y==90*bp::kQ8One
+        && cardinals[1].x==228*bp::kQ8One && cardinals[1].y==126*bp::kQ8One
+        && cardinals[2].x==206*bp::kQ8One && cardinals[2].y==90*bp::kQ8One
+        && cardinals[3].x==228*bp::kQ8One && cardinals[3].y==54*bp::kQ8One,
+        "CURRENT orbitRadiusPx applies exact x22 y36 cardinal positions");
     Check(bp::PhysicalLedgerTotal(ledger)==bp::kLedgerTotal
         && bp::CombatStateValid(current.combat,ledger),
         "CURRENT initial circulation conserves 1440");
@@ -200,6 +212,43 @@ void TestPopulationAndPhysicalMass() noexcept {
     Check(bp::TickCurrentScriptForTest(saturated)
         && saturated.current.action==bp::CurrentAction::ReturnA,
         "CURRENT skips ORBIT when eight projectile slots are unavailable");
+
+    bp::Act3Runtime foreclose=World(2);
+    Check(bp::PhysicalTransfer(foreclose.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,41),
+        "CURRENT FORECLOSE fixture funds shell41 reserve");
+    foreclose.current.action=bp::CurrentAction::Foreclose;
+    foreclose.combat.actors[0].position.y=90*bp::kQ8One;
+    const bp::Vec2Q8 lockedPlayer=foreclose.combat.actors[0].position;
+    bool advanced=true;
+    for (std::uint8_t tick=0;tick<75;++tick) {
+        if (tick==1) foreclose.combat.actors[0].position.y+=30*bp::kQ8One;
+        advanced=advanced && bp::TickCurrentScriptForTest(foreclose);
+    }
+    std::uint8_t forecloseShots=0;
+    for (const bp::ProjectileSlot& shot:foreclose.combat.projectiles)
+        if (shot.active!=0 && shot.mass==48) ++forecloseShots;
+    Check(advanced && foreclose.current.action==bp::CurrentAction::ReturnB
+        && foreclose.combat.charges[1].active==0 && forecloseShots==1,
+        "CURRENT FORECLOSE releases exact mass48 after exact 75 ticks");
+    const bp::Vec2Q8 expectedAim{lockedPlayer.x-264*bp::kQ8One,
+        lockedPlayer.y-90*bp::kQ8One};
+    Check(foreclose.current.forecloseAim.y==0 && expectedAim.y==0,
+        "CURRENT FORECLOSE aim remains locked against later player movement");
+
+    bp::Act3Runtime ordered=World(2);
+    Check(bp::PhysicalTransfer(ordered.movement.physicalLedger,
+        bp::PhysicalAccount::LockedBands,bp::PhysicalAccount::OpponentShell,41),
+        "CURRENT step07 fixture funds FORECLOSE");
+    ordered.current.action=bp::CurrentAction::Foreclose;
+    ordered.combat.actors[0].position.y=90*bp::kQ8One;
+    ordered.movement.playerPosition=ordered.combat.actors[0].position;
+    bp::InputFrame moving=Input();
+    moving.moveY=32767;
+    Check(bp::TickAct3Runtime(ordered,moving)
+        && ordered.current.forecloseAim.y==0
+        && ordered.combat.actors[0].position.y>90*bp::kQ8One,
+        "CURRENT decision step07 observes player before same-tick movement step10");
 }
 
 void TestChecksumAndWitnessProcesses() noexcept {
@@ -223,18 +272,58 @@ void TestChecksumAndWitnessProcesses() noexcept {
         && index.movement.physicalLedger.mass[Account(bp::PhysicalAccount::ProtocolActive)]==32,
         "INDEX CHECKSUM rebuilds from nearest tagged mass after 120 ticks");
 
+    bp::Act3Runtime indexCore=World(0);
+    Check(bp::PhysicalTransfer(indexCore.movement.physicalLedger,
+        bp::PhysicalAccount::OpponentShell,bp::PhysicalAccount::Neutral,32),
+        "INDEX core-safety fixture exposes shell");
+    indexCore.combat.neutrals[indexCore.neutrals[0].index].mass=40;
+    Check(bp::SpawnScriptedProjectile(indexCore.combat,indexCore.movement.physicalLedger,
+        bp::CombatSide::Player,8,indexCore.combat.actors[1].position,
+        bp::Vec2Q8{bp::kInputUnit,0},1),"INDEX core-safety shot prepared");
+    Check(bp::CombatStateValid(indexCore.combat,indexCore.movement.physicalLedger)
+        && bp::TickAct3Runtime(indexCore,Input()),"INDEX exposed special encounter tick survives");
+    Check(indexCore.combat.actors[1].coreHit==0
+        && indexCore.combat.phase==bp::CombatPhase::Active,
+        "INDEX core hit is disabled until its 60-second result condition");
+
     bp::Act3Runtime defended=World(1);
     Check(bp::SpawnScriptedProjectile(defended.combat,defended.movement.physicalLedger,
         bp::CombatSide::Player,8,bp::Vec2Q8{13*bp::kQ8One,78*bp::kQ8One},
         bp::Vec2Q8{bp::kInputUnit,0},1),"WITNESS defense projectile prepared");
     Check(bp::TickAct3Runtime(defended,Input()),"WITNESS first SWEEPER wave starts");
+    std::uint8_t remainingPlayerMass=0;
+    for (const bp::ProjectileSlot& shot:defended.combat.projectiles)
+        if (shot.active!=0 && shot.owner==bp::CombatSide::Player)
+            remainingPlayerMass=static_cast<std::uint8_t>(remainingPlayerMass+shot.mass);
     Check(defended.witness.sweeperActive!=0 && defended.witness.sweeperTarget==0
-        && defended.witness.sweeperGap!=0,
-        "WITNESS smallest stable record targeted and projectile opens gap");
+        && remainingPlayerMass==4
+        && defended.movement.physicalLedger.mass[Account(bp::PhysicalAccount::ProtocolActive)]==28
+        && defended.movement.physicalLedger.mass[Account(bp::PhysicalAccount::Transit)]==4,
+        "WITNESS swept collision cancels segment4 and preserves remaining projectile4");
+    bool waveOk=true;
     for (std::uint8_t tick=1;tick<90;++tick)
-        Check(bp::TickAct3Runtime(defended,Input()),"WITNESS defended wave advances");
-    Check(defended.witness.records[0].active!=0,
-        "WITNESS record survives a cancelled SWEEPER segment");
+        waveOk=waveOk && bp::TickAct3Runtime(defended,Input());
+    Check(waveOk && defended.witness.records[0].active!=0
+        && defended.witness.sweeperGap!=0 && defended.witness.sweeperReturning!=0,
+        "WITNESS record survives exact 90-tick wave through physical gap");
+    bool returnOk=true;
+    for (std::uint8_t tick=0;tick<36;++tick)
+        returnOk=returnOk && bp::TickAct3Runtime(defended,Input());
+    Check(returnOk
+        && defended.movement.physicalLedger.mass[Account(bp::PhysicalAccount::ProtocolActive)]==32
+        && defended.witness.sweeperReturning==0,
+        "WITNESS ProtocolEscrow returns over exact 36 ticks");
+
+    bp::Act3Runtime immune=World(1);
+    const std::uint16_t witnessShell=immune.movement.physicalLedger.mass[
+        Account(bp::PhysicalAccount::OpponentShell)];
+    Check(bp::SpawnScriptedProjectile(immune.combat,immune.movement.physicalLedger,
+        bp::CombatSide::Player,8,immune.combat.actors[1].position,
+        bp::Vec2Q8{bp::kInputUnit,0},1),"WITNESS record-immunity shot prepared");
+    Check(bp::TickAct3Runtime(immune,Input())
+        && immune.movement.physicalLedger.mass[Account(bp::PhysicalAccount::OpponentShell)]
+            ==witnessShell && immune.witness.records[0].active!=0,
+        "WITNESS body and record48 are immune to player projectile damage");
 
     bp::Act3Runtime dismantled=World(1);
     dismantled.combat.actors[0].position=dismantled.witness.records[0].position;
@@ -248,6 +337,46 @@ void TestChecksumAndWitnessProcesses() noexcept {
         "WITNESS exact 60 tick direct channel reclaims record16");
     Check(bp::PhysicalLedgerValid(dismantled.movement.physicalLedger),
         "WITNESS direct dismantle conserves physical1440");
+
+    bp::Act3Runtime rollback=World(1);
+    Check(bp::PhysicalTransfer(rollback.movement.physicalLedger,
+        bp::PhysicalAccount::OpponentShell,bp::PhysicalAccount::LockedBands,48),
+        "WITNESS rollback fixture removes record funding");
+    rollback.combat.actors[0].position=rollback.witness.records[0].position;
+    rollback.movement.playerPosition=rollback.witness.records[0].position;
+    bool channelOk=true;
+    for (std::uint8_t tick=0;tick<59;++tick)
+        channelOk=channelOk && bp::TickAct3Runtime(rollback,reclaim);
+    const bp::PhysicalLedger beforeFailure=rollback.movement.physicalLedger;
+    const bool failedTick=bp::TickAct3Runtime(rollback,reclaim);
+    bool ledgerSame=true;
+    for (std::uint8_t i=0;i<bp::kPhysicalAccountCount;++i)
+        ledgerSame=ledgerSame && rollback.movement.physicalLedger.mass[i]==beforeFailure.mass[i];
+    Check(channelOk && !failedTick && ledgerSame
+        && rollback.witness.records[0].active!=0
+        && rollback.witness.records[0].channelTicks==59,
+        "WITNESS failed direct transfer is exact-or-zero and keeps record active");
+
+    bp::Act3Runtime natural=World(1);
+    bool naturalOk=true;
+    for (std::uint16_t tick=0;tick<bp::kWitnessDurationTicks;++tick)
+        naturalOk=naturalOk && bp::TickAct3Runtime(natural,Input());
+    Check(naturalOk && natural.scene==bp::Act3Scene::HitFreeze
+        && natural.committedChoice==bp::ChoiceId::Second,
+        "WITNESS naturally reaches COMPRESS after exact 3600 ticks");
+
+    bp::Act3Runtime current=World(2);
+    Check(bp::PhysicalTransfer(current.movement.physicalLedger,
+        bp::PhysicalAccount::OpponentShell,bp::PhysicalAccount::Neutral,48),
+        "CURRENT natural completion fixture exposes core");
+    current.combat.neutrals[current.neutrals[0].index].mass=56;
+    Check(bp::SpawnScriptedProjectile(current.combat,current.movement.physicalLedger,
+        bp::CombatSide::Player,8,current.combat.actors[1].position,
+        bp::Vec2Q8{bp::kInputUnit,0},1),"CURRENT natural core shot prepared");
+    Check(bp::CombatStateValid(current.combat,current.movement.physicalLedger)
+        && bp::TickAct3Runtime(current,Input())
+        && current.scene==bp::Act3Scene::HitFreeze,
+        "CURRENT naturally reaches settlement through exposed core hit");
 }
 
 void TestReachabilityPixelsAndHash() noexcept {
@@ -259,6 +388,13 @@ void TestReachabilityPixelsAndHash() noexcept {
     for (std::uint16_t tick=0;tick<270;++tick)
         Check(bp::TickAct3Runtime(state,idle),"Act 3 intro objective advances");
     Check(state.scene==bp::Act3Scene::Playing,"INDEX becomes playable");
+    bp::Act3Runtime naturalIndex=state;
+    bool naturalIndexOk=true;
+    for (std::uint16_t tick=0;tick<bp::kIndexDurationTicks;++tick)
+        naturalIndexOk=naturalIndexOk && bp::TickAct3Runtime(naturalIndex,idle);
+    Check(naturalIndexOk && naturalIndex.scene==bp::Act3Scene::HitFreeze
+        && naturalIndex.committedChoice==bp::ChoiceId::Second,
+        "INDEX naturally reaches REFUSE after exact 3600 ticks");
     Check(bp::ForceAct3EncounterSuccessForTest(state),"INDEX deterministic result freezes");
     for (std::uint16_t tick=0;tick<bp::kHitFreezeTicks+bp::kSettlementWaitTicks;++tick)
         Check(bp::TickAct3Runtime(state,idle),"INDEX result wait advances");

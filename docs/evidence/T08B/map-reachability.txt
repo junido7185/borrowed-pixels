@@ -4,6 +4,7 @@ InitializeAct3Runtime=REACHABLE
 TickAct3Runtime=REACHABLE
 RenderAct3Runtime=REACHABLE
 TickCurrent=REACHABLE
+FinishWitnessSweeper=REACHABLE
 ResolveIndexResult=INLINED_BY_LTCG_IN_REACHABLE_TICK
 ResolveWitnessResult=INLINED_BY_LTCG_IN_REACHABLE_TICK
 RESULT=PASS
