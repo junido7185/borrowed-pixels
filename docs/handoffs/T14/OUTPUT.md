@@ -7,7 +7,7 @@ Feature development is frozen. `tools/verify_rc.ps1` completed with
 
 - Executable: `dist/contest/BorrowedPixels.exe`
 - Executable bytes: `289280`
-- Executable SHA-256: `e16c23b450f21cf9b36060cdab48519aeab19c5ff91e219cac18c6722f0e4095`
+- Executable SHA-256: `bcd5b1ba8beb509ab1814a786e350fcdadfbf10b9ffdba3c019f7fb6292150a0`
 - Extracted dist: `291734` bytes in exactly three whitelisted files
 - Dependencies: `KERNEL32.dll`, `USER32.dll`, `GDI32.dll`, `WINMM.dll`
 - Debug/Test/CTest/Contest/live-window/MAP/authority/dist: PASS

@@ -5,7 +5,7 @@ T03 PASS checks=5035224 latin_glyphs=59 hangul_syllables=11172 captures=6 policy
 T04 PASS checks=333093 replay_ticks=4096
 T05 PASS checks=4137 projectiles=32 neutrals=64
 T06 PASS checks=6512 hud_states=21 neutral_capacity=64
-T07 PASS checks=2066 encounters=3 act1_ledgers=1440
+T07 PASS checks=2067 encounters=3 act1_ledgers=1440 audio_core_observer=1
 T08A PASS checks=72445 adapter_ranges=49 frame_observations=1024
 T08B PASS checks=899 index_cases=64 witness_cases=16 cycle_ticks=454
 T09 PASS checks=117838 combinations=19683 profiles=81 softlocks=0

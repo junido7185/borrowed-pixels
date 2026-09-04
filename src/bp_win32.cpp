@@ -1017,6 +1017,8 @@ bp::AudioRuntimeSnapshot CaptureAudioRuntime(PlatformState& state) noexcept {
         snapshot.settlement=state.act1.scene==bp::Act1Scene::Settlement?1u:0u;
         snapshot.commit=state.act1.scene==bp::Act1Scene::CommitTransit?1u:0u;
         snapshot.playerReclaimedMass=state.act1.previousPlayerReclaim;
+        snapshot.coreHitTick=state.act1.audioCoreHitSerial;
+        snapshot.coreHitValid=state.act1.audioCoreHitSerial!=0u?1u:0u;
     }
     const std::uint8_t playerShell=static_cast<std::uint8_t>(bp::PhysicalAccount::PlayerShell);
     const std::uint8_t opponentShell=static_cast<std::uint8_t>(bp::PhysicalAccount::OpponentShell);
@@ -1042,9 +1044,11 @@ bp::AudioRuntimeSnapshot CaptureAudioRuntime(PlatformState& state) noexcept {
     }
     snapshot.playerCoreHit=combat->actors[0].coreHit;
     snapshot.opponentCoreHit=combat->actors[1].coreHit;
-    snapshot.coreHitTick=combat->settlement.tick;
-    snapshot.coreHitSide=static_cast<std::uint8_t>(combat->settlement.hitSide);
-    snapshot.coreHitValid=combat->settlement.valid;
+    if (snapshot.route!=1u) {
+        snapshot.coreHitTick=combat->settlement.tick;
+        snapshot.coreHitSide=static_cast<std::uint8_t>(combat->settlement.hitSide);
+        snapshot.coreHitValid=combat->settlement.valid;
+    }
     for (std::uint8_t module=0;module<bp::kHudModuleCount;++module) {
         snapshot.transitMass[module]=hud->modules[module].transitMass;
         snapshot.hudState[module]=static_cast<std::uint8_t>(hud->modules[module].state);

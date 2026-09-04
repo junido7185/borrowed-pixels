@@ -132,6 +132,9 @@ struct Act1Runtime {
     ChoiceId committedChoice;
     std::uint32_t globalTick;
     std::uint32_t encounterTick;
+    // CROSS_TICKET_GLUE: monotonic observer serial for platform audio only;
+    // excluded from gameplay decisions and Act1RuntimeHash.
+    std::uint32_t audioCoreHitSerial;
     std::uint16_t sceneTicks;
     std::uint16_t previousPlayerReclaim;
     std::uint8_t encounterIndex;

@@ -1021,6 +1021,7 @@ bool TickPlaying(Act1Runtime& state, const InputFrame& input) noexcept {
     // Step 13: a core snapshot ends this tick before neutral/HUD/success work.
     const bool playerHit = state.combat.actors[SideIndex(CombatSide::Player)].coreHit != 0;
     const bool opponentHit = state.combat.actors[SideIndex(CombatSide::Opponent)].coreHit != 0;
+    if (playerHit||opponentHit) ++state.audioCoreHitSerial;
     if (playerHit || opponentHit || state.pair.forcedSelect != 0) {
         ++state.movement.globalTick;
         ++state.encounterTick;

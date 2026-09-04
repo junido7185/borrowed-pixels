@@ -23,7 +23,7 @@
 | T11 | FINAL_VALIDATION_PASS | Synthesized audio, accumulated/core snapshot SFX, all encounter and 81 PRECEDENT modifier profiles, four ending policies, exact mix buses/pause ramp and six-row options; checks=205 |
 | T12 | IMPLEMENTED_VALIDATION_DEFERRED | Frozen KO/EN copy, composed glyph path and credits commit `85903118...` |
 | T13 | FINAL_VALIDATION_PASS | Shared-core deterministic and narrative-ending harness; scope labels corrected; subjective Gate 5 `HUMAN_REVIEW_DEFERRED` |
-| T14 | RC_REPAIR_FINAL_REVIEW_PENDING | Full clean Windows x64 validation PASS; EXE `289,280B`, SHA-256 `e16c23b4...`; repaired executable awaits one final review |
+| T14 | RC_REPAIR_FINAL_REVIEW_PENDING | Full clean Windows x64 validation PASS; EXE `289,280B`, SHA-256 `bcd5b1ba...`; repaired executable awaits one final review |
 
 ## Gate status
 

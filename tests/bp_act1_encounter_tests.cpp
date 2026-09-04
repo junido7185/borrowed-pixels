@@ -514,6 +514,8 @@ void TestRetryHashAndVesselPixels() noexcept {
     Check(bp::TickAct1Runtime(retry, Frame()), "player core hit tick succeeds");
     Check(retry.scene == bp::Act1Scene::HitFreeze && retry.retryPending != 0,
         "player core hit enters retry freeze without immediate reset");
+    Check(retry.audioCoreHitSerial==1,
+        "Act1 core contact increments the platform audio observer exactly once");
     Check(TickMany(retry, bp::kHitFreezeTicks), "retry freeze lasts exact five ticks");
     Check(retry.scene == bp::Act1Scene::EncounterRetry, "retry uses explicit encounter retry scene");
     Check(TickMany(retry, 1), "retry rebuilds encounter once");
