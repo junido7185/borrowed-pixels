@@ -4,7 +4,7 @@
 - Current controller state: `RC_REPAIR_FINAL_REVIEW_PENDING`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: T14 RC
-- Contest dist: `288,662B` in three whitelisted files; internal and hard caps PASS
+- Contest dist: `291,734B` in three whitelisted files; internal and hard caps PASS
 
 | Ticket | State | Evidence |
 |---|---|---|
@@ -20,10 +20,10 @@
 | T08B | LOCALLY_INTEGRATED | Candidate `84b2bc1d...`; P0/P1/P2=0; post-integration evidence reused on identical executable tree |
 | T09 | IMPLEMENTED_FINAL_REVIEW_DEFERRED | Candidate lineage `d12eafee...`; prior automated verification PASS, repaired executable awaits consolidated final review |
 | T10 | IMPLEMENTED_VALIDATION_DEFERRED | Progression, five endings, SaveV2 routing and Audit Trace commit `68c23b71...` |
-| T11 | FINAL_VALIDATION_PASS | Synthesized audio, runtime SFX routing, four ending mix policies and six-row options; checks=94 |
+| T11 | FINAL_VALIDATION_PASS | Synthesized audio, accumulated runtime SFX, all encounter/PRECEDENT modifiers, four ending policies, exact mix buses/pause ramp and six-row options; checks=113 |
 | T12 | IMPLEMENTED_VALIDATION_DEFERRED | Frozen KO/EN copy, composed glyph path and credits commit `85903118...` |
 | T13 | FINAL_VALIDATION_PASS | Shared-core deterministic and narrative-ending harness; scope labels corrected; subjective Gate 5 `HUMAN_REVIEW_DEFERRED` |
-| T14 | RC_REPAIR_FINAL_REVIEW_PENDING | Full clean Windows x64 validation PASS; EXE `286,208B`, SHA-256 `deff9128...`; repaired executable awaits one final review |
+| T14 | RC_REPAIR_FINAL_REVIEW_PENDING | Full clean Windows x64 validation PASS; EXE `289,280B`, SHA-256 `a70ccc0a...`; repaired executable awaits one final review |
 
 ## Gate status
 

@@ -950,39 +950,73 @@ bp::AudioRuntimeSnapshot CaptureAudioRuntime(PlatformState& state) noexcept {
     const bp::HudLoanSystem* hud=nullptr;
     if (state.narrativeActive) {
         snapshot.route=5;
+        snapshot.encounter=bp::AudioEncounter::None;
         snapshot.commit=state.narrativeFlow.scene==bp::NarrativeScene::FinalCommit?1u:0u;
         return snapshot;
     }
     if (state.precedentActive) {
         snapshot.route=4;
+        snapshot.encounter=bp::AudioEncounter::Precedent;
         movement=&state.precedent.movement;
         combat=&state.precedent.combat;
         hud=&state.precedent.hudLoan;
         snapshot.playing=state.precedent.scene==bp::PrecedentScene::Playing?1u:0u;
+        snapshot.playerReclaimedMass=state.precedent.previousPlayerReclaim;
+        snapshot.contextA=state.precedent.policy.profile.identity;
+        snapshot.contextB=state.precedent.policy.profile.distribution;
+        snapshot.contextC=state.precedent.policy.profile.governance;
+        snapshot.contextD=state.precedent.policy.profile.memory;
+        snapshot.contextG=static_cast<std::uint8_t>(state.precedent.action);
+        for (std::uint8_t axis=0;axis<3;++axis)
+            snapshot.echoMotif[axis]=static_cast<std::uint8_t>(
+                state.precedent.policy.decisiveEncounter[axis]);
     } else if (state.act3Active) {
         snapshot.route=3;
+        snapshot.encounter=static_cast<bp::AudioEncounter>(
+            static_cast<std::uint8_t>(bp::AudioEncounter::Index)+state.act3.encounterIndex);
         movement=&state.act3.movement;
         combat=&state.act3.combat;
         hud=&state.act3.hudLoan;
         snapshot.playing=state.act3.scene==bp::Act3Scene::Playing?1u:0u;
         snapshot.settlement=state.act3.scene==bp::Act3Scene::Settlement?1u:0u;
         snapshot.commit=state.act3.scene==bp::Act3Scene::CommitTransit?1u:0u;
+        snapshot.playerReclaimedMass=state.act3.previousPlayerReclaim;
+        std::uint8_t records=0;
+        for (const bp::WitnessRecord& record:state.act3.witness.records)
+            if (record.active!=0) ++records;
+        snapshot.contextD=static_cast<std::uint8_t>(bp::kWitnessRecordCount-records);
+        std::uint8_t ownedProjectiles=0;
+        for (const bp::ProjectileSlot& shot:state.act3.combat.projectiles)
+            if (shot.active!=0&&shot.owner==bp::CombatSide::Opponent) ++ownedProjectiles;
+        snapshot.contextE=static_cast<std::uint8_t>(ownedProjectiles/4u);
     } else if (state.act2Active) {
         snapshot.route=2;
+        snapshot.encounter=static_cast<bp::AudioEncounter>(
+            static_cast<std::uint8_t>(bp::AudioEncounter::Keeper)+state.act2.encounterIndex);
         movement=&state.act2.movement;
         combat=&state.act2.combat;
         hud=&state.act2.hudLoan;
         snapshot.playing=state.act2.scene==bp::Act2Scene::Playing?1u:0u;
         snapshot.settlement=state.act2.scene==bp::Act2Scene::Settlement?1u:0u;
         snapshot.commit=state.act2.scene==bp::Act2Scene::CommitTransit?1u:0u;
+        snapshot.playerReclaimedMass=state.act2.previousPlayerReclaim;
+        for (bp::SlotHandle handle:state.act2.keeper.structures)
+            if (bp::CoverHandleValid(state.act2.combat,handle)) ++snapshot.contextA;
+        snapshot.contextB=static_cast<std::uint8_t>(state.act2.adapter.playerEscrow>255u
+            ?255u:state.act2.adapter.playerEscrow);
+        snapshot.contextC=state.act2.frame.action==bp::FrameAction::Shift
+            &&state.act2.frame.actionTicks>0u&&state.act2.frame.actionTicks<60u?1u:0u;
     } else {
         snapshot.route=1;
+        snapshot.encounter=static_cast<bp::AudioEncounter>(
+            static_cast<std::uint8_t>(bp::AudioEncounter::Patch)+state.act1.encounterIndex);
         movement=&state.act1.movement;
         combat=&state.act1.combat;
         hud=&state.act1.hudLoan;
         snapshot.playing=state.act1.scene==bp::Act1Scene::Playing?1u:0u;
         snapshot.settlement=state.act1.scene==bp::Act1Scene::Settlement?1u:0u;
         snapshot.commit=state.act1.scene==bp::Act1Scene::CommitTransit?1u:0u;
+        snapshot.playerReclaimedMass=state.act1.previousPlayerReclaim;
     }
     const std::uint8_t playerShell=static_cast<std::uint8_t>(bp::PhysicalAccount::PlayerShell);
     const std::uint8_t opponentShell=static_cast<std::uint8_t>(bp::PhysicalAccount::OpponentShell);
@@ -994,6 +1028,18 @@ bp::AudioRuntimeSnapshot CaptureAudioRuntime(PlatformState& state) noexcept {
     snapshot.coverMass=movement->physicalLedger.mass[cover];
     snapshot.chargeMass=movement->physicalLedger.mass[charge];
     snapshot.projectileMass=movement->physicalLedger.mass[projectile];
+    if (snapshot.encounter==bp::AudioEncounter::Precedent) {
+        snapshot.contextE=snapshot.playerShell<snapshot.opponentShell?0u:
+            (snapshot.opponentShell<snapshot.playerShell?1u:2u);
+        const std::uint32_t playerOutput=state.precedent.outputDamage[0]
+            +state.precedent.outputReclaim[0]
+            +state.precedent.outputMovementQ8[0]/(8u*bp::kQ8One);
+        const std::uint32_t opponentOutput=state.precedent.outputDamage[1]
+            +state.precedent.outputReclaim[1]
+            +state.precedent.outputMovementQ8[1]/(8u*bp::kQ8One);
+        snapshot.contextF=playerOutput>opponentOutput?0u:
+            (opponentOutput>playerOutput?1u:2u);
+    }
     snapshot.playerCoreHit=combat->actors[0].coreHit;
     snapshot.opponentCoreHit=combat->actors[1].coreHit;
     for (std::uint8_t module=0;module<bp::kHudModuleCount;++module) {

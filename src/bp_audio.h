@@ -13,6 +13,10 @@ inline constexpr std::uint32_t kAudioStepNumerator=2880000;
 inline constexpr std::uint16_t kAudioStepDenominator=448;
 
 enum class Oscillator : std::uint8_t { Triangle=0,Pulse25,Noise };
+enum class AudioBus : std::uint8_t { Music=0,Sfx,Settlement,Menu };
+enum class AudioEncounter : std::uint8_t {
+    None=0,Patch,Pair,Vessel,Keeper,Adapter,Frame,Index,Witness,Current,Precedent,
+};
 enum class AudioEvent : std::uint8_t {
     AmbientClick=0,MenuMove,Reclaim4,Tap,Cut,HudTransitTick,Claim,CoverBreak,
     HudTransitEnd,ShellHit,Foreclose,ChargeIntercept,HudDue,CoreExposed,
@@ -26,11 +30,14 @@ struct AudioVoice {
     std::uint32_t endIncrement;
     std::uint32_t ageFrames;
     std::uint32_t durationFrames;
+    std::uint32_t delayFrames;
     std::uint32_t attackFrames;
     std::uint32_t releaseFrames;
     std::uint32_t noiseState;
     std::int16_t panQ15;
+    std::uint16_t velocityQ15;
     Oscillator oscillator;
+    AudioBus bus;
     std::uint8_t priority;
     std::uint8_t active;
 };
@@ -39,8 +46,25 @@ struct AudioState {
     AudioVoice voices[kAudioVoiceCount];
     std::uint32_t stepAccumulator;
     std::uint32_t noiseState;
+    std::uint16_t reclaimAccumulator;
+    std::uint16_t musicPauseGainQ15;
+    std::uint16_t musicPauseRampStartQ15;
+    std::uint16_t musicPauseRampFrames;
     std::uint8_t step;
     std::uint8_t reclaimCycle;
+    std::uint8_t pairCounterPendingNote;
+    AudioEncounter encounter;
+    // Encounter context: A=cover count/identity, B=escrow/distribution,
+    // C=panel motion/governance, D=records lost/memory, E=owned projectile
+    // groups/lower-shell side, F=recent-output side, G=policy action.
+    std::uint8_t contextA;
+    std::uint8_t contextB;
+    std::uint8_t contextC;
+    std::uint8_t contextD;
+    std::uint8_t contextE;
+    std::uint8_t contextF;
+    std::uint8_t contextG;
+    std::uint8_t echoMotif[3];
     std::uint8_t masterVolume;
     std::uint8_t paused;
     std::uint8_t focused;
@@ -56,6 +80,7 @@ struct AudioRuntimeSnapshot {
     std::uint16_t coverMass;
     std::uint16_t chargeMass;
     std::uint16_t projectileMass;
+    std::uint16_t playerReclaimedMass;
     std::uint16_t transitMass[kAudioChannels + 1u];
     std::uint8_t hudState[kAudioChannels + 1u];
     std::uint8_t hudWarning[kAudioChannels + 1u];
@@ -66,6 +91,15 @@ struct AudioRuntimeSnapshot {
     std::uint8_t playerCoreHit;
     std::uint8_t opponentCoreHit;
     std::uint8_t duePulse;
+    AudioEncounter encounter;
+    std::uint8_t contextA;
+    std::uint8_t contextB;
+    std::uint8_t contextC;
+    std::uint8_t contextD;
+    std::uint8_t contextE;
+    std::uint8_t contextF;
+    std::uint8_t contextG;
+    std::uint8_t echoMotif[3];
     std::uint8_t valid;
 };
 

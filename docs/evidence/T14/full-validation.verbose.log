@@ -1,12 +1,12 @@
 ﻿**********************
 Windows PowerShell transcript start
-Start time: 20260904114805
+Start time: 20260904120144
 Username: DESKTOP-HUVFN38\sdjsd
 RunAs User: DESKTOP-HUVFN38\sdjsd
 Configuration Name: 
 Machine: DESKTOP-HUVFN38 (Microsoft Windows NT 10.0.26200.0)
 Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/verify_rc.ps1 -EvidenceDir docs/evidence/T14
-Process ID: 34452
+Process ID: 30596
 PSVersion: 5.1.26100.9168
 PSEdition: Desktop
 PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9168
@@ -46,13 +46,13 @@ RC_STEP_RESULT=DIST_WHITELIST PASS
 RC_STEP=DIST_BYTES
 
 RC_STEP_RESULT=DIST_BYTES PASS
-CAPTURE_ORIGIN=278,310 SIZE=1280,720 DPI=144
-LIVE_EXE_STATUS=PASS HANDLE=3476084 CAPTURE=contest-live.bmp
-EXE_BYTES=286208
-EXE_SHA256=deff9128930e36e43c879f83083f074bfe51710fba2a68f3166a6c11eac4a13e
+CAPTURE_ORIGIN=50,82 SIZE=1280,720 DPI=144
+LIVE_EXE_STATUS=PASS HANDLE=2426932 CAPTURE=contest-live.bmp
+EXE_BYTES=289280
+EXE_SHA256=a70ccc0a9b68f10e99301bfb037d152143afb1cfaf25db1b6ac1c2c1a33e44d2
 DEPENDENCIES_STATUS=PASS
 RC_VALIDATION_STATUS=PASS
 **********************
 Windows PowerShell transcript end
-End time: 20260904114819
+End time: 20260904120158
 **********************

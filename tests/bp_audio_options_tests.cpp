@@ -169,6 +169,7 @@ void TestEndingPoliciesAndRuntimeRouting() noexcept {
     before.chargeMass=16;
     bp::AudioRuntimeSnapshot after=before;
     after.playerShell=84;
+    after.playerReclaimedMass=4;
     after.opponentShell=36;
     after.coverMass=24;
     after.chargeMass=0;
@@ -177,6 +178,131 @@ void TestEndingPoliciesAndRuntimeRouting() noexcept {
     bp::QueueRuntimeAudioTransitions(routed,before,after,true);
     Check(ActiveVoices(routed)>=5,
         "runtime deltas make reclaim fire cover shell exposure and core SFX reachable");
+
+    bp::AudioState coreTransition{};
+    bp::InitializeAudio(coreTransition,true);
+    after=before;
+    after.playing=0;
+    after.opponentCoreHit=1;
+    bp::QueueRuntimeAudioTransitions(coreTransition,before,after,false);
+    Check(ActiveVoices(coreTransition)==2,
+        "Playing-to-HitFreeze transition queues both CORE_HIT voices");
+
+    bp::AudioState accumulated{};
+    bp::InitializeAudio(accumulated,true);
+    after=before;
+    after.playerReclaimedMass=1;
+    for (std::uint8_t tick=0;tick<3;++tick)
+        bp::QueueRuntimeAudioTransitions(accumulated,before,after,false);
+    Check(ActiveVoices(accumulated)==0&&accumulated.reclaimAccumulator==3,
+        "RECLAIM_4 waits across three one-TILE ticks");
+    bp::QueueRuntimeAudioTransitions(accumulated,before,after,false);
+    Check(ActiveVoices(accumulated)==1&&accumulated.reclaimAccumulator==0,
+        "fourth one-TILE reclaim tick queues RECLAIM_4");
+
+    bp::AudioState settlement{};
+    bp::InitializeAudio(settlement,true);
+    Check(bp::QueueAudioEvent(settlement,bp::AudioEvent::Settlement)
+        &&ActiveVoices(settlement)==3
+        &&settlement.voices[0].delayFrames==0
+        &&settlement.voices[1].delayFrames==5280
+        &&settlement.voices[2].delayFrames==10560,
+        "SETTLEMENT schedules exact sequential 220 330 440Hz note slots");
+    Check(settlement.voices[0].bus==bp::AudioBus::Settlement,
+        "SETTLEMENT uses dedicated minus8dB bus");
+    bp::AudioState buses{};
+    bp::InitializeAudio(buses,true);
+    Check(bp::QueueAudioEvent(buses,bp::AudioEvent::Tap)
+        &&bp::QueueAudioEvent(buses,bp::AudioEvent::MenuMove)
+        &&buses.voices[0].bus==bp::AudioBus::Sfx
+        &&buses.voices[1].bus==bp::AudioBus::Menu,
+        "music SFX settlement and menu gain classes remain distinct");
+    bp::SetAudioMixState(buses,10,true,true,bp::AudioEnding::None);
+    bp::RenderAudioFrames(buses,samples,1);
+    Check(buses.musicPauseGainQ15<32767&&buses.musicPauseGainQ15>8231
+        &&buses.musicPauseRampFrames==4799,
+        "pause starts a 4800-frame music-only ramp");
+    bp::RenderAudioFrames(buses,samples,4799);
+    Check(buses.musicPauseGainQ15==8231&&buses.musicPauseRampFrames==0,
+        "pause reaches exact additional minus12dB after 100ms");
+}
+
+bp::AudioVoice FirstActive(const bp::AudioState& state) noexcept {
+    for (const bp::AudioVoice& voice:state.voices) if (voice.active!=0) return voice;
+    return bp::AudioVoice{};
+}
+
+void ScheduleEncounter(bp::AudioState& state,bp::AudioEncounter encounter,
+    std::uint8_t step,std::uint8_t a=0,std::uint8_t b=0,std::uint8_t c=0,
+    std::uint8_t d=0,std::uint8_t e=0) noexcept {
+    bp::InitializeAudio(state,true);
+    bp::AudioRuntimeSnapshot context{};
+    context.valid=context.playing=1;
+    context.route=1;
+    context.encounter=encounter;
+    context.contextA=a; context.contextB=b; context.contextC=c;
+    context.contextD=d; context.contextE=e;
+    bp::QueueRuntimeAudioTransitions(state,context,context,false);
+    state.step=step;
+    state.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    std::int16_t sample[2]{};
+    bp::RenderAudioFrames(state,sample,1);
+}
+
+void TestEncounterModifiers() noexcept {
+    bp::AudioState patch{};
+    ScheduleEncounter(patch,bp::AudioEncounter::Patch,4);
+    Check(FirstActive(patch).oscillator==bp::Oscillator::Pulse25,
+        "PATCH step4 switches motif waveform to PULSE");
+
+    bp::AudioState pair{};
+    ScheduleEncounter(pair,bp::AudioEncounter::Pair,2);
+    Check(ActiveVoices(pair)==1&&FirstActive(pair).panQ15<0
+        &&pair.pairCounterPendingNote==57,"PAIR emits left counter and retains one-step delay");
+    pair.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    std::int16_t pairSample[2]{};
+    bp::RenderAudioFrames(pair,pairSample,1);
+    bool right=false;
+    for (const bp::AudioVoice& voice:pair.voices) right=right||(voice.active!=0&&voice.panQ15>0);
+    Check(right,"PAIR emits right counter exactly on the next scheduler step");
+
+    bp::AudioState vessel{};
+    ScheduleEncounter(vessel,bp::AudioEncounter::Vessel,4);
+    Check(FirstActive(vessel).durationFrames==19287,
+        "VESSEL lowers bass octave and gates it for three steps");
+
+    bp::AudioState keeper{};
+    ScheduleEncounter(keeper,bp::AudioEncounter::Keeper,0,1);
+    Check(ActiveVoices(keeper)>=3,"KEEPER retained-cover click enables step0");
+
+    bp::AudioState adapter{};
+    ScheduleEncounter(adapter,bp::AudioEncounter::Adapter,2,0,0);
+    Check(ActiveVoices(adapter)==0,"ADAPTER delays base counter by one step below escrow32");
+
+    bp::AudioState frame{};
+    ScheduleEncounter(frame,bp::AudioEncounter::Frame,8);
+    Check(FirstActive(frame).startIncrement==4384395u,
+        "FRAME uses frozen 38 33 31 36 bass order");
+
+    bp::AudioState index{};
+    ScheduleEncounter(index,bp::AudioEncounter::Index,2);
+    Check(FirstActive(index).startIncrement==19685267u,
+        "INDEX retains exact base pattern without timing variation");
+
+    bp::AudioState witness{};
+    ScheduleEncounter(witness,bp::AudioEncounter::Witness,14,0,0,0,1);
+    Check(ActiveVoices(witness)==1&&FirstActive(witness).oscillator==bp::Oscillator::Noise,
+        "WITNESS first lost record removes counter step14");
+
+    bp::AudioState current{};
+    ScheduleEncounter(current,bp::AudioEncounter::Current,1,0,0,0,0,1);
+    Check(ActiveVoices(current)==1&&FirstActive(current).oscillator==bp::Oscillator::Noise,
+        "CURRENT one projectile group fills first empty mechanical step");
+
+    bp::AudioState precedent{};
+    ScheduleEncounter(precedent,bp::AudioEncounter::Precedent,2,0,0,0,0,2);
+    Check(ActiveVoices(precedent)>=2,
+        "PRECEDENT identity distribution governance and memory select mixer layers");
 }
 
 struct Runner {
@@ -184,6 +310,7 @@ struct Runner {
         TestOptions();
         TestSynthAndSilentFallback();
         TestEndingPoliciesAndRuntimeRouting();
+        TestEncounterModifiers();
         if (gFailures!=0) {
             std::printf("T11_FAIL\tchecks=%u\tfailures=%u\n",gChecks,gFailures);
             std::exit(1);

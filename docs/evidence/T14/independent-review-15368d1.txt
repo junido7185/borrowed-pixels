@@ -1,0 +1,10 @@
+INDEPENDENT_REVIEW_SHA=15368d10f982a178db24813ef0d184a7b9f39b64
+P0=0
+P1=4
+P2=0
+RESULT=REPAIR_REQUIRED
+P1_1=Core-hit transition and one-TILE reclaim accumulation were not reached correctly.
+P1_2=SETTLEMENT was a glide instead of three sequential 110ms notes.
+P1_3=Encounter and PRECEDENT 16-step modifiers had no runtime context path.
+P1_4=Music/SFX/settlement mix targets and the 100ms music-only pause ramp were absent.
+DISPOSITION=All findings entered automatic repair; this SHA was not integrated.
