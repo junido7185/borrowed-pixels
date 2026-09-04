@@ -77,6 +77,7 @@ struct PlatformState {
     bp::SaveData persistentSave;
     bp::AudioState audio;
     bp::OptionsRuntime optionsRuntime;
+    bp::PauseRuntime pauseRuntime;
     HWAVEOUT waveOut;
     WAVEHDR audioHeaders[bp::kAudioBufferCount];
     std::int16_t audioSamples[bp::kAudioBufferCount]
@@ -86,6 +87,7 @@ struct PlatformState {
     bool precedentActive;
     bool narrativeActive;
     bool optionsActive;
+    bool pauseMenuActive;
     bool savePathReady;
     wchar_t saveDirectory[MAX_PATH];
     wchar_t savePath[MAX_PATH];
@@ -223,7 +225,8 @@ void PresentBackbuffer(PlatformState& state, HDC destination, const RECT& client
             bp::kCanvasWidth,
         };
     if (state.optionsActive) bp::RenderOptionsRuntime(buffer,state.optionsRuntime);
-    else if (state.narrativeActive) bp::RenderNarrativeRuntime(buffer,state.narrativeFlow);
+    else if (state.pauseMenuActive) bp::RenderPauseRuntime(buffer,state.pauseRuntime);
+    else if (state.narrativeActive) bp::RenderNarrativeRuntime(buffer,state.narrativeFlow,state.options);
     else if (state.precedentActive) bp::RenderPrecedentRuntime(buffer, state.precedent);
     else if (state.act3Active) bp::RenderAct3Runtime(buffer, state.act3);
     else if (state.act2Active) bp::RenderAct2Runtime(buffer, state.act2);
@@ -234,14 +237,24 @@ void PresentBackbuffer(PlatformState& state, HDC destination, const RECT& client
     const std::int32_t clientWidth = client.right - client.left;
     const std::int32_t clientHeight = client.bottom - client.top;
     const bp::Viewport viewport = bp::ComputeViewport(clientWidth, clientHeight);
+    std::int32_t shakeX=0;
+    std::int32_t shakeY=0;
+    const bool hitFreeze=(!state.act2Active&&state.act1.scene==bp::Act1Scene::HitFreeze)
+        ||(state.act2Active&&!state.act3Active&&state.act2.scene==bp::Act2Scene::HitFreeze)
+        ||(state.act3Active&&!state.precedentActive&&state.act3.scene==bp::Act3Scene::HitFreeze)
+        ||(state.precedentActive&&state.precedent.scene==bp::PrecedentScene::HitFreeze);
+    if (bp::ScreenShakeEnabled(state.options)&&hitFreeze) {
+        shakeX=(state.renderFrame&1u)!=0?1:-1;
+        shakeY=(state.renderFrame&2u)!=0?1:-1;
+    }
 
     SetDCBrushColor(destination, RGB(7, 10, 14));
     FillRect(destination, &client, static_cast<HBRUSH>(GetStockObject(DC_BRUSH)));
     SetStretchBltMode(destination, COLORONCOLOR);
     StretchDIBits(
         destination,
-        viewport.x,
-        viewport.y,
+        viewport.x+shakeX,
+        viewport.y+shakeY,
         viewport.width,
         viewport.height,
         0,
@@ -481,7 +494,7 @@ bp::AudioEnding CurrentAudioEnding(const PlatformState& state) noexcept {
 
 void ServiceWaveOut(PlatformState& state) noexcept {
     bp::SetAudioMixState(state.audio,bp::MasterVolume(state.options),
-        state.optionsActive,state.focused,CurrentAudioEnding(state));
+        state.optionsActive||state.pauseMenuActive,state.focused,CurrentAudioEnding(state));
     if (!state.waveOut) return;
     for (std::uint8_t index=0;index<bp::kAudioBufferCount;++index) {
         WAVEHDR& header=state.audioHeaders[index];
@@ -904,6 +917,8 @@ void LoadPersistentSave(PlatformState& state) noexcept {
     state.narrativeActive=true;
 }
 
+void WriteCurrentSave(PlatformState& state) noexcept;
+
 void CurrentStoryState(PlatformState& state,const bp::ClaimLedger*& claims,
     const bp::NarrativeState*& narrative) noexcept {
     if (state.narrativeActive) {
@@ -917,6 +932,54 @@ void CurrentStoryState(PlatformState& state,const bp::ClaimLedger*& claims,
     } else {
         claims=&state.act1.claimLedger; narrative=&state.act1.narrative;
     }
+}
+
+bp::GameState* CurrentMovementState(PlatformState& state) noexcept {
+    if (state.narrativeActive) return nullptr;
+    if (state.precedentActive) return &state.precedent.movement;
+    if (state.act3Active) return &state.act3.movement;
+    if (state.act2Active) return &state.act2.movement;
+    return &state.act1.movement;
+}
+
+bool GameplayPaused(PlatformState& state) noexcept {
+    const bp::GameState* movement=CurrentMovementState(state);
+    return movement&&movement->paused!=0;
+}
+
+void ResumeGameplay(PlatformState& state) noexcept {
+    bp::GameState* movement=CurrentMovementState(state);
+    if (movement) movement->paused=0;
+    state.pauseMenuActive=false;
+}
+
+void RestartCurrentEncounter(PlatformState& state) noexcept {
+    bp::GameState* movement=CurrentMovementState(state);
+    if (movement) movement->paused=0;
+    if (state.precedentActive) state.precedent.scene=bp::PrecedentScene::Retry;
+    else if (state.act3Active) state.act3.scene=bp::Act3Scene::EncounterRetry;
+    else if (state.act2Active) state.act2.scene=bp::Act2Scene::EncounterRetry;
+    else state.act1.scene=bp::Act1Scene::EncounterRetry;
+    state.pauseMenuActive=false;
+}
+
+bool ReturnGameplayToTitle(PlatformState& state) noexcept {
+    const bp::ClaimLedger* sourceClaims=nullptr;
+    const bp::NarrativeState* sourceNarrative=nullptr;
+    CurrentStoryState(state,sourceClaims,sourceNarrative);
+    const bp::ClaimLedger claims=*sourceClaims;
+    const bp::NarrativeState narrative=*sourceNarrative;
+    std::uint32_t flags=state.persistentSave.flags&0x0eu;
+    if ((narrative.endingsSeen&1u)!=0) flags|=1u<<1u;
+    if ((narrative.endingsSeen&0x1eu)!=0) flags|=(1u<<2u)|(1u<<3u);
+    if (!bp::InitializeTitleNarrative(state.narrativeFlow,claims,narrative,flags)) return false;
+    state.act2Active=false;
+    state.act3Active=false;
+    state.precedentActive=false;
+    state.narrativeActive=true;
+    state.pauseMenuActive=false;
+    WriteCurrentSave(state);
+    return true;
 }
 
 void WriteCurrentSave(PlatformState& state) noexcept {
@@ -1102,14 +1165,24 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
             while (state.accumulator60 >= state.qpcFrequency.QuadPart && ticks < bp::kMaxCatchUpTicks) {
                 BuildInputFrame(state);
                 bool tickOk = true;
-                if (!state.optionsActive && state.narrativeActive
-                    && state.narrativeFlow.scene==bp::NarrativeScene::Title
+                bool openedOptions=false;
+                if (!state.optionsActive&&!state.pauseMenuActive&&GameplayPaused(state)) {
+                    bp::InitializePauseRuntime(state.pauseRuntime);
+                    state.pauseMenuActive=true;
+                }
+                const bool titleVisible=(state.narrativeActive
+                        &&state.narrativeFlow.scene==bp::NarrativeScene::Title)
+                    ||(!state.narrativeActive&&!state.act2Active
+                        &&state.act1.scene==bp::Act1Scene::Title);
+                if (!state.optionsActive&&!state.pauseMenuActive&&titleVisible
                     && state.lastInputFrame.actions[ActionIndex(bp::PlatformAction::Pause)].pressed!=0) {
                     bp::InitializeOptionsRuntime(state.optionsRuntime,state.options);
                     state.optionsActive=true;
+                    openedOptions=true;
                 }
                 if (state.optionsActive) {
-                    tickOk=bp::TickOptionsRuntime(state.optionsRuntime,state.lastInputFrame);
+                    if (!openedOptions)
+                        tickOk=bp::TickOptionsRuntime(state.optionsRuntime,state.lastInputFrame);
                     if (tickOk&&state.optionsRuntime.changed!=0) {
                         const bool wasBorderless=bp::BorderlessEnabled(state.options);
                         state.options=state.optionsRuntime.value;
@@ -1118,7 +1191,24 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
                         WriteCurrentSave(state);
                         (void)bp::QueueAudioEvent(state.audio,bp::AudioEvent::MenuMove);
                     }
-                    if (state.optionsRuntime.closeRequested!=0) state.optionsActive=false;
+                    if (state.optionsRuntime.closeRequested!=0) {
+                        state.optionsActive=false;
+                    }
+                } else if (state.pauseMenuActive) {
+                    tickOk=bp::TickPauseRuntime(state.pauseRuntime,state.lastInputFrame);
+                    if (tickOk) switch (state.pauseRuntime.action) {
+                    case bp::PauseAction::None: break;
+                    case bp::PauseAction::Resume: ResumeGameplay(state); break;
+                    case bp::PauseAction::Options:
+                        bp::InitializeOptionsRuntime(state.optionsRuntime,state.options);
+                        state.optionsActive=true;
+                        break;
+                    case bp::PauseAction::RestartEncounter: RestartCurrentEncounter(state); break;
+                    case bp::PauseAction::ReturnToTitle:
+                        tickOk=ReturnGameplayToTitle(state);
+                        break;
+                    case bp::PauseAction::Quit: state.running=false; break;
+                    }
                 } else if (state.narrativeActive) {
                     tickOk=bp::TickNarrativeRuntime(state.narrativeFlow,state.lastInputFrame);
                     if (tickOk && state.narrativeFlow.routeRequest

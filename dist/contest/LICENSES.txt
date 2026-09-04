@@ -1,0 +1,17 @@
+BORROWED PIXELS v2.1
+
+Copyright (c) 2026 DEV_SLIME. All rights reserved.
+
+Game design and implementation were AI-assisted, human-directed, and
+human-reviewed. AI is not identified as a co-author.
+
+No third-party engine, runtime library, image, font, music, sound recording,
+or downloaded asset is included. Latin bitmap glyphs, composed Hangul,
+geometric graphics, and audio synthesis are original project implementation.
+
+Microsoft Windows system APIs used by the executable remain subject to their
+respective platform terms and are not redistributed in this folder.
+
+Repository provenance and rights records:
+  docs/PROVENANCE.md
+  docs/RIGHTS_LOG.md

@@ -38,6 +38,7 @@ bp::InputFrame ReplayInput(std::uint32_t seed,std::uint32_t tick) noexcept {
     bp::InputFrame input{};
     input.focused=1;
     input.device=bp::InputDevice::KeyboardMouse;
+    input.tick=tick;
     const std::uint32_t value=seed*747796405u+tick*2891336453u+277803737u;
     input.moveX=(value&1u)!=0?bp::kInputUnit:-bp::kInputUnit;
     input.moveY=(value&2u)!=0?bp::kInputUnit:-bp::kInputUnit;

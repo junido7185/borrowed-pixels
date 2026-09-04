@@ -90,7 +90,7 @@ void CollapseNextClaimRow(NarrativeRuntime& state) noexcept {
     ++state.commitOwner;
 }
 
-void DrawFinalRows(PixelBuffer buffer,const NarrativeRuntime& state) noexcept {
+void DrawFinalRows(PixelBuffer buffer,const NarrativeRuntime& state,bool reduceFlash) noexcept {
     constexpr const char* titles[4]={"RATIFY THE RULE","KEEP THE HAND",
         "OPEN THE LEDGER","TOTAL CLAIM"};
     constexpr const char* gains[4]={"ONE RULE FOR EVERY CASE",
@@ -108,10 +108,16 @@ void DrawFinalRows(PixelBuffer buffer,const NarrativeRuntime& state) noexcept {
             PaletteColor::LedgerGrid);
         (void)DrawLatin(buffer,52,y+3,titles[row],enabled?PaletteColor::Neutral:
             PaletteColor::UiInactive);
-        const char* detail=!enabled&&row==2?"NO COMMON CLAIM EXISTS":
-            ((state.sceneTicks/45u)&1u)==0?gains[row]:costs[row];
-        (void)DrawLatin(buffer,52,y+13,detail,enabled?PaletteColor::UiInactive:
-            PaletteColor::Warning);
+        if (!enabled&&row==2) {
+            (void)DrawLatin(buffer,52,y+13,"NO COMMON CLAIM EXISTS",PaletteColor::Warning);
+        } else if (reduceFlash) {
+            (void)DrawLatin(buffer,52,y+10,gains[row],PaletteColor::UiInactive);
+            (void)DrawLatin(buffer,46,y+17,"/",PaletteColor::Warning);
+            (void)DrawLatin(buffer,52,y+17,costs[row],PaletteColor::UiInactive);
+        } else {
+            const char* detail=((state.sceneTicks/45u)&1u)==0?gains[row]:costs[row];
+            (void)DrawLatin(buffer,52,y+13,detail,PaletteColor::UiInactive);
+        }
     }
 }
 
@@ -321,7 +327,8 @@ bool TickNarrativeRuntime(NarrativeRuntime& state,const InputFrame& input) noexc
     return ClaimLedgerValid(state.claimLedger);
 }
 
-void RenderNarrativeRuntime(PixelBuffer buffer,const NarrativeRuntime& state) noexcept {
+void RenderNarrativeRuntime(PixelBuffer buffer,const NarrativeRuntime& state,
+    std::uint32_t presentationOptions) noexcept {
     Clear(buffer,PaletteColor::Background);
     DrawLedgerGrid(buffer);
     switch (state.scene) {
@@ -337,7 +344,7 @@ void RenderNarrativeRuntime(PixelBuffer buffer,const NarrativeRuntime& state) no
     case NarrativeScene::FinalConfirm:
     case NarrativeScene::FinalCommit:
         Centered(buffer,28,"FINAL ALLOCATION",PaletteColor::Warning);
-        DrawFinalRows(buffer,state);
+        DrawFinalRows(buffer,state,(presentationOptions&(1u<<6u))!=0);
         if (state.scene==NarrativeScene::FinalConfirm)
             Centered(buffer,166,"HOLD TO COMMIT",PaletteColor::Player);
         break;

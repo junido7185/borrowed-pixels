@@ -92,7 +92,8 @@ bool OpenLedgerUnlocked(const ClaimLedger& claims,const NarrativeState& narrativ
 bool TotalClaimUnlocked(const NarrativeState& narrative) noexcept;
 bool ApplyFinalChoice(NarrativeRuntime& state,FinalChoice choice) noexcept;
 bool TickNarrativeRuntime(NarrativeRuntime& state,const InputFrame& input) noexcept;
-void RenderNarrativeRuntime(PixelBuffer buffer,const NarrativeRuntime& state) noexcept;
+void RenderNarrativeRuntime(PixelBuffer buffer,const NarrativeRuntime& state,
+    std::uint32_t presentationOptions=0) noexcept;
 std::uint32_t NarrativeRuntimeHash(const NarrativeRuntime& state) noexcept;
 
 bool ObserveSaveBoundary(SaveBoundaryObserver& observer,std::uint8_t runtimeStage,

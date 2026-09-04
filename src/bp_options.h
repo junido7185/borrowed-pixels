@@ -19,6 +19,32 @@ enum class OptionRow : std::uint8_t {
 
 enum class ColorAssistMode : std::uint8_t { Off=0,Shapes,HighContrast };
 
+enum class PauseRow : std::uint8_t {
+    Resume=0,
+    Options,
+    RestartEncounter,
+    ReturnToTitle,
+    Quit,
+    Count,
+};
+
+enum class PauseAction : std::uint8_t {
+    None=0,
+    Resume,
+    Options,
+    RestartEncounter,
+    ReturnToTitle,
+    Quit,
+};
+
+inline constexpr std::uint8_t kPauseDestructiveHoldTicks=30;
+
+struct PauseRuntime {
+    PauseRow focused;
+    PauseAction action;
+    std::uint8_t holdTicks;
+};
+
 struct OptionsRuntime {
     std::uint32_t value;
     std::uint32_t previousValue;
@@ -37,5 +63,8 @@ bool ReduceFlashEnabled(std::uint32_t options) noexcept;
 ColorAssistMode ColorAssist(std::uint32_t options) noexcept;
 bool BorderlessEnabled(std::uint32_t options) noexcept;
 void ApplyAccessibilityPostprocess(PixelBuffer buffer,std::uint32_t options) noexcept;
+void InitializePauseRuntime(PauseRuntime& state) noexcept;
+bool TickPauseRuntime(PauseRuntime& state,const InputFrame& input) noexcept;
+void RenderPauseRuntime(PixelBuffer buffer,const PauseRuntime& state) noexcept;
 
 }  // namespace bp

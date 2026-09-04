@@ -13,6 +13,10 @@ bool Pressed(const InputFrame& input,PlatformAction action) noexcept {
     return input.actions[Action(action)].pressed!=0;
 }
 
+bool Held(const InputFrame& input,PlatformAction action) noexcept {
+    return input.actions[Action(action)].held!=0;
+}
+
 void Centered(PixelBuffer buffer,std::int32_t y,const char* text,
     PaletteColor color=PaletteColor::Neutral) noexcept {
     (void)DrawLatin(buffer,(kRenderWidth-MeasureLatin(text))/2,y,text,color);
@@ -124,6 +128,67 @@ void ApplyAccessibilityPostprocess(PixelBuffer buffer,std::uint32_t options) noe
             if (pixel==Color(PaletteColor::Background)) pixel=0x00000000u;
             else if (pixel==Color(PaletteColor::LedgerGrid)) pixel=0x0027313Bu;
         }
+}
+
+void InitializePauseRuntime(PauseRuntime& state) noexcept {
+    state=PauseRuntime{};
+    state.focused=PauseRow::Resume;
+}
+
+bool TickPauseRuntime(PauseRuntime& state,const InputFrame& input) noexcept {
+    state.action=PauseAction::None;
+    if (Pressed(input,PlatformAction::Pause)) {
+        state.action=PauseAction::Resume;
+        state.holdTicks=0;
+        return true;
+    }
+    std::uint8_t row=static_cast<std::uint8_t>(state.focused);
+    if (Pressed(input,PlatformAction::MoveUp)||Pressed(input,PlatformAction::SelectUp))
+        row=row==0?static_cast<std::uint8_t>(PauseRow::Count)-1u:row-1u;
+    if (Pressed(input,PlatformAction::MoveDown))
+        row=static_cast<std::uint8_t>((row+1u)%static_cast<std::uint8_t>(PauseRow::Count));
+    if (row!=static_cast<std::uint8_t>(state.focused)) {
+        state.focused=static_cast<PauseRow>(row);
+        state.holdTicks=0;
+    }
+    const bool destructive=state.focused==PauseRow::RestartEncounter
+        ||state.focused==PauseRow::ReturnToTitle;
+    if (!Held(input,PlatformAction::Confirm)) {
+        state.holdTicks=0;
+        return true;
+    }
+    if (destructive&&++state.holdTicks<kPauseDestructiveHoldTicks) return true;
+    switch (state.focused) {
+    case PauseRow::Resume: state.action=PauseAction::Resume; break;
+    case PauseRow::Options: state.action=PauseAction::Options; break;
+    case PauseRow::RestartEncounter: state.action=PauseAction::RestartEncounter; break;
+    case PauseRow::ReturnToTitle: state.action=PauseAction::ReturnToTitle; break;
+    case PauseRow::Quit: state.action=PauseAction::Quit; break;
+    case PauseRow::Count: return false;
+    }
+    state.holdTicks=0;
+    return true;
+}
+
+void RenderPauseRuntime(PixelBuffer buffer,const PauseRuntime& state) noexcept {
+    Clear(buffer,PaletteColor::Background);
+    DrawLedgerGrid(buffer);
+    StrokeRect(buffer,RectI{54,22,212,136},PaletteColor::LedgerGrid);
+    Centered(buffer,30,"PAUSE",PaletteColor::Warning);
+    constexpr const char* rows[5]={"RESUME","OPTIONS","RESTART ENCOUNTER",
+        "RETURN TO TITLE","QUIT"};
+    for (std::uint8_t row=0;row<5;++row) {
+        const std::int32_t y=52+row*19;
+        const bool focused=row==static_cast<std::uint8_t>(state.focused);
+        if (focused) StrokeRect(buffer,RectI{68,y-4,184,14},PaletteColor::Player);
+        Centered(buffer,y,rows[row],focused?PaletteColor::Player:PaletteColor::Neutral);
+    }
+    if ((state.focused==PauseRow::RestartEncounter||state.focused==PauseRow::ReturnToTitle)
+        &&state.holdTicks!=0) {
+        const std::int32_t width=state.holdTicks*160/kPauseDestructiveHoldTicks;
+        StrokeRect(buffer,RectI{80,148,160,5},PaletteColor::LedgerGrid);
+        FillRect(buffer,RectI{80,148,width,5},PaletteColor::Warning);
+    }
 }
 
 }  // namespace bp

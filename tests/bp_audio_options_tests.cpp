@@ -54,6 +54,24 @@ void TestOptions() noexcept {
         highGrid=highGrid||pixel==0x0027313bu;
     }
     Check(black&&highGrid,"HIGH CONTRAST maps BG and GRID exactly");
+
+    bp::PauseRuntime pause{};
+    bp::InitializePauseRuntime(pause);
+    Check(pause.focused==bp::PauseRow::Resume,"pause opens on RESUME");
+    for (std::uint8_t row=0;row<2;++row)
+        Check(bp::TickPauseRuntime(pause,Press(bp::PlatformAction::MoveDown)),
+            "pause moves through frozen row order");
+    Check(pause.focused==bp::PauseRow::RestartEncounter,
+        "pause exposes RESTART ENCOUNTER as row3");
+    bp::InputFrame hold=Press(bp::PlatformAction::Confirm);
+    hold.actions[static_cast<std::uint8_t>(bp::PlatformAction::Confirm)].held=1;
+    for (std::uint8_t tick=0;tick<bp::kPauseDestructiveHoldTicks-1u;++tick) {
+        Check(bp::TickPauseRuntime(pause,hold),"restart hold advances");
+        Check(pause.action==bp::PauseAction::None,"restart cannot fire before tick30");
+    }
+    Check(bp::TickPauseRuntime(pause,hold)
+        &&pause.action==bp::PauseAction::RestartEncounter,
+        "restart fires at exact hold tick30");
 }
 
 void TestSynthAndSilentFallback() noexcept {

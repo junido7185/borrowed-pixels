@@ -1,10 +1,10 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
 - Latest integrated candidate SHA: `84b2bc1de6c34f77511987a91f56ee37c07dfc72`
-- Current controller state: `T09_FINAL_REVIEW_PENDING`
+- Current controller state: `RC_VALIDATION_PENDING`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
-- Current ticket: T09 PRECEDENT
-- Contest dist: `246,272B` (T09 executable delta `+18,432B`, internal cap PASS)
+- Current ticket: T14 RC
+- Last measured contest dist: `246,272B` at the T09 checkpoint; T10-T14 result is `NOT_RUN`
 
 | Ticket | State | Evidence |
 |---|---|---|
@@ -18,8 +18,12 @@
 | T07 | LOCALLY_INTEGRATED | Candidate `c04cab55...`; Human Director byte-budget reapproval; post-integration full regression PASS |
 | T08A | LOCALLY_INTEGRATED | Candidate `6febd613...`; post-integration full regression PASS; final review P0/P1/P2=0 |
 | T08B | LOCALLY_INTEGRATED | Candidate `84b2bc1d...`; P0/P1/P2=0; post-integration evidence reused on identical executable tree |
-| T09 | FINAL_REVIEW_PENDING | Implementation `0c8289d0...`; full automated verification PASS |
-| T10-T14 | PENDING | Sequential controller execution |
+| T09 | IMPLEMENTED_FINAL_REVIEW_DEFERRED | Candidate lineage `d12eafee...`; prior automated verification PASS, repaired executable awaits consolidated final review |
+| T10 | IMPLEMENTED_VALIDATION_DEFERRED | Progression, five endings, SaveV2 routing and Audit Trace commit `68c23b71...` |
+| T11 | IMPLEMENTED_VALIDATION_DEFERRED | Synthesized audio and six-row options commit `35a3106b...` |
+| T12 | IMPLEMENTED_VALIDATION_DEFERRED | Frozen KO/EN copy, composed glyph path and credits commit `85903118...` |
+| T13 | IMPLEMENTED_VALIDATION_DEFERRED | Deterministic/reachability harness commit `e4469e79...`; subjective Gate 5 `HUMAN_REVIEW_DEFERRED` |
+| T14 | RC_VALIDATION_PENDING | Feature freeze, contest README/LICENSES, whitelist and final verifier prepared |
 
 ## Gate status
 
@@ -29,6 +33,7 @@
 | Gate 1 | PASS | T01 shell builds and runs; `126,464B <= 450,000B` |
 | Gate 2 | PASS | 19,683 combinations, atomic rollback, and 96B SaveV2 golden pass |
 | Gate 3/4 | HUMAN_REVIEW_DEFERRED | T07 playable package prepared; subjective PASS not claimed |
-| Gate 5/6 | PENDING | Later tickets and human verification |
+| Gate 5 | HUMAN_REVIEW_DEFERRED | Automated harness prepared; no balance amendment and no intuitive tuning |
+| Gate 6 | RC_VALIDATION_PENDING | One clean complete final verification remains |
 
 T03 was locally fast-forward integrated after explicit Human Director approval. Amendment commit `60d9e11204208f3fc43d348029167ac21caef61b` contains authority only. Subjective Gate 3/4 findings remain `HUMAN_REVIEW_DEFERRED` under the standing continuation decision and are not claimed PASS.
