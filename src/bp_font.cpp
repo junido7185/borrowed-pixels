@@ -1,4 +1,5 @@
 #include "bp_font.h"
+#include "bp_strings.h"
 
 #include <cstring>
 
@@ -234,6 +235,12 @@ bool IsSupportedLatin(char codepoint) noexcept {
 }
 
 std::int32_t MeasureLatin(const char* text, std::int32_t scale) noexcept {
+    if (text && (static_cast<unsigned char>(*text)&0x80u)!=0)
+        return MeasureUtf8(text,scale);
+    if (!TextLanguageEnglish()) {
+        const char* localized=LocalizedText(text);
+        if (localized!=text) return MeasureUtf8(localized,scale);
+    }
     if (!text || (scale != 1 && scale != 2)) {
         return -1;
     }
@@ -254,6 +261,12 @@ bool DrawLatin(
     const char* text,
     PaletteColor color,
     std::int32_t scale) noexcept {
+    if (text && (static_cast<unsigned char>(*text)&0x80u)!=0)
+        return DrawUtf8(buffer,x,y,text,color,scale);
+    if (!TextLanguageEnglish()) {
+        const char* localized=LocalizedText(text);
+        if (localized!=text) return DrawUtf8(buffer,x,y,localized,color,scale);
+    }
     if (!IsValidBuffer(buffer) || MeasureLatin(text, scale) < 0) {
         return false;
     }
@@ -325,6 +338,75 @@ bool DrawHangulSyllable(
             if ((rows[row] & (1u << (kHangulGlyphWidth - 1 - column))) != 0) {
                 PutPixel(buffer, x + column, y + row, color);
             }
+        }
+    }
+    return true;
+}
+
+namespace {
+
+bool DecodeUtf8(const char*& at,std::uint32_t& codepoint) noexcept {
+    const std::uint8_t first=static_cast<std::uint8_t>(*at++);
+    if (first<0x80u) { codepoint=first; return true; }
+    std::uint8_t count=0;
+    std::uint32_t value=0;
+    if ((first&0xe0u)==0xc0u) { count=1; value=first&0x1fu; }
+    else if ((first&0xf0u)==0xe0u) { count=2; value=first&0x0fu; }
+    else return false;
+    for (std::uint8_t index=0;index<count;++index) {
+        const std::uint8_t next=static_cast<std::uint8_t>(*at++);
+        if ((next&0xc0u)!=0x80u) return false;
+        value=(value<<6u)|(next&0x3fu);
+    }
+    codepoint=value;
+    return true;
+}
+
+}  // namespace
+
+std::int32_t MeasureUtf8(const char* text,std::int32_t scale) noexcept {
+    if (!text||(scale!=1&&scale!=2)) return -1;
+    std::int32_t width=0;
+    const char* at=text;
+    while (*at) {
+        std::uint32_t codepoint=0;
+        if (!DecodeUtf8(at,codepoint)) return -1;
+        if (codepoint<0x80u) {
+            if (!IsSupportedLatin(static_cast<char>(codepoint))) return -1;
+            width+=(codepoint==' '?kLatinSpaceAdvance:kLatinAdvance)*scale;
+        } else {
+            std::uint8_t rows[kHangulGlyphHeight]{};
+            if (!ComposeHangulGlyph(codepoint,rows)) return -1;
+            width+=kHangulAdvance*scale;
+        }
+    }
+    return width;
+}
+
+bool DrawUtf8(PixelBuffer buffer,std::int32_t x,std::int32_t y,
+    const char* text,PaletteColor color,std::int32_t scale) noexcept {
+    if (!IsValidBuffer(buffer)||MeasureUtf8(text,scale)<0) return false;
+    std::int32_t penX=x;
+    const char* at=text;
+    while (*at) {
+        std::uint32_t codepoint=0;
+        if (!DecodeUtf8(at,codepoint)) return false;
+        if (codepoint<0x80u) {
+            std::uint8_t rows[kLatinGlyphHeight]{};
+            if (!LatinGlyphRows(static_cast<char>(codepoint),rows)) return false;
+            for (std::int32_t row=0;row<kLatinGlyphHeight;++row)
+                for (std::int32_t column=0;column<kLatinGlyphWidth;++column)
+                    if ((rows[row]&(1u<<(kLatinGlyphWidth-1-column)))!=0)
+                        FillRect(buffer,RectI{penX+column*scale,y+row*scale,scale,scale},color);
+            penX+=(codepoint==' '?kLatinSpaceAdvance:kLatinAdvance)*scale;
+        } else {
+            std::uint8_t rows[kHangulGlyphHeight]{};
+            if (!ComposeHangulGlyph(codepoint,rows)) return false;
+            for (std::int32_t row=0;row<kHangulGlyphHeight;++row)
+                for (std::int32_t column=0;column<kHangulGlyphWidth;++column)
+                    if ((rows[row]&(1u<<(kHangulGlyphWidth-1-column)))!=0)
+                        FillRect(buffer,RectI{penX+column*scale,y+row*scale,scale,scale},color);
+            penX+=kHangulAdvance*scale;
         }
     }
     return true;

@@ -39,4 +39,8 @@ bool DrawHangulSyllable(
     std::uint32_t codepoint,
     PaletteColor color) noexcept;
 
+std::int32_t MeasureUtf8(const char* text,std::int32_t scale=1) noexcept;
+bool DrawUtf8(PixelBuffer buffer,std::int32_t x,std::int32_t y,
+    const char* text,PaletteColor color,std::int32_t scale=1) noexcept;
+
 }  // namespace bp

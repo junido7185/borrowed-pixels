@@ -41,8 +41,8 @@ bool BorderlessEnabled(std::uint32_t options) noexcept { return (options&(1u<<9u
 void InitializeOptionsRuntime(OptionsRuntime& state,std::uint32_t options) noexcept {
     state=OptionsRuntime{};
     state.value=options&0x3ffu;
-    if (MasterVolume(state.value)>10) state.value=SetField(state.value,0x0fu,10u);
-    if (static_cast<std::uint8_t>(ColorAssist(state.value))>2)
+    if ((state.value&0x0fu)>10u) state.value=SetField(state.value,0x0fu,10u);
+    if (((state.value>>7u)&3u)>2u)
         state.value=SetField(state.value,3u<<7u,0u);
     state.previousValue=state.value;
     state.focused=OptionRow::Language;

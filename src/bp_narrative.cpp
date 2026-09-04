@@ -344,9 +344,14 @@ void RenderNarrativeRuntime(PixelBuffer buffer,const NarrativeRuntime& state) no
     case NarrativeScene::Ending: DrawEnding(buffer,state); break;
     case NarrativeScene::Credits:
         Centered(buffer,30,"BORROWED PIXELS",PaletteColor::Player,2);
-        Centered(buffer,72,"DESIGN CODE ART AUDIO");
-        Centered(buffer,88,"CREATED FOR THE CONTEST");
-        Centered(buffer,152,"TOTAL TILE 1440",PaletteColor::Warning);
+        Centered(buffer,56,"CREATOR: DEV_SLIME");
+        Centered(buffer,69,"AI-ASSISTED DESIGN AND IMPLEMENTATION");
+        Centered(buffer,82,"HUMAN-DIRECTED AND REVIEWED");
+        Centered(buffer,95,"FONT: BUILT-IN 5X7 / COMPOSED HANGUL");
+        Centered(buffer,108,"AUDIO: RUNTIME SYNTHESIS");
+        Centered(buffer,121,"EXTERNAL ASSETS: 0");
+        Centered(buffer,134,"LICENSES: DOCS / RIGHTS_LOG / PROVENANCE");
+        Centered(buffer,152,"TOTAL TILE: 1440",PaletteColor::Warning);
         break;
     case NarrativeScene::Title:
         Centered(buffer,34,"BORROWED PIXELS",PaletteColor::Neutral,2);

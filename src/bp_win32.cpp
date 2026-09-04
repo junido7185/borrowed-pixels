@@ -11,6 +11,7 @@
 #include "bp_font.h"
 #include "bp_audio.h"
 #include "bp_options.h"
+#include "bp_strings.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -214,6 +215,7 @@ void UpdateMousePosition(PlatformState& state, std::int32_t clientX, std::int32_
 }
 
 void PresentBackbuffer(PlatformState& state, HDC destination, const RECT& client) noexcept {
+    bp::SetTextLanguageEnglish(bp::EnglishLanguage(state.options));
     const bp::PixelBuffer buffer{
             state.backbuffer.pixels,
             bp::kCanvasWidth,

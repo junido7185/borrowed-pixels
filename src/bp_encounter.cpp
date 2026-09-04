@@ -1157,9 +1157,9 @@ void DrawSplitLines(
     std::int32_t y,
     const char* text,
     PaletteColor color) noexcept {
-    char first[43]{};
+    char first[96]{};
     std::uint8_t count = 0;
-    while (text[count] != 0 && text[count] != '|' && count < 42) {
+    while (text[count] != 0 && text[count] != '|' && count < 95) {
         first[count] = text[count];
         ++count;
     }
