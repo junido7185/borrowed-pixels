@@ -4,7 +4,7 @@
 - Current controller state: `RC_CANDIDATE`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: complete through T14
-- Contest dist: `292,758B` in three whitelisted files; internal and hard caps PASS
+- Contest dist: `292,810B` in three byte-stable whitelisted files; internal and hard caps PASS
 
 | Ticket | State | Evidence |
 |---|---|---|

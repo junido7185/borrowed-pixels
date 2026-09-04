@@ -11,7 +11,7 @@ Feature development is frozen. `tools/verify_rc.ps1` completed with
 - Executable: `dist/contest/BorrowedPixels.exe`
 - Executable bytes: `290304`
 - Executable SHA-256: `cf5b2380e13a12c2f970b311503389773c361bd91f4952fd28c79cbed1807699`
-- Extracted dist: `292758` bytes in exactly three whitelisted files
+- Extracted dist: `292810` bytes in exactly three byte-stable whitelisted files
 - Dependencies: `KERNEL32.dll`, `USER32.dll`, `GDI32.dll`, `WINMM.dll`
 - Debug/Test/CTest/Contest/live-window/MAP/authority/dist: PASS
 - Review of `10f8ec6...`: P0=0/P1=3/P2=1; all findings repaired and not integrated

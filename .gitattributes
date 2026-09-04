@@ -1,2 +1,3 @@
 docs/authority/** -text
 docs/guides/** -text
+dist/contest/*.txt -text
