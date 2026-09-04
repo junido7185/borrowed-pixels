@@ -1,6 +1,9 @@
 # T14 RC output
 
-State: `RC_INTEGRATION_READY`
+State: `RC_CANDIDATE`
+
+Candidate `9f19a71cb632affa97bdc102f489cc404211a2a8` was locally fast-forward
+integrated into `integration/rc-2026-09-03`.
 
 Feature development is frozen. `tools/verify_rc.ps1` completed with
 `RC_VALIDATION_STATUS=PASS` on Windows x64 MSVC.
