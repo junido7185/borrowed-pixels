@@ -1,36 +1,37 @@
-BORROWED PIXELS v2.1 - WINDOWS x64 CONTEST BUILD
+BORROWED PIXELS v2.1 — WINDOWS x64 CONTEST BUILD
 
-RUN
-  Double-click BorrowedPixels.exe. No installation, administrator permission,
-  browser, network connection, or separate VC runtime installation is required.
+[한국어]
+실행: BorrowedPixels.exe를 더블클릭하십시오. 설치, 관리자 권한, 브라우저,
+네트워크, 별도 VC 런타임은 필요하지 않습니다.
 
-KEYBOARD / MOUSE
-  Move: W A S D                 Aim: mouse
-  Fire / confirm: left mouse    Reclaim: right mouse
-  Dash: Space                   HUD module: Q
-  Reallocate HUD: E             Choices: 1 / 2 / 3 or arrow keys
-  Confirm: Enter                Options/back: Esc
-  Borderless fullscreen: Alt+Enter
+키보드/마우스: 이동 W/A/S/D, 조준 마우스, 발사/확정 왼쪽 클릭,
+회수 오른쪽 클릭, 대시 Space, HUD 모듈 Q, HUD 재할당 E,
+선택 1/2/3 또는 방향키, 확정 Enter, 옵션/뒤로 Esc, 전체화면 Alt+Enter.
 
-GAMEPAD
-  Move/Aim: sticks              Fire/Reclaim: right/left trigger
-  Dash/Confirm: A               HUD module: left shoulder
-  Reallocate HUD: Y             Choices: D-pad
-  Options/back: Start
+게임패드: 이동/조준 스틱, 발사/회수 오른쪽/왼쪽 트리거,
+대시/확정 A, HUD 모듈 LB, HUD 재할당 Y, 선택 D-pad, 옵션/뒤로 Start.
 
-SAVE
-  Save data is written to %LOCALAPPDATA%\BorrowedPixels\save.bin.
-  A corrupt save is preserved as save.invalid when possible.
+옵션/접근성: 타이틀에서 Esc. 한국어/영어, 음량, 화면 흔들림,
+섬광 감소, 색상 보조, 전체화면을 설정할 수 있습니다.
+지원 OS: Windows 10/11 x64. 서명되지 않은 실행 파일 경고가 표시될 수 있습니다.
+저장: %LOCALAPPDATA%\BorrowedPixels\save.bin
 
-LANGUAGE / ACCESSIBILITY
-  Open OPTIONS from the title with Esc. The six rows provide KO/EN,
-  master volume, screen shake, reduce flash, color assist, and fullscreen.
+[ENGLISH]
+Run: Double-click BorrowedPixels.exe. No installation, administrator permission,
+browser, network connection, or separate VC runtime is required.
 
-NOTICE
-  This contest executable is unsigned. Windows Defender or SmartScreen may
-  show the normal warning used for an unsigned, newly built executable.
-  The program requires Windows 10 or Windows 11 x64.
+Keyboard/mouse: move W/A/S/D, aim mouse, fire/confirm left click,
+reclaim right click, dash Space, HUD module Q, HUD reallocate E,
+choices 1/2/3 or arrows, confirm Enter, options/back Esc, fullscreen Alt+Enter.
 
-RIGHTS
-  All runtime code, bitmap glyphs, composed Hangul, shapes, and synthesized
-  audio are project-native. External runtime assets: 0. See LICENSES.txt.
+Gamepad: move/aim sticks, fire/reclaim right/left trigger,
+dash/confirm A, HUD module LB, HUD reallocate Y, choices D-pad,
+options/back Start.
+
+Options/accessibility: press Esc at the title for KO/EN, master volume,
+screen shake, reduce flash, color assist, and fullscreen.
+Supported OS: Windows 10/11 x64. An unsigned-app warning may appear.
+Save: %LOCALAPPDATA%\BorrowedPixels\save.bin
+
+Exact extracted regular-file total / 정확한 압축 해제 파일 합계:
+EXTRACTED_TOTAL_BYTES=288662

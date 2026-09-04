@@ -942,6 +942,77 @@ bp::GameState* CurrentMovementState(PlatformState& state) noexcept {
     return &state.act1.movement;
 }
 
+bp::AudioRuntimeSnapshot CaptureAudioRuntime(PlatformState& state) noexcept {
+    bp::AudioRuntimeSnapshot snapshot{};
+    snapshot.valid=1;
+    const bp::GameState* movement=nullptr;
+    const bp::CombatState* combat=nullptr;
+    const bp::HudLoanSystem* hud=nullptr;
+    if (state.narrativeActive) {
+        snapshot.route=5;
+        snapshot.commit=state.narrativeFlow.scene==bp::NarrativeScene::FinalCommit?1u:0u;
+        return snapshot;
+    }
+    if (state.precedentActive) {
+        snapshot.route=4;
+        movement=&state.precedent.movement;
+        combat=&state.precedent.combat;
+        hud=&state.precedent.hudLoan;
+        snapshot.playing=state.precedent.scene==bp::PrecedentScene::Playing?1u:0u;
+    } else if (state.act3Active) {
+        snapshot.route=3;
+        movement=&state.act3.movement;
+        combat=&state.act3.combat;
+        hud=&state.act3.hudLoan;
+        snapshot.playing=state.act3.scene==bp::Act3Scene::Playing?1u:0u;
+        snapshot.settlement=state.act3.scene==bp::Act3Scene::Settlement?1u:0u;
+        snapshot.commit=state.act3.scene==bp::Act3Scene::CommitTransit?1u:0u;
+    } else if (state.act2Active) {
+        snapshot.route=2;
+        movement=&state.act2.movement;
+        combat=&state.act2.combat;
+        hud=&state.act2.hudLoan;
+        snapshot.playing=state.act2.scene==bp::Act2Scene::Playing?1u:0u;
+        snapshot.settlement=state.act2.scene==bp::Act2Scene::Settlement?1u:0u;
+        snapshot.commit=state.act2.scene==bp::Act2Scene::CommitTransit?1u:0u;
+    } else {
+        snapshot.route=1;
+        movement=&state.act1.movement;
+        combat=&state.act1.combat;
+        hud=&state.act1.hudLoan;
+        snapshot.playing=state.act1.scene==bp::Act1Scene::Playing?1u:0u;
+        snapshot.settlement=state.act1.scene==bp::Act1Scene::Settlement?1u:0u;
+        snapshot.commit=state.act1.scene==bp::Act1Scene::CommitTransit?1u:0u;
+    }
+    const std::uint8_t playerShell=static_cast<std::uint8_t>(bp::PhysicalAccount::PlayerShell);
+    const std::uint8_t opponentShell=static_cast<std::uint8_t>(bp::PhysicalAccount::OpponentShell);
+    const std::uint8_t cover=static_cast<std::uint8_t>(bp::PhysicalAccount::Cover);
+    const std::uint8_t charge=static_cast<std::uint8_t>(bp::PhysicalAccount::Charge);
+    const std::uint8_t projectile=static_cast<std::uint8_t>(bp::PhysicalAccount::Projectile);
+    snapshot.playerShell=movement->physicalLedger.mass[playerShell];
+    snapshot.opponentShell=movement->physicalLedger.mass[opponentShell];
+    snapshot.coverMass=movement->physicalLedger.mass[cover];
+    snapshot.chargeMass=movement->physicalLedger.mass[charge];
+    snapshot.projectileMass=movement->physicalLedger.mass[projectile];
+    snapshot.playerCoreHit=combat->actors[0].coreHit;
+    snapshot.opponentCoreHit=combat->actors[1].coreHit;
+    for (std::uint8_t module=0;module<bp::kHudModuleCount;++module) {
+        snapshot.transitMass[module]=hud->modules[module].transitMass;
+        snapshot.hudState[module]=static_cast<std::uint8_t>(hud->modules[module].state);
+        snapshot.hudWarning[module]=hud->modules[module].warning;
+        if ((hud->modules[module].state==bp::HudLoanState::Due
+                ||hud->modules[module].warning!=0)
+            &&state.globalTick%30u==0u) snapshot.duePulse=1;
+    }
+    return snapshot;
+}
+
+bool HasPressedPlayerInput(const bp::InputFrame& input) noexcept {
+    for (std::uint8_t action=0;action<bp::kPlatformActionCount;++action)
+        if (input.actions[action].pressed!=0) return true;
+    return false;
+}
+
 bool GameplayPaused(PlatformState& state) noexcept {
     const bp::GameState* movement=CurrentMovementState(state);
     return movement&&movement->paused!=0;
@@ -1164,6 +1235,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
             std::uint32_t ticks = 0;
             while (state.accumulator60 >= state.qpcFrequency.QuadPart && ticks < bp::kMaxCatchUpTicks) {
                 BuildInputFrame(state);
+                const bp::AudioRuntimeSnapshot audioBefore=CaptureAudioRuntime(state);
                 bool tickOk = true;
                 bool openedOptions=false;
                 if (!state.optionsActive&&!state.pauseMenuActive&&GameplayPaused(state)) {
@@ -1264,6 +1336,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand) {
                     state.running = false;
                     break;
                 }
+                bp::SetAudioMixState(state.audio,bp::MasterVolume(state.options),
+                    state.optionsActive||state.pauseMenuActive,state.focused,
+                    CurrentAudioEnding(state));
+                bp::QueueRuntimeAudioTransitions(state.audio,audioBefore,
+                    CaptureAudioRuntime(state),HasPressedPlayerInput(state.lastInputFrame));
                 MaybeWriteBoundarySave(state);
                 if (state.saveWarningTicks!=0) --state.saveWarningTicks;
                 state.accumulator60 -= state.qpcFrequency.QuadPart;

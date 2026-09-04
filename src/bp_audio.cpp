@@ -136,10 +136,36 @@ void QueueTone(AudioState& state,Oscillator oscillator,std::uint32_t startIncrem
 void ScheduleStep(AudioState& state) noexcept {
     if (state.ending==AudioEnding::One) return;
     const std::uint8_t step=state.step&15u;
-    if (kBassPattern[step]>=0 && state.ending!=AudioEnding::Enough)
+    if (state.ending==AudioEnding::Open) {
+        const std::uint8_t left=step;
+        const std::uint8_t center=static_cast<std::uint8_t>((step+5u)&15u);
+        const std::uint8_t right=static_cast<std::uint8_t>((step+10u)&15u);
+        if (step==0u) {
+            QueueTone(state,Oscillator::Triangle,MidiIncrement(38),MidiIncrement(38),
+                kAudioSampleRate/10u,1,-18022);
+            QueueTone(state,Oscillator::Triangle,MidiIncrement(38),MidiIncrement(38),
+                kAudioSampleRate/10u,1,0);
+            QueueTone(state,Oscillator::Triangle,MidiIncrement(38),MidiIncrement(38),
+                kAudioSampleRate/10u,1,18022);
+        } else {
+            if (kBassPattern[left]>=0)
+                QueueTone(state,Oscillator::Triangle,MidiIncrement(kBassPattern[left]),
+                    MidiIncrement(kBassPattern[left]),kAudioSampleRate/10u,1,-18022);
+            if (kBassPattern[center]>=0)
+                QueueTone(state,Oscillator::Triangle,MidiIncrement(kBassPattern[center]),
+                    MidiIncrement(kBassPattern[center]),kAudioSampleRate/10u,1,0);
+            if (kBassPattern[right]>=0)
+                QueueTone(state,Oscillator::Triangle,MidiIncrement(kBassPattern[right]),
+                    MidiIncrement(kBassPattern[right]),kAudioSampleRate/10u,1,18022);
+        }
+    } else if (state.ending==AudioEnding::Rule) {
+        QueueTone(state,Oscillator::Triangle,MidiIncrement(38),MidiIncrement(38),
+            kAudioSampleRate/14u,1);
+    } else if (kBassPattern[step]>=0)
         QueueTone(state,Oscillator::Triangle,MidiIncrement(kBassPattern[step]),
             MidiIncrement(kBassPattern[step]),kAudioSampleRate/10u,1);
-    if (kCounterPattern[step]>=0 && state.ending!=AudioEnding::Enough)
+    if (kCounterPattern[step]>=0 && state.ending!=AudioEnding::Enough
+        &&state.ending!=AudioEnding::Rule&&state.ending!=AudioEnding::Open)
         QueueTone(state,Oscillator::Pulse25,MidiIncrement(kCounterPattern[step]),
             MidiIncrement(kCounterPattern[step]),kAudioSampleRate/14u,1);
     if (kMechanicalPattern[step]!=0 && state.ending==AudioEnding::None)
@@ -197,7 +223,62 @@ bool QueueAudioEvent(AudioState& state,AudioEvent event) noexcept {
     voice.oscillator=definition.oscillator;
     voice.priority=definition.priority;
     voice.active=1;
+    if (event==AudioEvent::CoreHit)
+        QueueTone(state,Oscillator::Triangle,HertzIncrement(55),HertzIncrement(55),
+            MillisecondsToFrames(180),8);
     return true;
+}
+
+void QueueRuntimeAudioTransitions(AudioState& state,
+    const AudioRuntimeSnapshot& before,const AudioRuntimeSnapshot& after,
+    bool playerInput) noexcept {
+    if (state.ending==AudioEnding::Hand&&playerInput)
+        QueueTone(state,Oscillator::Triangle,MidiIncrement(65),MidiIncrement(65),
+            kAudioSampleRate/12u,2);
+    if (after.valid==0) return;
+    if (after.settlement!=0&&before.settlement==0)
+        (void)QueueAudioEvent(state,AudioEvent::Settlement);
+    if (after.commit!=0&&before.commit==0)
+        (void)QueueAudioEvent(state,AudioEvent::MenuConfirm);
+    if (after.duePulse!=0)
+        (void)QueueAudioEvent(state,AudioEvent::HudDue);
+    if (before.valid==0||before.route!=after.route||after.playing==0) return;
+
+    if (after.playerShell>before.playerShell) {
+        const std::uint16_t reclaimed=static_cast<std::uint16_t>(
+            after.playerShell-before.playerShell);
+        for (std::uint16_t mass=4;mass<=reclaimed;mass=static_cast<std::uint16_t>(mass+4u))
+            (void)QueueAudioEvent(state,AudioEvent::Reclaim4);
+    }
+    if (after.projectileMass>before.projectileMass) {
+        const std::uint16_t mass=static_cast<std::uint16_t>(
+            after.projectileMass-before.projectileMass);
+        const AudioEvent event=mass>=48?AudioEvent::Foreclose:
+            (mass>=32?AudioEvent::Claim:(mass>=16?AudioEvent::Cut:AudioEvent::Tap));
+        (void)QueueAudioEvent(state,event);
+    }
+    if (after.coverMass<before.coverMass)
+        (void)QueueAudioEvent(state,AudioEvent::CoverBreak);
+    if (after.opponentShell<before.opponentShell||after.playerShell<before.playerShell)
+        (void)QueueAudioEvent(state,AudioEvent::ShellHit);
+    if (before.opponentShell>40u&&after.opponentShell<=40u)
+        (void)QueueAudioEvent(state,AudioEvent::CoreExposed);
+    if (after.playerCoreHit!=0||after.opponentCoreHit!=0)
+        (void)QueueAudioEvent(state,AudioEvent::CoreHit);
+    if (after.chargeMass<before.chargeMass&&after.projectileMass<=before.projectileMass)
+        (void)QueueAudioEvent(state,AudioEvent::ChargeIntercept);
+    for (std::uint8_t module=0;module<kAudioChannels+1u;++module) {
+        if (after.hudState[module]!=before.hudState[module]) {
+            if (after.hudState[module]==1u)
+                (void)QueueAudioEvent(state,AudioEvent::HudDismantle);
+            else if (after.hudState[module]==4u)
+                (void)QueueAudioEvent(state,AudioEvent::HudRestore);
+            else if (after.hudState[module]==0u&&before.hudState[module]!=0u)
+                (void)QueueAudioEvent(state,AudioEvent::HudTransitEnd);
+        }
+        if (after.transitMass[module]!=before.transitMass[module])
+            (void)QueueAudioEvent(state,AudioEvent::HudTransitTick);
+    }
 }
 
 void RenderAudioFrames(AudioState& state,std::int16_t* interleaved,

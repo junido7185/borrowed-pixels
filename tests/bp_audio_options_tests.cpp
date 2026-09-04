@@ -115,10 +115,75 @@ void TestSynthAndSilentFallback() noexcept {
         "ONE accepts but suppresses future events");
 }
 
+std::uint8_t ActiveVoices(const bp::AudioState& state) noexcept {
+    std::uint8_t count=0;
+    for (const bp::AudioVoice& voice:state.voices) count+=voice.active!=0?1u:0u;
+    return count;
+}
+
+void TestEndingPoliciesAndRuntimeRouting() noexcept {
+    std::int16_t samples[6000*bp::kAudioChannels]{};
+    bp::AudioState enough{};
+    bp::InitializeAudio(enough,true);
+    bp::SetAudioMixState(enough,10,false,true,bp::AudioEnding::Enough);
+    enough.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    bp::RenderAudioFrames(enough,samples,1);
+    Check(ActiveVoices(enough)==1&&enough.voices[0].oscillator==bp::Oscillator::Triangle,
+        "ENOUGH retains bass and removes counter");
+
+    bp::AudioState rule{};
+    bp::InitializeAudio(rule,true);
+    bp::SetAudioMixState(rule,10,false,true,bp::AudioEnding::Rule);
+    for (std::uint8_t step=0;step<4;++step) {
+        rule.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+        bp::RenderAudioFrames(rule,samples,1);
+    }
+    Check(ActiveVoices(rule)==4,"RULE schedules every step at identical velocity");
+
+    bp::AudioState hand{};
+    bp::InitializeAudio(hand,true);
+    bp::SetAudioMixState(hand,10,false,true,bp::AudioEnding::Hand);
+    bp::AudioRuntimeSnapshot empty{};
+    bp::QueueRuntimeAudioTransitions(hand,empty,empty,false);
+    Check(ActiveVoices(hand)==0,"HAND adds no cycle-external note without player input");
+    bp::QueueRuntimeAudioTransitions(hand,empty,empty,true);
+    Check(ActiveVoices(hand)==1,"HAND adds one cycle-external note on player input");
+
+    bp::AudioState open{};
+    bp::InitializeAudio(open,true);
+    bp::SetAudioMixState(open,10,false,true,bp::AudioEnding::Open);
+    open.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    bp::RenderAudioFrames(open,samples,1);
+    Check(ActiveVoices(open)==3&&open.voices[0].panQ15<0
+        &&open.voices[1].panQ15==0&&open.voices[2].panQ15>0,
+        "OPEN joins three offset channels at bar start");
+
+    bp::AudioState routed{};
+    bp::InitializeAudio(routed,true);
+    bp::AudioRuntimeSnapshot before{};
+    before.valid=before.playing=1;
+    before.route=2;
+    before.playerShell=80;
+    before.opponentShell=48;
+    before.coverMass=32;
+    before.chargeMass=16;
+    bp::AudioRuntimeSnapshot after=before;
+    after.playerShell=84;
+    after.opponentShell=36;
+    after.coverMass=24;
+    after.chargeMass=0;
+    after.projectileMass=16;
+    after.opponentCoreHit=1;
+    bp::QueueRuntimeAudioTransitions(routed,before,after,true);
+    Check(ActiveVoices(routed)>=5,
+        "runtime deltas make reclaim fire cover shell exposure and core SFX reachable");
+}
+
 struct Runner {
     Runner() noexcept {
         TestOptions();
         TestSynthAndSilentFallback();
+        TestEndingPoliciesAndRuntimeRouting();
         if (gFailures!=0) {
             std::printf("T11_FAIL\tchecks=%u\tfailures=%u\n",gChecks,gFailures);
             std::exit(1);

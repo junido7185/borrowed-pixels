@@ -10,9 +10,9 @@ T08A PASS checks=72445 adapter_ranges=49 frame_observations=1024
 T08B PASS checks=899 index_cases=64 witness_cases=16 cycle_ticks=454
 T09 PASS checks=117838 combinations=19683 profiles=81 softlocks=0
 T10 PASS checks=58784 endings=5 save_bytes=96
-T11 PASS checks=88 buffers=4 voices=8
+T11 PASS checks=94 buffers=4 voices=8 ending_policies=4 runtime_sfx=reachable
 T12 PASS checks=849 copy=KO_EN external_assets=0
-T13 PASS checks=1014 seeds=1000 endings=5 tuning=NONE
+T13 PASS checks=1014 core_seeds=1000 ending_routes=5 tuning=NONE
 CTest PASS 1/1
 Debug smoke PASS
 Contest live window PASS

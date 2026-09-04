@@ -68,7 +68,7 @@ bool TickChecked(bp::NarrativeRuntime& runtime,const bp::InputFrame& input) noex
         &&bp::ClaimLedgerTotal(runtime.claimLedger)==bp::kLedgerTotal;
 }
 
-void TestThousandSeedReplay() noexcept {
+void TestCoreThousandSeedReplay() noexcept {
     for (std::uint32_t seed=1;seed<=1000u;++seed) {
         bp::GameState first{};
         bp::GameState second{};
@@ -80,7 +80,7 @@ void TestThousandSeedReplay() noexcept {
                 &&bp::ClaimLedgerTotal(first.claimLedger)==bp::kLedgerTotal
                 &&bp::PhysicalLedgerTotal(first.physicalLedger)==bp::kLedgerTotal;
         }
-        Check(same,"1000-seed deterministic replay preserves both ledgers");
+        Check(same,"core 1000-seed deterministic replay preserves both ledgers");
     }
 }
 
@@ -134,7 +134,7 @@ bool ReachFullEnding(bp::FinalChoice choice,bp::EndingId ending) noexcept {
         &&runtime.scene==bp::NarrativeScene::AuditTrace;
 }
 
-void TestTitleToEndingReachability() noexcept {
+void TestNarrativeEndingReachability() noexcept {
     bp::ClaimLedger enoughClaims=bp::MakeInitialClaimLedger();
     enoughClaims.mass[Owner(bp::ClaimOwner::System)]-=144;
     enoughClaims.mass[Owner(bp::ClaimOwner::Player)]=144;
@@ -143,27 +143,27 @@ void TestTitleToEndingReachability() noexcept {
     for (std::uint16_t tick=0;tick<bp::kEnoughConfirmTicks&&enoughReachable;++tick)
         enoughReachable=TickChecked(enough,Input(bp::PlatformAction::Confirm));
     Check(enoughReachable&&enough.scene==bp::NarrativeScene::Ending
-        &&enough.ending==bp::EndingId::Enough,"TITLE route reaches ENOUGH without ledger loss");
+        &&enough.ending==bp::EndingId::Enough,"narrative route reaches ENOUGH without ledger loss");
     Check(ReachFullEnding(bp::FinalChoice::Ratify,bp::EndingId::Rule),
-        "TITLE route reaches RULE and Audit Trace");
+        "narrative route reaches RULE and Audit Trace");
     Check(ReachFullEnding(bp::FinalChoice::Override,bp::EndingId::Hand),
-        "TITLE route reaches HAND and Audit Trace");
+        "narrative route reaches HAND and Audit Trace");
     Check(ReachFullEnding(bp::FinalChoice::Open,bp::EndingId::OpenLedger),
-        "TITLE route reaches OPEN LEDGER and Audit Trace");
+        "narrative route reaches OPEN LEDGER and Audit Trace");
     Check(ReachFullEnding(bp::FinalChoice::TotalClaim,bp::EndingId::One),
-        "TITLE route reaches ONE and Audit Trace");
+        "narrative route reaches ONE and Audit Trace");
 }
 
 struct Runner {
     Runner() noexcept {
-        TestThousandSeedReplay();
+        TestCoreThousandSeedReplay();
         TestBossBounds();
-        TestTitleToEndingReachability();
+        TestNarrativeEndingReachability();
         if (gFailures!=0) {
             std::printf("T13_FAIL\tchecks=%u\tfailures=%u\n",gChecks,gFailures);
             std::exit(1);
         }
-        std::printf("T13_PASS\tchecks=%u\tseeds=1000\tendings=5\ttuning=NONE\n",gChecks);
+        std::printf("T13_PASS\tchecks=%u\tcore_seeds=1000\tending_routes=5\ttuning=NONE\n",gChecks);
     }
 };
 
