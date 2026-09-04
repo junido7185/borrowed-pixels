@@ -69,7 +69,7 @@ bool TickChecked(bp::NarrativeRuntime& runtime,const bp::InputFrame& input) noex
 }
 
 void TestThousandSeedReplay() noexcept {
-    for (std::uint32_t seed=0;seed<1000u;++seed) {
+    for (std::uint32_t seed=1;seed<=1000u;++seed) {
         bp::GameState first{};
         bp::GameState second{};
         bool same=bp::InitializeGameState(first,seed)&&bp::InitializeGameState(second,seed);

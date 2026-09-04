@@ -24,6 +24,12 @@ bool Held(const InputFrame& input,PlatformAction action) noexcept {
     return input.actions[Action(action)].held!=0;
 }
 
+bool AnyPressed(const InputFrame& input) noexcept {
+    for (std::uint8_t action=0;action<kPlatformActionCount;++action)
+        if (input.actions[action].pressed!=0) return true;
+    return false;
+}
+
 ChoiceId ChoiceAt(const NarrativeState& narrative,EncounterId encounter) noexcept {
     return static_cast<ChoiceId>((narrative.choiceBits
         >>(static_cast<std::uint8_t>(encounter)*2u))&3u);
@@ -148,7 +154,7 @@ void DrawEnding(PixelBuffer buffer,const NarrativeRuntime& state) noexcept {
         DrawLine(buffer,258,104,258,126,PaletteColor::Player);
     } else if (state.ending==EndingId::OpenLedger) {
         for (std::int32_t x=56;x<268;x+=42)
-            FillRect(buffer,RectI{x+((state.sceneTicks/30u)%8u),112,3,3},PaletteColor::Neutral);
+            FillRect(buffer,RectI{x+static_cast<std::int32_t>((state.sceneTicks/30u)%8u),112,3,3},PaletteColor::Neutral);
     } else {
         FillRect(buffer,RectI{40,100,240,30},PaletteColor::Player);
     }
@@ -312,7 +318,7 @@ bool TickNarrativeRuntime(NarrativeRuntime& state,const InputFrame& input) noexc
             SetScene(state,NarrativeScene::AuditTrace);
         else if (state.vesselContinueAvailable!=0 && Pressed(input,PlatformAction::SelectRight))
             state.routeRequest=NarrativeRouteRequest::ContinueVessel;
-        else if (Pressed(input,PlatformAction::Confirm))
+        else if (AnyPressed(input))
             state.routeRequest=NarrativeRouteRequest::NewRun;
         break;
     case NarrativeScene::AuditTrace:
@@ -362,7 +368,7 @@ void RenderNarrativeRuntime(PixelBuffer buffer,const NarrativeRuntime& state,
         break;
     case NarrativeScene::Title:
         Centered(buffer,34,"BORROWED PIXELS",PaletteColor::Neutral,2);
-        Centered(buffer,88,"PRESS ENTER TO BORROW",PaletteColor::Warning);
+        Centered(buffer,88,"PRESS ANY KEY TO BORROW",PaletteColor::Warning);
         if (state.vesselContinueAvailable!=0)
             Centered(buffer,112,"RIGHT // CONTINUE FROM VESSEL",PaletteColor::Player);
         if (state.auditTraceUnlocked!=0)
@@ -374,9 +380,9 @@ void RenderNarrativeRuntime(PixelBuffer buffer,const NarrativeRuntime& state,
         constexpr const char* rules[9]={"ORIGIN PRIORITY","LINK","MINIMUM","BOUNDARY",
             "OUTPUT","FIELD","METRIC","RECORD","RETURN"};
         Centered(buffer,18,"CASE | TRANSFER | RULE USED",PaletteColor::Warning);
-        (void)DrawLatin(buffer,28,64,cases[state.auditIndex]);
+        (void)DrawLatin(buffer,28,64,cases[state.auditIndex],PaletteColor::Neutral);
         (void)DrawLatin(buffer,112,64,"CLAIM MOVE",PaletteColor::Player);
-        (void)DrawLatin(buffer,206,64,rules[state.auditIndex]);
+        (void)DrawLatin(buffer,206,64,rules[state.auditIndex],PaletteColor::Neutral);
         const std::int32_t x=40+(state.sceneTicks*220/kAuditSummaryTicks);
         StrokeRect(buffer,RectI{x,100,8,8},PaletteColor::Neutral);
         Centered(buffer,152,"ESC // TITLE",PaletteColor::UiInactive);

@@ -1,0 +1,24 @@
+Microsoft (R) COFF/PE Dumper Version 14.39.33521.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file C:\Users\sdjsd\Desktop\BORROWED_PIXELS\dist\contest\BorrowedPixels.exe
+
+File Type: EXECUTABLE IMAGE
+
+  Image has the following dependencies:
+
+    KERNEL32.dll
+    USER32.dll
+    GDI32.dll
+    WINMM.dll
+
+  Summary
+
+        2000 .data
+        2000 .pdata
+       12000 .rdata
+        1000 .reloc
+        1000 .rsrc
+       31000 .text
+        1000 _RDATA

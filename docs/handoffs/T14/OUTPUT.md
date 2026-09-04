@@ -1,11 +1,17 @@
 # T14 RC output
 
-State: `RC_VALIDATION_PENDING`
+State: `RC_FINAL_REVIEW_PENDING`
 
-Feature development is frozen. The final candidate SHA, exact bytes, SHA-256,
-dependency list, full command results, and independent-review result are filled
-only after `tools/verify_rc.ps1` completes successfully. No NOT_RUN item is
-represented as PASS.
+Feature development is frozen. `tools/verify_rc.ps1` completed with
+`RC_VALIDATION_STATUS=PASS` on Windows x64 MSVC.
+
+- Executable: `dist/contest/BorrowedPixels.exe`
+- Executable bytes: `284160`
+- Executable SHA-256: `03d5feef3bb15c3f1433056909fbe3c6f50ec05b7df927e1d2a318dafd946551`
+- Extracted dist: `286204` bytes in exactly three whitelisted files
+- Dependencies: `KERNEL32.dll`, `USER32.dll`, `GDI32.dll`, `WINMM.dll`
+- Debug/Test/CTest/Contest/live-window/MAP/authority/dist: PASS
+- Independent final review: pending on the committed candidate
 
 Human-only debt:
 

@@ -1,10 +1,10 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
 - Latest integrated candidate SHA: `84b2bc1de6c34f77511987a91f56ee37c07dfc72`
-- Current controller state: `RC_VALIDATION_PENDING`
+- Current controller state: `RC_FINAL_REVIEW_PENDING`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: T14 RC
-- Last measured contest dist: `246,272B` at the T09 checkpoint; T10-T14 result is `NOT_RUN`
+- Contest dist: `286,204B` in three whitelisted files; internal and hard caps PASS
 
 | Ticket | State | Evidence |
 |---|---|---|
@@ -23,7 +23,7 @@
 | T11 | IMPLEMENTED_VALIDATION_DEFERRED | Synthesized audio and six-row options commit `35a3106b...` |
 | T12 | IMPLEMENTED_VALIDATION_DEFERRED | Frozen KO/EN copy, composed glyph path and credits commit `85903118...` |
 | T13 | IMPLEMENTED_VALIDATION_DEFERRED | Deterministic/reachability harness commit `e4469e79...`; subjective Gate 5 `HUMAN_REVIEW_DEFERRED` |
-| T14 | RC_VALIDATION_PENDING | Feature freeze, contest README/LICENSES, whitelist and final verifier prepared |
+| T14 | RC_FINAL_REVIEW_PENDING | Full Windows x64 validation PASS; EXE `284,160B`, SHA-256 `03d5feef...`; independent review pending |
 
 ## Gate status
 
@@ -34,6 +34,6 @@
 | Gate 2 | PASS | 19,683 combinations, atomic rollback, and 96B SaveV2 golden pass |
 | Gate 3/4 | HUMAN_REVIEW_DEFERRED | T07 playable package prepared; subjective PASS not claimed |
 | Gate 5 | HUMAN_REVIEW_DEFERRED | Automated harness prepared; no balance amendment and no intuitive tuning |
-| Gate 6 | RC_VALIDATION_PENDING | One clean complete final verification remains |
+| Gate 6 | MACHINE_PASS_HUMAN_DEBT | Local RC build/tests/live/dist/dependencies PASS; three-PC and subjective checks deferred |
 
 T03 was locally fast-forward integrated after explicit Human Director approval. Amendment commit `60d9e11204208f3fc43d348029167ac21caef61b` contains authority only. Subjective Gate 3/4 findings remain `HUMAN_REVIEW_DEFERRED` under the standing continuation decision and are not claimed PASS.

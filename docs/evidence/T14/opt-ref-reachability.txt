@@ -1,0 +1,6 @@
+SYMBOL=wWinMain REACHABLE=True
+SYMBOL=RenderPrecedentRuntime REACHABLE=True
+SYMBOL=RenderNarrativeRuntime REACHABLE=True
+SYMBOL=RenderOptionsRuntime REACHABLE=True
+SYMBOL=RenderAudioFrames REACHABLE=True
+SYMBOL=LocalizedText REACHABLE=True

@@ -1,0 +1,17 @@
+T14 FINAL COMMANDS
+
+1. powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_authority.ps1 -> EXIT 0
+2. cmake --preset windows-msvc -> EXIT 0
+3. cmake --build --preset test --clean-first -> EXIT 0
+4. build/windows-msvc/bin/Test/bp_test.exe -> EXIT 0
+5. ctest --preset all --output-on-failure -> EXIT 0
+6. cmake --build --preset debug --clean-first -> EXIT 0
+7. build/windows-msvc/bin/Debug/bp_debug.exe --smoke-test -> EXIT 0
+8. cmake --build --preset contest --clean-first with /MAP:docs/evidence/T14/rc-final.map -> EXIT 0
+9. powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_dist_contents.ps1 -Path dist/contest -> EXIT 0
+10. powershell -NoProfile -ExecutionPolicy Bypass -File tools/measure_dist.ps1 -Path dist/contest -InternalCap 1350000 -HardCap 1474560 -> EXIT 0
+11. dist/contest/BorrowedPixels.exe live-window launch, DPI-correct client capture, graceful close -> EXIT 0
+12. dumpbin /dependents dist/contest/BorrowedPixels.exe -> EXIT 0
+
+Orchestrator: powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_rc.ps1
+Result: RC_VALIDATION_STATUS=PASS

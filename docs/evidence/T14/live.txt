@@ -1,0 +1,10 @@
+LIVE_EXE_STATUS=PASS
+CAPTURE=docs/evidence/T14/contest-live.bmp
+CAPTURE_CLIENT_SIZE=1280x720
+CAPTURE_SOURCE_CANVAS=320x180
+CAPTURE_DPI=144
+TITLE_COPY=KO frozen copy visible
+GRACEFUL_WINDOW_CLOSE=PASS
+
+The live capture proves actual contest EXE presentation on this Windows host.
+Subjective Gate 3/4/5 interpretation remains HUMAN_REVIEW_DEFERRED.

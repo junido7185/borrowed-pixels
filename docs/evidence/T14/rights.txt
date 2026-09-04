@@ -1,0 +1,11 @@
+T14 RIGHTS / PROVENANCE
+
+External runtime assets: 0
+Third-party engine/runtime: 0
+Downloaded image/font/audio: 0
+Network/browser/runtime AI: 0
+Runtime graphics: project-native geometry, Latin bitmap and composed Hangul
+Runtime audio: project-native integer triangle/pulse/noise synthesis
+Contest notices: README.txt and LICENSES.txt present
+Repository records: docs/PROVENANCE.md and docs/RIGHTS_LOG.md
+RIGHTS_STATUS=PASS_FOR_LOCAL_RC

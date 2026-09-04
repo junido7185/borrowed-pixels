@@ -37,7 +37,7 @@ try {
     if (-not (Test-Path -LiteralPath $mapPath -PathType Leaf)) { throw 'Contest MAP was not produced.' }
     $mapText = Get-Content -Raw -LiteralPath $mapPath
     $reachable = @('wWinMain', 'RenderPrecedentRuntime', 'RenderNarrativeRuntime',
-        'RenderOptionsRuntime', 'RenderAudioFrames', 'RuntimeStrings')
+        'RenderOptionsRuntime', 'RenderAudioFrames', 'LocalizedText')
     $reachability = foreach ($symbol in $reachable) {
         $present = $mapText.Contains($symbol)
         "SYMBOL=$symbol REACHABLE=$present"
@@ -76,22 +76,28 @@ public static class BpRcCapture {
     [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
     [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
     [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hWnd, ref POINT point);
+    [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr hWnd);
 }
 '@
     }
-    $rect = New-Object BpRcCapture+RECT
-    $point = New-Object BpRcCapture+POINT
+    $rect = [BpRcCapture+RECT]::new()
+    $point = [BpRcCapture+POINT]::new()
     if (-not [BpRcCapture]::GetClientRect($process.MainWindowHandle, [ref]$rect) -or
         -not [BpRcCapture]::ClientToScreen($process.MainWindowHandle, [ref]$point)) {
         throw 'Unable to resolve contest client rectangle.'
     }
-    $width = $rect.Right - $rect.Left
-    $height = $rect.Bottom - $rect.Top
+    $dpi = [BpRcCapture]::GetDpiForWindow($process.MainWindowHandle)
+    if ($dpi -eq 0) { $dpi = 96 }
+    [int]$captureX = [Math]::Round($point.X * $dpi / 96.0)
+    [int]$captureY = [Math]::Round($point.Y * $dpi / 96.0)
+    [int]$width = [Math]::Round(($rect.Right - $rect.Left) * $dpi / 96.0)
+    [int]$height = [Math]::Round(($rect.Bottom - $rect.Top) * $dpi / 96.0)
     if ($width -le 0 -or $height -le 0) { throw 'Contest client rectangle is empty.' }
+    Write-Output "CAPTURE_ORIGIN=$captureX,$captureY SIZE=$width,$height DPI=$dpi"
     $bitmap = [System.Drawing.Bitmap]::new($width, $height)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     try {
-        $graphics.CopyFromScreen($point.X, $point.Y, 0, 0, $bitmap.Size)
+        $graphics.CopyFromScreen($captureX, $captureY, 0, 0, $bitmap.Size)
         $bitmap.Save((Join-Path $evidence 'contest-live.bmp'), [System.Drawing.Imaging.ImageFormat]::Bmp)
     } finally {
         $graphics.Dispose()

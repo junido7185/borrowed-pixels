@@ -103,6 +103,7 @@ void TestPredicatesAndEndings() noexcept {
 
 void TestEnoughTimingAndRoutes() noexcept {
     bp::ClaimLedger claims=bp::MakeInitialClaimLedger();
+    claims.mass[Owner(bp::ClaimOwner::System)]-=144;
     claims.mass[Owner(bp::ClaimOwner::Player)]=144;
     bp::NarrativeState narrative{};
     bp::NarrativeRuntime enough{};
@@ -132,7 +133,9 @@ void TestEnoughTimingAndRoutes() noexcept {
 void TestSaveHelpersObserverAndRender() noexcept {
     const bp::ClaimLedger claims=bp::MakeInitialClaimLedger();
     const bp::NarrativeState narrative=CompleteNarrative();
-    const bp::SaveData save=bp::MakeSaveData(claims,narrative,0x1fu,0x3ffu,
+    constexpr std::uint32_t validAllOptions=10u|(1u<<4u)|(1u<<5u)|(1u<<6u)
+        |(2u<<7u)|(1u<<9u);
+    const bp::SaveData save=bp::MakeSaveData(claims,narrative,0x1fu,validAllOptions,
         0x12345678u,4567u,1u);
     Check((save.flags&(1u<<4u))==0&&save.claimLedger.mass[0]==claims.mass[0]
         &&save.choiceBits==narrative.choiceBits,"MakeSaveData strips preview and copies frozen fields");
