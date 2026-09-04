@@ -17,6 +17,9 @@ void Check(bool condition,const char* name) noexcept {
     if (!condition) { ++gFailures; std::printf("T11_FAIL\t%s\n",name); }
 }
 
+std::uint8_t ActiveVoices(const bp::AudioState& state) noexcept;
+bp::AudioVoice FirstActive(const bp::AudioState& state) noexcept;
+
 bp::InputFrame Press(bp::PlatformAction action) noexcept {
     bp::InputFrame input{};
     input.focused=1;
@@ -90,6 +93,27 @@ void TestSynthAndSilentFallback() noexcept {
     bool audible=false;
     for (std::int16_t sample:a) audible=audible||sample!=0;
     Check(audible,"available synthesized mixer produces nonzero samples");
+
+    bp::AudioState saturated{};
+    bp::InitializeAudio(saturated,true);
+    for (std::uint8_t index=0;index<bp::kAudioVoiceCount;++index)
+        Check(bp::QueueAudioEvent(saturated,bp::AudioEvent::AmbientClick),
+            "voice saturation fixture fills one low-priority slot");
+    Check(bp::QueueAudioEvent(saturated,bp::AudioEvent::CoreHit),
+        "priority8 CORE_HIT is accepted by a saturated mixer");
+    std::uint8_t coreVoices=0;
+    bool coreNoise=false;
+    bool coreTriangle=false;
+    for (const bp::AudioVoice& voice:saturated.voices) {
+        if (voice.active!=0&&voice.priority==8u) {
+            ++coreVoices;
+            coreNoise=coreNoise||voice.oscillator==bp::Oscillator::Noise;
+            coreTriangle=coreTriangle||voice.oscillator==bp::Oscillator::Triangle;
+        }
+    }
+    Check(ActiveVoices(saturated)==bp::kAudioVoiceCount&&coreVoices==2
+        &&coreNoise&&coreTriangle,
+        "priority8 CORE_HIT replaces two lowest voices without dropping either layer");
 
     bp::AudioState silent{};
     bp::InitializeAudio(silent,false);
@@ -215,6 +239,60 @@ void TestEndingPoliciesAndRuntimeRouting() noexcept {
     bp::QueueRuntimeAudioTransitions(accumulated,before,after,false);
     Check(ActiveVoices(accumulated)==1&&accumulated.reclaimAccumulator==0,
         "fourth one-TILE reclaim tick queues RECLAIM_4");
+
+    bp::AudioState menuMove{};
+    bp::InitializeAudio(menuMove,true);
+    before=bp::AudioRuntimeSnapshot{};
+    before.valid=1;
+    before.menuKind=1;
+    before.menuFocus=0;
+    after=before;
+    after.menuFocus=1;
+    bp::QueueRuntimeAudioTransitions(menuMove,before,after,false);
+    Check(ActiveVoices(menuMove)==1&&menuMove.voices[0].bus==bp::AudioBus::Menu
+        &&menuMove.voices[0].priority==2,
+        "actual focus change in one menu namespace queues MENU_MOVE");
+    after.menuKind=2;
+    bp::QueueRuntimeAudioTransitions(menuMove,before,after,false);
+    Check(ActiveVoices(menuMove)==1,
+        "opening another menu namespace does not invent a navigation sound");
+
+    bp::AudioState distribution{};
+    bp::InitializeAudio(distribution,true);
+    before=bp::AudioRuntimeSnapshot{};
+    before.valid=before.playing=1;
+    before.route=3;
+    before.encounter=bp::AudioEncounter::Index;
+    before.playerShell=96;
+    before.opponentShell=48;
+    before.neutralMass=24;
+    bp::QueueRuntimeAudioTransitions(distribution,before,before,false);
+    Check(distribution.playerLayerGainQ15==32767
+        &&distribution.opponentLayerGainQ15==16383
+        &&distribution.neutralLayerGainQ15==8191,
+        "PLAYER opponent and Neutral mass ratios set three exact normalized layers");
+    distribution.step=0;
+    distribution.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    bp::RenderAudioFrames(distribution,samples,1);
+    bool playerLayer=false;
+    bool neutralLayer=false;
+    for (const bp::AudioVoice& voice:distribution.voices) {
+        playerLayer=playerLayer||(voice.active!=0&&voice.bus==bp::AudioBus::Music
+            &&voice.oscillator==bp::Oscillator::Triangle&&voice.velocityQ15==32767);
+        neutralLayer=neutralLayer||(voice.active!=0&&voice.bus==bp::AudioBus::Music
+            &&voice.oscillator==bp::Oscillator::Noise&&voice.velocityQ15==8191);
+    }
+    Check(playerLayer&&neutralLayer,
+        "step scheduler applies PLAYER and Neutral ratios to base rhythm layers");
+    bp::AudioState opponentLayerState{};
+    bp::InitializeAudio(opponentLayerState,true);
+    bp::QueueRuntimeAudioTransitions(opponentLayerState,before,before,false);
+    opponentLayerState.step=2;
+    opponentLayerState.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    bp::RenderAudioFrames(opponentLayerState,samples,1);
+    Check(ActiveVoices(opponentLayerState)==1
+        &&FirstActive(opponentLayerState).velocityQ15==16383,
+        "step scheduler applies opponent ratio to the counter layer");
 
     bp::AudioState settlement{};
     bp::InitializeAudio(settlement,true);
@@ -347,8 +425,8 @@ void TestEncounterModifiers() noexcept {
                     context.contextB=distribution;
                     context.contextC=governance;
                     context.contextD=memory;
-                    context.contextE=2;
-                    context.contextF=2;
+                    context.contextE=0;
+                    context.contextF=1;
                     context.contextG=governance==2u?3u:0u;
                     context.echoMotif[0]=0;
                     context.echoMotif[1]=4;
@@ -362,6 +440,35 @@ void TestEncounterModifiers() noexcept {
                         &&policy.contextB==distribution&&policy.contextC==governance
                         &&policy.contextD==memory,
                         "PRECEDENT audio context covers one of 81 policy profiles");
+                    const bp::Oscillator expectedOscillator=identity==1u
+                        ?bp::Oscillator::Triangle:bp::Oscillator::Pulse25;
+                    const std::uint32_t expectedIncrement=distribution==2u
+                        ?31248413u:19685267u;
+                    const std::uint8_t expectedVoices=governance==2u?3u:2u;
+                    Check(ActiveVoices(policy)==expectedVoices
+                        &&policy.voices[0].oscillator==expectedOscillator
+                        &&policy.voices[0].startIncrement==expectedIncrement,
+                        "PRECEDENT profile applies exact identity distribution and governance result");
+                    const std::uint16_t expectedLeft=distribution==1u?32767u:23197u;
+                    const std::uint16_t expectedRight=distribution==2u?32767u:23197u;
+                    Check(policy.voices[0].velocityQ15==expectedLeft
+                        &&policy.voices[1].velocityQ15==expectedRight,
+                        "PRECEDENT profile applies exact EQUALITY NEED or UTILITY channel gain");
+
+                    bp::AudioState memoryLayer{};
+                    bp::InitializeAudio(memoryLayer,true);
+                    bp::QueueRuntimeAudioTransitions(memoryLayer,context,context,false);
+                    memoryLayer.step=1;
+                    memoryLayer.stepAccumulator=
+                        bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+                    bp::RenderAudioFrames(memoryLayer,sample,1);
+                    const std::uint8_t expectedMemoryVoices=memory==2u?0u:1u;
+                    const std::uint32_t expectedMemoryIncrement=memory==1u
+                        ?3284585u:6569170u;
+                    Check(ActiveVoices(memoryLayer)==expectedMemoryVoices
+                        &&(expectedMemoryVoices==0u
+                            ||FirstActive(memoryLayer).startIncrement==expectedMemoryIncrement),
+                        "PRECEDENT profile applies exact FULL SUMMARY or NONE memory layer");
                     ++profiles;
                 }
     Check(profiles==81,"PRECEDENT audio checks all 81 policy profiles");

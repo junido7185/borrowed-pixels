@@ -945,6 +945,35 @@ bp::GameState* CurrentMovementState(PlatformState& state) noexcept {
 bp::AudioRuntimeSnapshot CaptureAudioRuntime(PlatformState& state) noexcept {
     bp::AudioRuntimeSnapshot snapshot{};
     snapshot.valid=1;
+    if (state.optionsActive) {
+        snapshot.menuKind=1;
+        snapshot.menuFocus=static_cast<std::uint8_t>(state.optionsRuntime.focused);
+    } else if (state.pauseMenuActive) {
+        snapshot.menuKind=2;
+        snapshot.menuFocus=static_cast<std::uint8_t>(state.pauseRuntime.focused);
+    } else if (state.narrativeActive
+        &&state.narrativeFlow.scene==bp::NarrativeScene::FinalAllocation) {
+        snapshot.menuKind=3;
+        snapshot.menuFocus=static_cast<std::uint8_t>(state.narrativeFlow.focused);
+    } else if (!state.act2Active
+        &&(state.act1.scene==bp::Act1Scene::Settlement
+            ||state.act1.scene==bp::Act1Scene::Preview
+            ||state.act1.scene==bp::Act1Scene::ConfirmHold)) {
+        snapshot.menuKind=4;
+        snapshot.menuFocus=static_cast<std::uint8_t>(state.act1.focusedChoice);
+    } else if (state.act2Active&&!state.act3Active
+        &&(state.act2.scene==bp::Act2Scene::Settlement
+            ||state.act2.scene==bp::Act2Scene::Preview
+            ||state.act2.scene==bp::Act2Scene::ConfirmHold)) {
+        snapshot.menuKind=5;
+        snapshot.menuFocus=static_cast<std::uint8_t>(state.act2.focusedChoice);
+    } else if (state.act3Active&&!state.precedentActive
+        &&(state.act3.scene==bp::Act3Scene::Settlement
+            ||state.act3.scene==bp::Act3Scene::Preview
+            ||state.act3.scene==bp::Act3Scene::ConfirmHold)) {
+        snapshot.menuKind=6;
+        snapshot.menuFocus=static_cast<std::uint8_t>(state.act3.focusedChoice);
+    }
     const bp::GameState* movement=nullptr;
     const bp::CombatState* combat=nullptr;
     const bp::HudLoanSystem* hud=nullptr;
@@ -1030,6 +1059,8 @@ bp::AudioRuntimeSnapshot CaptureAudioRuntime(PlatformState& state) noexcept {
     snapshot.coverMass=movement->physicalLedger.mass[cover];
     snapshot.chargeMass=movement->physicalLedger.mass[charge];
     snapshot.projectileMass=movement->physicalLedger.mass[projectile];
+    snapshot.neutralMass=movement->physicalLedger.mass[
+        static_cast<std::uint8_t>(bp::PhysicalAccount::Neutral)];
     if (snapshot.encounter==bp::AudioEncounter::Precedent) {
         snapshot.contextE=snapshot.playerShell<snapshot.opponentShell?0u:
             (snapshot.opponentShell<snapshot.playerShell?1u:2u);

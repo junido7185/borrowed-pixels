@@ -1,10 +1,10 @@
 # BORROWED PIXELS v2.1 + approved T03 amendment status
 
 - Latest integrated candidate SHA: `84b2bc1de6c34f77511987a91f56ee37c07dfc72`
-- Current controller state: `RC_REPAIR_FINAL_REVIEW_PENDING`
+- Current controller state: `RC_INTEGRATION_READY`
 - Authority state: v2.1 manifest verification `PASS`; T03 amendment SHA verification `PASS`
 - Current ticket: T14 RC
-- Contest dist: `291,734B` in three whitelisted files; internal and hard caps PASS
+- Contest dist: `292,758B` in three whitelisted files; internal and hard caps PASS
 
 | Ticket | State | Evidence |
 |---|---|---|
@@ -18,12 +18,12 @@
 | T07 | LOCALLY_INTEGRATED | Candidate `c04cab55...`; Human Director byte-budget reapproval; post-integration full regression PASS |
 | T08A | LOCALLY_INTEGRATED | Candidate `6febd613...`; post-integration full regression PASS; final review P0/P1/P2=0 |
 | T08B | LOCALLY_INTEGRATED | Candidate `84b2bc1d...`; P0/P1/P2=0; post-integration evidence reused on identical executable tree |
-| T09 | IMPLEMENTED_FINAL_REVIEW_DEFERRED | Candidate lineage `d12eafee...`; prior automated verification PASS, repaired executable awaits consolidated final review |
-| T10 | IMPLEMENTED_VALIDATION_DEFERRED | Progression, five endings, SaveV2 routing and Audit Trace commit `68c23b71...` |
-| T11 | FINAL_VALIDATION_PASS | Synthesized audio, accumulated/core snapshot SFX, all encounter and 81 PRECEDENT modifier profiles, four ending policies, exact mix buses/pause ramp and six-row options; checks=205 |
-| T12 | IMPLEMENTED_VALIDATION_DEFERRED | Frozen KO/EN copy, composed glyph path and credits commit `85903118...` |
+| T09 | FINAL_VALIDATION_PASS | 81 profiles, progression reachability and softlock=0; checks=117838 |
+| T10 | FINAL_VALIDATION_PASS | Progression, five endings, SaveV2 routing and Audit Trace; checks=58784 |
+| T11 | FINAL_VALIDATION_PASS | Synthesized audio, three live mass-ratio layers, menu routing, priority saturation, all encounter and 81 PRECEDENT behavior profiles, four ending policies, exact mix buses/pause ramp and six-row options; checks=463 |
+| T12 | FINAL_VALIDATION_PASS | Frozen KO/EN copy, composed glyph path, credits and external assets=0; checks=849 |
 | T13 | FINAL_VALIDATION_PASS | Shared-core deterministic and narrative-ending harness; scope labels corrected; subjective Gate 5 `HUMAN_REVIEW_DEFERRED` |
-| T14 | RC_REPAIR_FINAL_REVIEW_PENDING | Full clean Windows x64 validation PASS; EXE `289,280B`, SHA-256 `bcd5b1ba...`; repaired executable awaits one final review |
+| T14 | RC_INTEGRATION_READY | Full clean Windows x64 validation PASS; EXE `290,304B`, SHA-256 `cf5b2380...`; open P0/P1=0 |
 
 ## Gate status
 

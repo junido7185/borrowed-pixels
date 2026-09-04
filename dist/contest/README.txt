@@ -34,4 +34,4 @@ Supported OS: Windows 10/11 x64. An unsigned-app warning may appear.
 Save: %LOCALAPPDATA%\BorrowedPixels\save.bin
 
 Exact extracted regular-file total / 정확한 압축 해제 파일 합계:
-EXTRACTED_TOTAL_BYTES=291734
+EXTRACTED_TOTAL_BYTES=292758

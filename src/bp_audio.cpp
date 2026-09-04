@@ -74,6 +74,30 @@ std::uint32_t MillisecondsToFrames(std::uint16_t milliseconds) noexcept {
     return static_cast<std::uint32_t>(milliseconds)*kAudioSampleRate/1000u;
 }
 
+std::uint16_t MultiplyGain(std::uint16_t first,std::uint16_t second) noexcept {
+    return static_cast<std::uint16_t>(
+        static_cast<std::uint32_t>(first)*second/kFullGainQ15);
+}
+
+void UpdateDistributionLayers(AudioState& state,
+    const AudioRuntimeSnapshot& snapshot) noexcept {
+    std::uint16_t maximum=snapshot.playerShell;
+    if (snapshot.opponentShell>maximum) maximum=snapshot.opponentShell;
+    if (snapshot.neutralMass>maximum) maximum=snapshot.neutralMass;
+    if (maximum==0) {
+        state.playerLayerGainQ15=kFullGainQ15;
+        state.opponentLayerGainQ15=kFullGainQ15;
+        state.neutralLayerGainQ15=kFullGainQ15;
+        return;
+    }
+    state.playerLayerGainQ15=static_cast<std::uint16_t>(
+        static_cast<std::uint32_t>(snapshot.playerShell)*kFullGainQ15/maximum);
+    state.opponentLayerGainQ15=static_cast<std::uint16_t>(
+        static_cast<std::uint32_t>(snapshot.opponentShell)*kFullGainQ15/maximum);
+    state.neutralLayerGainQ15=static_cast<std::uint16_t>(
+        static_cast<std::uint32_t>(snapshot.neutralMass)*kFullGainQ15/maximum);
+}
+
 std::int32_t ClampSample(std::int32_t value) noexcept {
     return value<-32768?-32768:(value>32767?32767:value);
 }
@@ -133,6 +157,7 @@ void QueueTone(AudioState& state,Oscillator oscillator,std::uint32_t startIncrem
     std::int16_t panQ15=0,AudioBus bus=AudioBus::Music,
     std::uint16_t velocityQ15=kFullGainQ15,std::uint32_t delayFrames=0,
     std::uint32_t attackFrames=48,std::uint32_t releaseFrames=0) noexcept {
+    if (velocityQ15==0) return;
     const std::uint8_t index=ReplacementVoice(state,priority);
     if (index>=kAudioVoiceCount) return;
     AudioVoice& voice=state.voices[index];
@@ -175,6 +200,7 @@ Oscillator PrecedentOscillator(const AudioState& state,std::uint8_t step) noexce
 
 void QueueMidi(AudioState& state,Oscillator oscillator,std::uint8_t note,
     std::uint32_t frames,std::int16_t pan=0,std::uint16_t velocity=kFullGainQ15) noexcept {
+    if (velocity==0) return;
     QueueTone(state,oscillator,MidiIncrement(note),MidiIncrement(note),frames,1,
         pan,AudioBus::Music,velocity);
 }
@@ -185,17 +211,24 @@ void QueuePrecedentCounter(AudioState& state,std::uint8_t note) noexcept {
         const std::uint8_t majority=state.contextG==3u?0u:
             (state.contextG==5u?1u:2u); // TAP, CLAIM, RECLAIM
         pans[majority]=0;
+        const std::uint16_t layerGains[3]={state.playerLayerGainQ15,
+            state.opponentLayerGainQ15,state.neutralLayerGainQ15};
+        std::uint16_t policyGains[3]={23197,23197,23197};
+        const std::uint8_t favored=state.contextB==1u?state.contextE:
+            (state.contextB==2u?state.contextF:2u);
+        if (favored<2u) policyGains[favored]=kFullGainQ15;
         for (std::uint8_t channel=0;channel<3;++channel)
             QueueMidi(state,PrecedentOscillator(state,state.step),note,
-                kAudioSampleRate/14u,pans[channel],23197);
+                kAudioSampleRate/14u,pans[channel],
+                MultiplyGain(policyGains[channel],layerGains[channel]));
         return;
     }
-    std::uint16_t left=23197;
-    std::uint16_t right=23197;
+    std::uint16_t left=MultiplyGain(23197,state.playerLayerGainQ15);
+    std::uint16_t right=MultiplyGain(23197,state.opponentLayerGainQ15);
     const std::uint8_t favored=state.contextB==1u?state.contextE:
         (state.contextB==2u?state.contextF:2u);
-    if (favored==0u) left=kFullGainQ15;
-    else if (favored==1u) right=kFullGainQ15;
+    if (favored==0u) left=MultiplyGain(kFullGainQ15,state.playerLayerGainQ15);
+    else if (favored==1u) right=MultiplyGain(kFullGainQ15,state.opponentLayerGainQ15);
     QueueMidi(state,PrecedentOscillator(state,state.step),note,
         kAudioSampleRate/14u,-18022,left);
     QueueMidi(state,PrecedentOscillator(state,state.step),note,
@@ -205,13 +238,15 @@ void QueuePrecedentCounter(AudioState& state,std::uint8_t note) noexcept {
 void QueuePrecedentMemory(AudioState& state,std::uint8_t step) noexcept {
     if (state.contextD==2u||!(step==1u||step==5u||step==9u)) return;
     if (state.contextD==1u) {
-        QueueMidi(state,Oscillator::Triangle,26,kAudioSampleRate/20u);
+        QueueMidi(state,Oscillator::Triangle,26,kAudioSampleRate/20u,0,
+            state.neutralLayerGainQ15);
         return;
     }
     constexpr std::uint8_t motifNotes[10]={38,33,36,31,38,33,36,31,38,33};
     const std::uint8_t index=step==1u?0u:(step==5u?1u:2u);
     const std::uint8_t motif=state.echoMotif[index]<10u?state.echoMotif[index]:0u;
-    QueueMidi(state,PrecedentOscillator(state,step),motifNotes[motif],kAudioSampleRate/16u);
+    QueueMidi(state,PrecedentOscillator(state,step),motifNotes[motif],
+        kAudioSampleRate/16u,0,state.neutralLayerGainQ15);
 }
 
 bool CurrentMechanical(const AudioState& state,std::uint8_t step) noexcept {
@@ -263,12 +298,12 @@ void ScheduleStep(AudioState& state) noexcept {
     case AudioEncounter::Pair:
         if (state.pairCounterPendingNote!=0xffu) {
             QueueMidi(state,Oscillator::Pulse25,state.pairCounterPendingNote,
-                kAudioSampleRate/14u,18022);
+                kAudioSampleRate/14u,18022,state.opponentLayerGainQ15);
             state.pairCounterPendingNote=0xffu;
         }
         if (counter>=0) {
             QueueMidi(state,Oscillator::Pulse25,static_cast<std::uint8_t>(counter),
-                kAudioSampleRate/14u,-18022);
+                kAudioSampleRate/14u,-18022,state.opponentLayerGainQ15);
             state.pairCounterPendingNote=static_cast<std::uint8_t>(counter);
             counter=-1;
         }
@@ -283,7 +318,8 @@ void ScheduleStep(AudioState& state) noexcept {
         const std::uint8_t retained=state.contextA>5u?5u:state.contextA;
         for (std::uint8_t index=0;index<retained;++index)
             if (clicks[index]==step) QueueTone(state,Oscillator::Noise,
-                HertzIncrement(1800),HertzIncrement(900),kAudioSampleRate/100u,1);
+                HertzIncrement(1800),HertzIncrement(900),kAudioSampleRate/100u,1,
+                0,AudioBus::Music,state.neutralLayerGainQ15);
         break;
     }
     case AudioEncounter::Adapter:
@@ -319,13 +355,14 @@ void ScheduleStep(AudioState& state) noexcept {
     default: break;
     }
 
-    if (bass>=0) QueueMidi(state,bassOscillator,static_cast<std::uint8_t>(bass),bassFrames);
+    if (bass>=0) QueueMidi(state,bassOscillator,static_cast<std::uint8_t>(bass),
+        bassFrames,0,state.playerLayerGainQ15);
     if (counter>=0&&state.ending!=AudioEnding::Enough)
         QueueMidi(state,counterOscillator,static_cast<std::uint8_t>(counter),
-            kAudioSampleRate/14u);
+            kAudioSampleRate/14u,0,state.opponentLayerGainQ15);
     if (mechanical&&state.ending==AudioEnding::None)
         QueueTone(state,Oscillator::Noise,HertzIncrement(1800),HertzIncrement(900),
-            kAudioSampleRate/100u,1);
+            kAudioSampleRate/100u,1,0,AudioBus::Music,state.neutralLayerGainQ15);
     state.step=static_cast<std::uint8_t>((step+1u)&15u);
 }
 
@@ -336,6 +373,9 @@ void InitializeAudio(AudioState& state,bool available) noexcept {
     state.noiseState=0x42505831u;
     state.musicPauseGainQ15=kFullGainQ15;
     state.musicPauseRampStartQ15=kFullGainQ15;
+    state.playerLayerGainQ15=kFullGainQ15;
+    state.opponentLayerGainQ15=kFullGainQ15;
+    state.neutralLayerGainQ15=kFullGainQ15;
     state.pairCounterPendingNote=0xffu;
     state.masterVolume=10;
     state.focused=1;
@@ -433,6 +473,7 @@ void QueueRuntimeAudioTransitions(AudioState& state,
     state.contextE=after.contextE;
     state.contextF=after.contextF;
     state.contextG=after.contextG;
+    UpdateDistributionLayers(state,after);
     for (std::uint8_t index=0;index<3;++index) state.echoMotif[index]=after.echoMotif[index];
     if (after.settlement!=0&&before.settlement==0)
         (void)QueueAudioEvent(state,AudioEvent::Settlement);
@@ -440,6 +481,9 @@ void QueueRuntimeAudioTransitions(AudioState& state,
         (void)QueueAudioEvent(state,AudioEvent::MenuConfirm);
     if (after.duePulse!=0)
         (void)QueueAudioEvent(state,AudioEvent::HudDue);
+    if (before.valid!=0&&before.menuKind!=0&&before.menuKind==after.menuKind
+        &&before.menuFocus!=after.menuFocus)
+        (void)QueueAudioEvent(state,AudioEvent::MenuMove);
     if (before.valid==0||before.route!=after.route||before.playing==0) return;
 
     state.reclaimAccumulator=static_cast<std::uint16_t>(

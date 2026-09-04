@@ -1,20 +1,21 @@
 # T14 RC output
 
-State: `RC_REPAIR_FINAL_REVIEW_PENDING`
+State: `RC_INTEGRATION_READY`
 
 Feature development is frozen. `tools/verify_rc.ps1` completed with
 `RC_VALIDATION_STATUS=PASS` on Windows x64 MSVC.
 
 - Executable: `dist/contest/BorrowedPixels.exe`
-- Executable bytes: `289280`
-- Executable SHA-256: `bcd5b1ba8beb509ab1814a786e350fcdadfbf10b9ffdba3c019f7fb6292150a0`
-- Extracted dist: `291734` bytes in exactly three whitelisted files
+- Executable bytes: `290304`
+- Executable SHA-256: `cf5b2380e13a12c2f970b311503389773c361bd91f4952fd28c79cbed1807699`
+- Extracted dist: `292758` bytes in exactly three whitelisted files
 - Dependencies: `KERNEL32.dll`, `USER32.dll`, `GDI32.dll`, `WINMM.dll`
 - Debug/Test/CTest/Contest/live-window/MAP/authority/dist: PASS
 - Review of `10f8ec6...`: P0=0/P1=3/P2=1; all findings repaired and not integrated
 - Review of `15368d1...`: P0=0/P1=4/P2=0; all findings repaired and not integrated
 - Review of `b0c4548...`: P0=0/P1=2/P2=1; all findings repaired and not integrated
-- Independent final review: pending on the repaired committed candidate
+- Review of `b143f8f...`: P0=0/P1=2/P2=2; both P1 and the T11 P2 were repaired
+- Final Windows validation: PASS; open P0/P1=0, remaining P2 is the historical T05 test-only fault-injection debt
 
 Human-only debt:
 

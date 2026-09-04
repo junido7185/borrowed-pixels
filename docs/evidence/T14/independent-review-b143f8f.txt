@@ -1,0 +1,16 @@
+REVIEWED_SHA=b143f8f30c862702ef43d408e2f9a24573e03487
+BASE_SHA=8c322e0d427335b582ed8fb966b016201384da8e
+P0=0
+P1=2
+P2=2
+INTEGRATION_ELIGIBLE=NO_AT_REVIEW_TIME
+
+P1_MASS_RATIO_MUSIC_LAYERS=missing neutral ratio and live PLAYER/opponent/Neutral layer changes
+P1_MENU_MOVE_ROUTING=focus movement was not routed for options/pause/narrative menus
+P2_T11_COVERAGE=81 profiles and priority8 saturation needed behavioral assertions
+P2_T05_HISTORICAL=post-copy ProcessImpact fault injection remains test-only debt
+
+CORE_AUDIO_OBSERVER=PASS
+AUTHORITY_HASHES=PASS
+RECORDED_ARTIFACT_AT_REVIEW=289280_bcd5b1ba8beb509ab1814a786e350fcdadfbf10b9ffdba3c019f7fb6292150a0
+DISPOSITION=ALL_P1_AND_T11_P2_REPAIRED_AFTER_REVIEW; T05_TEST_ONLY_P2_RETAINED

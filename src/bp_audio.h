@@ -50,6 +50,9 @@ struct AudioState {
     std::uint16_t musicPauseGainQ15;
     std::uint16_t musicPauseRampStartQ15;
     std::uint16_t musicPauseRampFrames;
+    std::uint16_t playerLayerGainQ15;
+    std::uint16_t opponentLayerGainQ15;
+    std::uint16_t neutralLayerGainQ15;
     std::uint8_t step;
     std::uint8_t reclaimCycle;
     std::uint8_t pairCounterPendingNote;
@@ -82,6 +85,7 @@ struct AudioRuntimeSnapshot {
     std::uint16_t coverMass;
     std::uint16_t chargeMass;
     std::uint16_t projectileMass;
+    std::uint16_t neutralMass;
     std::uint16_t playerReclaimedMass;
     std::uint16_t transitMass[kAudioChannels + 1u];
     std::uint8_t hudState[kAudioChannels + 1u];
@@ -95,6 +99,9 @@ struct AudioRuntimeSnapshot {
     std::uint8_t coreHitSide;
     std::uint8_t coreHitValid;
     std::uint8_t duePulse;
+    // 0=no navigable menu, otherwise a stable menu namespace and focus row.
+    std::uint8_t menuKind;
+    std::uint8_t menuFocus;
     AudioEncounter encounter;
     std::uint8_t contextA;
     std::uint8_t contextB;
