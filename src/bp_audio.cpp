@@ -93,7 +93,7 @@ std::int32_t OscillatorSample(AudioVoice& voice) noexcept {
         return triangle;
     }
     case Oscillator::Pulse25: return phase<0x40000000u?24576:-8192;
-    case Oscillator::Noise: return static_cast<std::int16_t>(XorShift(voice.noiseState)>>16u);
+    case Oscillator::Noise: return static_cast<std::int16_t>(voice.noiseState>>16u);
     }
     return 0;
 }
@@ -181,8 +181,13 @@ void QueueMidi(AudioState& state,Oscillator oscillator,std::uint8_t note,
 
 void QueuePrecedentCounter(AudioState& state,std::uint8_t note) noexcept {
     if (state.contextC==2u) {
-        QueueMidi(state,PrecedentOscillator(state,state.step),note,
-            kAudioSampleRate/14u,0);
+        std::int16_t pans[3]={-18022,18022,0}; // PLAYER, OPPONENT, COMMON
+        const std::uint8_t majority=state.contextG==3u?0u:
+            (state.contextG==5u?1u:2u); // TAP, CLAIM, RECLAIM
+        pans[majority]=0;
+        for (std::uint8_t channel=0;channel<3;++channel)
+            QueueMidi(state,PrecedentOscillator(state,state.step),note,
+                kAudioSampleRate/14u,pans[channel],23197);
         return;
     }
     std::uint16_t left=23197;
@@ -239,8 +244,10 @@ void ScheduleStep(AudioState& state) noexcept {
     }
 
     std::uint8_t patternStep=step;
-    if (state.encounter==AudioEncounter::Precedent&&state.contextC==1u)
-        patternStep=static_cast<std::uint8_t>((step+((state.contextG&3u)*4u))&15u);
+    if (state.encounter==AudioEncounter::Precedent&&state.contextC==1u) {
+        if ((step&3u)==0u) state.judgmentRow=static_cast<std::uint8_t>(state.contextG&3u);
+        patternStep=static_cast<std::uint8_t>((step+(state.judgmentRow*4u))&15u);
+    }
     Oscillator bassOscillator=Oscillator::Triangle;
     Oscillator counterOscillator=Oscillator::Pulse25;
     std::int8_t bass=kBassPattern[patternStep];
@@ -348,8 +355,11 @@ void SetAudioMixState(AudioState& state,std::uint8_t masterVolume,bool paused,
     if (ending==AudioEnding::One&&state.ending!=AudioEnding::One)
         for (AudioVoice& voice:state.voices)
             if (voice.active!=0) {
-                voice.durationFrames=voice.ageFrames+MillisecondsToFrames(180);
-                voice.releaseFrames=MillisecondsToFrames(180);
+                if (voice.delayFrames!=0) voice.active=0;
+                else {
+                    voice.durationFrames=voice.ageFrames+MillisecondsToFrames(180);
+                    voice.releaseFrames=MillisecondsToFrames(180);
+                }
             }
     state.ending=ending;
 }
@@ -451,7 +461,10 @@ void QueueRuntimeAudioTransitions(AudioState& state,
         (void)QueueAudioEvent(state,AudioEvent::ShellHit);
     if (before.opponentShell>40u&&after.opponentShell<=40u)
         (void)QueueAudioEvent(state,AudioEvent::CoreExposed);
-    if (after.playerCoreHit!=0||after.opponentCoreHit!=0)
+    const bool newCoreSnapshot=after.coreHitValid!=0
+        &&(before.coreHitValid==0||after.coreHitTick!=before.coreHitTick
+            ||after.coreHitSide!=before.coreHitSide);
+    if (after.playerCoreHit!=0||after.opponentCoreHit!=0||newCoreSnapshot)
         (void)QueueAudioEvent(state,AudioEvent::CoreHit);
     if (after.chargeMass<before.chargeMass&&after.projectileMass<=before.projectileMass)
         (void)QueueAudioEvent(state,AudioEvent::ChargeIntercept);
@@ -519,7 +532,10 @@ void RenderAudioFrames(AudioState& state,std::int16_t* interleaved,
             const std::int32_t rightGain=32767+voice.panQ15;
             left+=static_cast<std::int32_t>(static_cast<std::int64_t>(enveloped)*leftGain/65534);
             right+=static_cast<std::int32_t>(static_cast<std::int64_t>(enveloped)*rightGain/65534);
+            const std::uint32_t previousPhase=voice.phase;
             voice.phase+=increment;
+            if (voice.oscillator==Oscillator::Noise&&voice.phase<previousPhase)
+                (void)XorShift(voice.noiseState);
             ++voice.ageFrames;
         }
         std::uint32_t gain=static_cast<std::uint32_t>(state.masterVolume)*state.masterVolume*32767u/100u;

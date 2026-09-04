@@ -1042,6 +1042,9 @@ bp::AudioRuntimeSnapshot CaptureAudioRuntime(PlatformState& state) noexcept {
     }
     snapshot.playerCoreHit=combat->actors[0].coreHit;
     snapshot.opponentCoreHit=combat->actors[1].coreHit;
+    snapshot.coreHitTick=combat->settlement.tick;
+    snapshot.coreHitSide=static_cast<std::uint8_t>(combat->settlement.hitSide);
+    snapshot.coreHitValid=combat->settlement.valid;
     for (std::uint8_t module=0;module<bp::kHudModuleCount;++module) {
         snapshot.transitMass[module]=hud->modules[module].transitMass;
         snapshot.hudState[module]=static_cast<std::uint8_t>(hud->modules[module].state);

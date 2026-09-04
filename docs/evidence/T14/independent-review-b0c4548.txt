@@ -1,0 +1,9 @@
+INDEPENDENT_REVIEW_SHA=b0c45480e8e2eadba1f787f6ba330b3d6cc3a4f6
+P0=0
+P1=2
+P2=1
+RESULT=REPAIR_REQUIRED
+P1_1=PATCH/PAIR cleared actor core flags before the platform snapshot could emit CORE_HIT.
+P1_2=PRECEDENT COMMONS centered every counter instead of only the actual vote-majority channel.
+P2_1=The new T11 test did not cover all 81 PRECEDENT audio profiles.
+DISPOSITION=All findings entered automatic repair; this SHA was not integrated.

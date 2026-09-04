@@ -53,6 +53,7 @@ struct AudioState {
     std::uint8_t step;
     std::uint8_t reclaimCycle;
     std::uint8_t pairCounterPendingNote;
+    std::uint8_t judgmentRow;
     AudioEncounter encounter;
     // Encounter context: A=cover count/identity, B=escrow/distribution,
     // C=panel motion/governance, D=records lost/memory, E=owned projectile
@@ -75,6 +76,7 @@ struct AudioState {
 // CROSS_TICKET_GLUE: the Win32 router records only observable runtime
 // transitions here.  The mixer remains independent of encounter internals.
 struct AudioRuntimeSnapshot {
+    std::uint32_t coreHitTick;
     std::uint16_t playerShell;
     std::uint16_t opponentShell;
     std::uint16_t coverMass;
@@ -90,6 +92,8 @@ struct AudioRuntimeSnapshot {
     std::uint8_t commit;
     std::uint8_t playerCoreHit;
     std::uint8_t opponentCoreHit;
+    std::uint8_t coreHitSide;
+    std::uint8_t coreHitValid;
     std::uint8_t duePulse;
     AudioEncounter encounter;
     std::uint8_t contextA;

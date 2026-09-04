@@ -113,6 +113,13 @@ void TestSynthAndSilentFallback() noexcept {
             "ONE releases every live voice over exact180ms");
     Check(bp::QueueAudioEvent(first,bp::AudioEvent::Tap),
         "ONE accepts but suppresses future events");
+    bp::AudioState delayedOne{};
+    bp::InitializeAudio(delayedOne,true);
+    Check(bp::QueueAudioEvent(delayedOne,bp::AudioEvent::Settlement),
+        "ONE delayed-voice fixture schedules settlement notes");
+    bp::SetAudioMixState(delayedOne,10,false,true,bp::AudioEnding::One);
+    Check(delayedOne.voices[1].active==0&&delayedOne.voices[2].active==0,
+        "ONE cancels not-yet-started notes so no new sound begins");
 }
 
 std::uint8_t ActiveVoices(const bp::AudioState& state) noexcept {
@@ -187,6 +194,15 @@ void TestEndingPoliciesAndRuntimeRouting() noexcept {
     bp::QueueRuntimeAudioTransitions(coreTransition,before,after,false);
     Check(ActiveVoices(coreTransition)==2,
         "Playing-to-HitFreeze transition queues both CORE_HIT voices");
+    bp::AudioState clearedCoreFlag{};
+    bp::InitializeAudio(clearedCoreFlag,true);
+    after=before;
+    after.coreHitValid=1;
+    after.coreHitTick=17;
+    after.coreHitSide=1;
+    bp::QueueRuntimeAudioTransitions(clearedCoreFlag,before,after,false);
+    Check(ActiveVoices(clearedCoreFlag)==2,
+        "combat settlement snapshot preserves CORE_HIT after encounter clears actor flag");
 
     bp::AudioState accumulated{};
     bp::InitializeAudio(accumulated,true);
@@ -225,6 +241,18 @@ void TestEndingPoliciesAndRuntimeRouting() noexcept {
     bp::RenderAudioFrames(buses,samples,4799);
     Check(buses.musicPauseGainQ15==8231&&buses.musicPauseRampFrames==0,
         "pause reaches exact additional minus12dB after 100ms");
+
+    bp::AudioState noise{};
+    bp::InitializeAudio(noise,true);
+    Check(bp::QueueAudioEvent(noise,bp::AudioEvent::CoverBreak),
+        "frequency-clocked noise fixture queues");
+    const std::uint32_t initialNoise=noise.voices[0].noiseState;
+    bp::RenderAudioFrames(noise,samples,10);
+    Check(noise.voices[0].noiseState==initialNoise,
+        "XORSHIFT noise holds its sample before phase wrap");
+    bp::RenderAudioFrames(noise,samples,20);
+    Check(noise.voices[0].noiseState!=initialNoise,
+        "XORSHIFT noise start-to-end frequency drives sample clock");
 }
 
 bp::AudioVoice FirstActive(const bp::AudioState& state) noexcept {
@@ -303,6 +331,101 @@ void TestEncounterModifiers() noexcept {
     ScheduleEncounter(precedent,bp::AudioEncounter::Precedent,2,0,0,0,0,2);
     Check(ActiveVoices(precedent)>=2,
         "PRECEDENT identity distribution governance and memory select mixer layers");
+
+    std::uint16_t profiles=0;
+    for (std::uint8_t identity=0;identity<3;++identity)
+        for (std::uint8_t distribution=0;distribution<3;++distribution)
+            for (std::uint8_t governance=0;governance<3;++governance)
+                for (std::uint8_t memory=0;memory<3;++memory) {
+                    bp::AudioState policy{};
+                    bp::InitializeAudio(policy,true);
+                    bp::AudioRuntimeSnapshot context{};
+                    context.valid=context.playing=1;
+                    context.route=4;
+                    context.encounter=bp::AudioEncounter::Precedent;
+                    context.contextA=identity;
+                    context.contextB=distribution;
+                    context.contextC=governance;
+                    context.contextD=memory;
+                    context.contextE=2;
+                    context.contextF=2;
+                    context.contextG=governance==2u?3u:0u;
+                    context.echoMotif[0]=0;
+                    context.echoMotif[1]=4;
+                    context.echoMotif[2]=7;
+                    bp::QueueRuntimeAudioTransitions(policy,context,context,false);
+                    policy.step=2;
+                    policy.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+                    std::int16_t sample[2]{};
+                    bp::RenderAudioFrames(policy,sample,1);
+                    Check(ActiveVoices(policy)>0&&policy.contextA==identity
+                        &&policy.contextB==distribution&&policy.contextC==governance
+                        &&policy.contextD==memory,
+                        "PRECEDENT audio context covers one of 81 policy profiles");
+                    ++profiles;
+                }
+    Check(profiles==81,"PRECEDENT audio checks all 81 policy profiles");
+
+    bp::AudioState commonsPlayer{};
+    bp::InitializeAudio(commonsPlayer,true);
+    bp::AudioRuntimeSnapshot commons{};
+    commons.valid=commons.playing=1;
+    commons.route=4;
+    commons.encounter=bp::AudioEncounter::Precedent;
+    commons.contextC=2;
+    commons.contextG=3;
+    bp::QueueRuntimeAudioTransitions(commonsPlayer,commons,commons,false);
+    commonsPlayer.step=2;
+    commonsPlayer.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    std::int16_t commonsSample[2]{};
+    bp::RenderAudioFrames(commonsPlayer,commonsSample,1);
+    bool playerLeft=false;
+    bool opponentRight=false;
+    for (const bp::AudioVoice& voice:commonsPlayer.voices) {
+        playerLeft=playerLeft||(voice.active!=0&&voice.panQ15<0);
+        opponentRight=opponentRight||(voice.active!=0&&voice.panQ15>0);
+    }
+    Check(!playerLeft&&opponentRight,
+        "COMMONS moves actual PLAYER-majority TAP channel to center only");
+
+    bp::AudioState commonsOpponent{};
+    bp::InitializeAudio(commonsOpponent,true);
+    commons.contextG=5;
+    bp::QueueRuntimeAudioTransitions(commonsOpponent,commons,commons,false);
+    commonsOpponent.step=2;
+    commonsOpponent.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    bp::RenderAudioFrames(commonsOpponent,commonsSample,1);
+    playerLeft=false;
+    opponentRight=false;
+    for (const bp::AudioVoice& voice:commonsOpponent.voices) {
+        playerLeft=playerLeft||(voice.active!=0&&voice.panQ15<0);
+        opponentRight=opponentRight||(voice.active!=0&&voice.panQ15>0);
+    }
+    Check(playerLeft&&!opponentRight,
+        "COMMONS moves actual OPPONENT-majority CLAIM channel to center only");
+
+    bp::AudioState judgment{};
+    bp::InitializeAudio(judgment,true);
+    bp::AudioRuntimeSnapshot judgmentContext{};
+    judgmentContext.valid=judgmentContext.playing=1;
+    judgmentContext.route=4;
+    judgmentContext.encounter=bp::AudioEncounter::Precedent;
+    judgmentContext.contextC=1;
+    bp::QueueRuntimeAudioTransitions(judgment,judgmentContext,judgmentContext,false);
+    judgment.step=0;
+    judgment.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    bp::RenderAudioFrames(judgment,commonsSample,1);
+    judgment.contextG=3;
+    judgment.step=1;
+    judgment.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    bp::RenderAudioFrames(judgment,commonsSample,1);
+    Check(judgment.judgmentRow==0,
+        "JUDGMENT retains chosen row inside a four-step group");
+    judgment.step=4;
+    judgment.stepAccumulator=bp::kAudioStepNumerator-bp::kAudioStepDenominator;
+    bp::RenderAudioFrames(judgment,commonsSample,1);
+    Check(judgment.judgmentRow==3,
+        "JUDGMENT selects the recent-action row only every four steps");
 }
 
 struct Runner {
