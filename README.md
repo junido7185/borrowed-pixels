@@ -1,6 +1,6 @@
 # BORROWED PIXELS
 
-**게임 엔진 없이 C++20과 Win32 API만으로 만든 2D 액션 게임**입니다. 1.44MB 게임개발 공모전(2026.08~09)에 개인 출품했습니다.
+**게임 엔진 없이 C++20과 Win32 API만으로 만든 2D 액션 게임**입니다. 1.44MB 게임개발 공모전(2026.08 ~ 2026.09)에 개인 출품했습니다.
 
 세계의 TILE은 정확히 1,440개입니다. 전투에서는 자기 몸을 이루는 TILE을 떼어 충전·발사하고, 부딪혀 흩어진 TILE을 회수해 다시 씁니다. 만남이 끝나면 TILE의 소유권이 세 가지 결산안 중 하나로 다시 나뉘며(총 9회), 앞선 결산이 마지막에 열리는 엔딩(5개 중)을 좌우합니다.
 
@@ -16,7 +16,7 @@
 - **제작:** [@junido7185](https://github.com/junido7185). 설계·명세·검증을 주도하고 구현에는 AI 코딩 에이전트(Codex)를 사용했습니다.
 - **기술:** C++20, Win32/GDI, waveOut, CMake + MSVC. 이미지·폰트·음원 파일 없이 290,304 B 실행 파일 하나로 동작합니다.
 
-> 위 GIF는 포트폴리오 정리 중(2026-10-13) Claude Code로 만든 것으로, 실제 게임 로직과 렌더러(`src/`)를 창 없이 구동한 프레임입니다. Win32 창·입력 계층(`bp_win32.cpp`) 대신 [`tools/portfolio/headless_capture.cpp`](tools/portfolio/headless_capture.cpp)가 같은 `Tick*/Render*` 함수를 60Hz로 호출하고, 입력은 상대를 조준해 일정 간격으로 쏘는 스크립트 봇이 넣습니다. 같은 명령으로 다시 실행하면 같은 프레임(PPM)이 재생성됩니다. GIF 변환([`make_gifs.py`](tools/portfolio/make_gifs.py))은 Pillow 팔레트에 따라 바이트가 달라질 수 있습니다.
+> 위 GIF는 포트폴리오 정리 중(2026-10-13) Claude Code로 실제 게임 로직·렌더러를 창 없이 구동해 만든 프레임입니다(방법은 [검증](#검증)).
 
 ## 숫자로 보는 프로젝트
 
@@ -73,6 +73,8 @@ ledger = candidate;
 - 저장 파일은 96바이트 고정 형식에 FNV-1a 체크섬을 붙이고, 임시 파일을 `FILE_FLAG_WRITE_THROUGH`로 쓴 뒤 `ReplaceFileW`로 교체해 저장 중 종료돼도 기존 파일이 깨지지 않습니다([`src/bp_save.cpp`](src/bp_save.cpp), `bp_win32.cpp`).
 
 ## 검증
+
+README의 GIF는 포트폴리오 정리 중(2026-10-13) Claude Code로 만든 것으로, 실제 게임 로직과 렌더러(`src/`)를 창 없이 구동한 프레임입니다. Win32 창·입력 계층(`bp_win32.cpp`) 대신 [`tools/portfolio/headless_capture.cpp`](tools/portfolio/headless_capture.cpp)가 같은 `Tick*/Render*` 함수를 60Hz로 호출하고, 입력은 상대를 조준해 일정 간격으로 쏘는 스크립트 봇이 넣습니다. 같은 명령으로 다시 실행하면 같은 프레임(PPM)이 재생성됩니다. GIF 변환([`make_gifs.py`](tools/portfolio/make_gifs.py))은 Pillow 팔레트에 따라 바이트가 달라질 수 있습니다.
 
 - **원 개발 환경:** Windows x64, MSVC. 빌드·자동 테스트·배포 폴더 검증과 실제 창 실행 캡처를 [`tools/verify_rc.ps1`](tools/verify_rc.ps1)로 수행했습니다([`docs/evidence/T14/`](docs/evidence/T14/)).
 - **GCC 재실행 (2026-10-13):** 포트폴리오 정리 중 Claude Code로 Linux GCC 13.3에서 `src/`(Win32 계층 제외)와 `tests/`를 빌드해 실행했습니다. 4,096틱 골든 리플레이 해시(`0x61646592`)가 GCC 빌드에서도 일치했고, 13개 스위트의 검사 횟수도 MSVC 기록과 모두 같았습니다([`docs/evidence/portfolio/gcc-linux-test-results.txt`](docs/evidence/portfolio/gcc-linux-test-results.txt)). 테스트 파일 하나가 MSVC 전용 CRT 함수(`fopen_s`, `_dupenv_s`)를 써서 호환 헤더 [`tools/portfolio/msvc_shim.h`](tools/portfolio/msvc_shim.h)를 붙였습니다. 다시 실행하는 방법은 다음과 같습니다.
