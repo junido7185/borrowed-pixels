@@ -1,0 +1,70 @@
+name: Build and verify
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      exercise_failure:
+        description: 'Intentionally fail the distribution size gate (no artifact)'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  linux-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Compile and run portable game tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/ci
+          g++ --version
+          mapfile -t sources < <(find src -maxdepth 1 -name '*.cpp' ! -name bp_win32.cpp | sort)
+          g++ -std=c++20 -O2 -include tools/portfolio/msvc_shim.h -DBP_TEST=1 -DBP_ENABLE_ASSERTS=1 -Isrc tests/*.cpp "${sources[@]}" -o build/ci/bp_test
+          env -u BP_T03_EVIDENCE_DIR ./build/ci/bp_test | tee build/ci/linux-tests.log
+          test "$(grep -cE '^T[0-9]+[A-Z]?_PASS[[:space:]]' build/ci/linux-tests.log)" -eq 13
+          grep -E '^T04_INFO[[:space:]]+replay=61646592[[:space:]]+ticks=4096$' build/ci/linux-tests.log
+  windows-release:
+    needs: linux-core
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Verify specification and configure
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_authority.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --preset windows-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build and test
+        shell: pwsh
+        run: |
+          Remove-Item Env:BP_T03_EVIDENCE_DIR -ErrorAction SilentlyContinue
+          cmake --build --preset test --clean-first
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --preset all --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\build\windows-msvc\bin\TEST\bp_test.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build contest executable
+        run: cmake --build --preset contest --clean-first
+      - name: Stage distribution and verify
+        shell: pwsh
+        env:
+          EXERCISE_FAILURE: ${{ inputs.exercise_failure || false }}
+        run: |
+          $cap = if ($env:EXERCISE_FAILURE -eq 'true') { 1 } else { 1350000 }
+          & ./tools/stage_ci_dist.ps1 -InternalCap $cap
+      - name: Upload verified files and hash
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: borrowed-pixels-${{ github.sha }}
+          path: |
+            build/ci/dist/
+            build/ci/sha256.txt
+          if-no-files-found: error
+          retention-days: 14
