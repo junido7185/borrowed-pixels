@@ -59,7 +59,7 @@ jobs:
         env:
           EXERCISE_FAILURE: ${{ inputs.exercise_failure || false }}
         run: |
-          $cap = if ($env:EXERCISE_FAILURE -eq 'true') { 1 } else { 1 }
+          $cap = if ($env:EXERCISE_FAILURE -eq 'true') { 1 } else { 1350000 }
           & ./tools/stage_ci_dist.ps1 -InternalCap $cap
       - name: Upload verified files and hash
         uses: actions/upload-artifact@v7.0.2
