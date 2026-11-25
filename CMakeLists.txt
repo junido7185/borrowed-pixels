@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
+set(CMAKE_CONFIGURATION_TYPES "Debug;Test;Contest" CACHE STRING "Supported configurations" FORCE)
 project(BorrowedPixels VERSION 2.1 LANGUAGES CXX)
 
 if(NOT WIN32 OR NOT MSVC)
@@ -10,7 +11,6 @@ if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
   message(FATAL_ERROR "BORROWED PIXELS v2.1 requires an x64 generator.")
 endif()
 
-set(CMAKE_CONFIGURATION_TYPES "Debug;Test;Contest" CACHE STRING "Supported configurations" FORCE)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

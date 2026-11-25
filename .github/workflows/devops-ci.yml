@@ -38,6 +38,8 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify_authority.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --preset windows-msvc
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build and test
